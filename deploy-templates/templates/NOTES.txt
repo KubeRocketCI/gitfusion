@@ -1,0 +1,1 @@
+1. Application gitfusion has been successfully deployed!!
