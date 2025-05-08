@@ -25,9 +25,9 @@ A Helm chart for Kubernetes
 | autoscaling.maxReplicas | int | `100` |  |
 | autoscaling.minReplicas | int | `1` |  |
 | autoscaling.targetCPUUtilizationPercentage | int | `80` |  |
-| fullnameOverride | string | `""` |  |
+| fullnameOverride | string | `"gitfusion"` |  |
 | image.pullPolicy | string | `"IfNotPresent"` |  |
-| image.repository | string | `"gitfusion"` |  |
+| image.repository | string | `"epamedp/gitfusion"` |  |
 | image.tag | string | `""` | Overrides the image tag whose default is the chart appVersion. |
 | imagePullSecrets[0].name | string | `"regcred"` |  |
 | ingress.annotations | object | `{}` |  |
@@ -39,7 +39,7 @@ A Helm chart for Kubernetes
 | ingress.hosts[0].paths[0].pathType | string | `"ImplementationSpecific"` |  |
 | ingress.tls | list | `[]` |  |
 | livenessProbe.tcpSocket.port | string | `"http"` |  |
-| nameOverride | string | `""` |  |
+| nameOverride | string | `"gitfusion"` |  |
 | nodeSelector | object | `{}` | https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#nodeselector |
 | podAnnotations | object | `{}` |  |
 | podLabels | object | `{}` |  |

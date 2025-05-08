@@ -1,0 +1,200 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: GitFusion API server
+paths:
+  /api/v1/providers/github/{git-server}/{org}/repositories:
+    get:
+      summary: List organization repositories
+      operationId: listGitHubRepositories
+      tags:
+        - Repositories
+      parameters:
+        - name: git-server
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: org
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: '#/components/parameters/PaginationParameters'
+      responses:
+        '200':
+          description: A list of repositories
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RepositoriesResponse'
+        '400':
+          description: Something went wrong with the request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/providers/github/{git-server}/repositories/{owner}/{repo}:
+    get:
+      summary: Get detailed information for a specific GitHub repository
+      operationId: getGitHubRepository
+      tags:
+        - Repositories
+      parameters:
+        - name: owner
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: repo
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: git-server
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Detailed information about a repository
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Repository'
+        '404':
+          description: Git server not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '400':
+          description: Something went wrong with the request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  parameters:
+    PaginationParameters:
+      name: pagination
+      in: query
+      description: Pagination parameters
+      schema:
+        type: object
+        properties:
+          page:
+            type: integer
+            description: The page number for pagination
+          per_page:
+            type: integer
+            description: The number of items per page for pagination
+  schemas:
+    Owner:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        avatar_url:
+          type: string
+      required:
+        - id
+        - name
+    Repository:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        url:
+          type: string
+        owner:
+          type: string
+        visibility:
+          type: string
+          enum: [public, private]
+        default_branch:
+          type: string
+      required:
+        - id
+        - nam
+    Pagination:
+      type: object
+      properties:
+        total:
+          type: integer
+        page:
+          type: integer
+        per_page:
+          type: integer
+        next_page:
+          type: integer
+      required:
+        - total
+        - page
+        - per_page
+        - next_page
+    RepositoryDetails:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        url:
+          type: string
+        ssh_url:
+          type: string
+        http_url:
+          type: string
+        owner:
+          $ref: '#/components/schemas/Owner'
+        visibility:
+          type: string
+          enum: [public, private]
+        created_at:
+          type: string
+          format: date-time
+        default_branch:
+          type: string
+        forks_count:
+          type: integer
+        stars_count:
+          type: integer
+      required:
+        - id
+        - name
+    RepositoriesResponse:
+      type: object
+      properties:
+        repositories:
+          type: array
+          items:
+            $ref: '#/components/schemas/Repository'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+      required:
+        - repositories
+        - pagination
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+          description: A short error code representing the type of error
+        message:
+          type: string
+          description: A human-readable message providing more details about the error
+      required:
+        - code
+        - message

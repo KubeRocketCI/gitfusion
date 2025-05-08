@@ -1,0 +1,11 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/oapi-codegen/oapi-codegen/HEAD/configuration-schema.json
+package: api
+generate:
+  chi-server : true
+  strict-server: true
+output: internal/api/server_gen.go
+output-options:
+  skip-prune: true
+additional-imports:
+  - alias: .
+    package: github.com/KubeRocketCI/gitfusion/internal/models

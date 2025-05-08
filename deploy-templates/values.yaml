@@ -5,7 +5,7 @@
 replicaCount: 1
 
 image:
-  repository: gitfusion
+  repository: epamedp/gitfusion
   pullPolicy: IfNotPresent
   # -- Overrides the image tag whose default is the chart appVersion.
   tag: ""
@@ -13,8 +13,8 @@ image:
 imagePullSecrets:
 # Define secret to pull images. Secret can be provisioned by edp-install or manually.
   - name: regcred
-nameOverride: ""
-fullnameOverride: ""
+nameOverride: "gitfusion"
+fullnameOverride: "gitfusion"
 
 serviceAccount:
   # -- Specifies whether a service account should be created
