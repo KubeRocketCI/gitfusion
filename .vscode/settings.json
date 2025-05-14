@@ -1,0 +1,11 @@
+{
+  "chat.promptFiles": true,
+  "chat.promptFilesLocations": [".github/prompts"],
+  "chat.instructionsFilesLocations": [".github/instructions"],
+  "github.copilot.chat.codeGeneration.useInstructionFiles": true,
+  "github.copilot.chat.pullRequestDescriptionGeneration.instructions": [
+    {
+      "file": ".github/instructions/pr-generation.instructions.md"
+    }
+  ]
+}

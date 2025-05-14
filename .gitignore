@@ -9,7 +9,7 @@
 *.dylib
 /bin
 /dist
-.vscode
+# .vscode
 
 # Test binary, built with `go test -c`
 *.test
