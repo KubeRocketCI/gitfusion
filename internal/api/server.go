@@ -1,6 +1,8 @@
 package api
 
 import (
+	"context"
+
 	"github.com/KubeRocketCI/gitfusion/internal/services"
 	codebaseApi "github.com/epam/edp-codebase-operator/v2/api/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -12,14 +14,53 @@ import (
 
 var _ StrictServerInterface = (*Server)(nil)
 
+// Server is the main server struct that implements the StrictServerInterface.
 type Server struct {
-	repositoriesService *services.RepositoriesService
+	gitHubRepositoryHandler *GitHubRepositoryHandler
+	gitlabRepositoryHandler *GitlabRepositoryHandler
 }
 
-func NewServer(repositoriesService *services.RepositoriesService) *Server {
+// NewServer creates a new Server instance.
+func NewServer(
+	gitHubRepositoryHandler *GitHubRepositoryHandler,
+	gitlabRepositoryHandler *GitlabRepositoryHandler,
+) *Server {
 	return &Server{
-		repositoriesService: repositoriesService,
+		gitHubRepositoryHandler: gitHubRepositoryHandler,
+		gitlabRepositoryHandler: gitlabRepositoryHandler,
 	}
+}
+
+// GetGitlabRepository implements StrictServerInterface.
+func (r *Server) GetGitlabRepository(
+	ctx context.Context,
+	request GetGitlabRepositoryRequestObject,
+) (GetGitlabRepositoryResponseObject, error) {
+	return r.gitlabRepositoryHandler.GetGitlabRepository(ctx, request)
+}
+
+// ListGitlabRepositories implements StrictServerInterface.
+func (r *Server) ListGitlabRepositories(
+	ctx context.Context,
+	request ListGitlabRepositoriesRequestObject,
+) (ListGitlabRepositoriesResponseObject, error) {
+	return r.gitlabRepositoryHandler.ListGitlabRepositories(ctx, request)
+}
+
+// GetGitHubRepository implements StrictServerInterface.
+func (r *Server) GetGitHubRepository(
+	ctx context.Context,
+	request GetGitHubRepositoryRequestObject,
+) (GetGitHubRepositoryResponseObject, error) {
+	return r.gitHubRepositoryHandler.GetGitHubRepository(ctx, request)
+}
+
+// ListGitHubRepositories implements StrictServerInterface.
+func (r *Server) ListGitHubRepositories(
+	ctx context.Context,
+	request ListGitHubRepositoriesRequestObject,
+) (ListGitHubRepositoriesResponseObject, error) {
+	return r.gitHubRepositoryHandler.ListGitHubRepositories(ctx, request)
 }
 
 func BuildHandler(conf Config) (ServerInterface, error) {
@@ -32,9 +73,17 @@ func BuildHandler(conf Config) (ServerInterface, error) {
 
 	return NewStrictHandlerWithOptions(
 		NewServer(
-			services.NewRepositoriesService(
-				services.NewGitHubService(),
-				gitServerService,
+			NewGitHubRepositoryHandler(
+				services.NewRepositoriesService(
+					services.NewGitHubService(),
+					gitServerService,
+				),
+			),
+			NewGitlabRepositoryHandler(
+				services.NewRepositoriesService(
+					services.NewGitlabService(),
+					gitServerService,
+				),
 			),
 		),
 		[]StrictMiddlewareFunc{},

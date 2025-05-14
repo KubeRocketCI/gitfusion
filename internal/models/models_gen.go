@@ -54,7 +54,7 @@ type Repository struct {
 	DefaultBranch *string               `json:"default_branch,omitempty"`
 	Description   *string               `json:"description,omitempty"`
 	Id            string                `json:"id"`
-	Name          *string               `json:"name,omitempty"`
+	Name          string                `json:"name"`
 	Owner         *string               `json:"owner,omitempty"`
 	Url           *string               `json:"url,omitempty"`
 	Visibility    *RepositoryVisibility `json:"visibility,omitempty"`
@@ -82,17 +82,38 @@ type RepositoryDetails struct {
 // RepositoryDetailsVisibility defines model for RepositoryDetails.Visibility.
 type RepositoryDetailsVisibility string
 
-// PaginationParameters defines model for PaginationParameters.
-type PaginationParameters struct {
-	// Page The page number for pagination
-	Page *int `json:"page,omitempty"`
+// GitServerParam defines model for gitServerParam.
+type GitServerParam = string
 
-	// PerPage The number of items per page for pagination
-	PerPage *int `json:"per_page,omitempty"`
-}
+// OrgParam defines model for orgParam.
+type OrgParam = string
+
+// OwnerParam defines model for ownerParam.
+type OwnerParam = string
+
+// PageParam defines model for pageParam.
+type PageParam = int
+
+// PerPageParam defines model for perPageParam.
+type PerPageParam = int
+
+// RepoParam defines model for repoParam.
+type RepoParam = string
 
 // ListGitHubRepositoriesParams defines parameters for ListGitHubRepositories.
 type ListGitHubRepositoriesParams struct {
-	// Pagination Pagination parameters
-	Pagination *PaginationParameters `form:"pagination,omitempty" json:"pagination,omitempty"`
+	// Page The page number for pagination.
+	Page *PageParam `form:"page,omitempty" json:"page,omitempty"`
+
+	// PerPage The number of items per page for pagination.
+	PerPage *PerPageParam `form:"per_page,omitempty" json:"per_page,omitempty"`
+}
+
+// ListGitlabRepositoriesParams defines parameters for ListGitlabRepositories.
+type ListGitlabRepositoriesParams struct {
+	// Page The page number for pagination.
+	Page *PageParam `form:"page,omitempty" json:"page,omitempty"`
+
+	// PerPage The number of items per page for pagination.
+	PerPage *PerPageParam `form:"per_page,omitempty" json:"per_page,omitempty"`
 }

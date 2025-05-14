@@ -18,8 +18,12 @@ func NewGitHubService() *GitHubService {
 	return &GitHubService{}
 }
 
-func (g *GitHubService) GetRepository(ctx context.Context, token, owner, repo string) (*models.Repository, error) {
-	client := github.NewClient(nil).WithAuthToken(token)
+func (g *GitHubService) GetRepository(
+	ctx context.Context,
+	owner, repo string,
+	settings GitProviderSettings,
+) (*models.Repository, error) {
+	client := github.NewClient(nil).WithAuthToken(settings.Token)
 
 	repository, _, err := client.Repositories.Get(ctx, owner, repo)
 	if err != nil {
@@ -43,10 +47,11 @@ type ListOptions struct {
 
 func (g *GitHubService) ListOrganizationsRepositories(
 	ctx context.Context,
-	token, org string,
+	org string,
+	settings GitProviderSettings,
 	listOptions ListOptions,
 ) ([]models.Repository, error) {
-	client := github.NewClient(nil).WithAuthToken(token)
+	client := github.NewClient(nil).WithAuthToken(settings.Token)
 
 	opt := newRepositoryListByOrgOptions(listOptions)
 
@@ -95,7 +100,7 @@ func convertGitHubRepoToRepository(repo *github.Repository) *models.Repository {
 		DefaultBranch: repo.DefaultBranch,
 		Description:   repo.Description,
 		Id:            strconv.FormatInt(repo.GetID(), 10),
-		Name:          repo.Name,
+		Name:          *repo.Name,
 		Owner:         repo.Owner.Login,
 		Url:           repo.HTMLURL,
 		Visibility:    convertVisibility(repo.GetPrivate()),
