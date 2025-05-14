@@ -9,13 +9,20 @@ import (
 type Repositories interface {
 	GetRepository(
 		ctx context.Context,
-		token, owner, repo string,
+		owner, repo string,
+		settings GitProviderSettings,
 	) (*models.Repository, error)
 	ListOrganizationsRepositories(
 		ctx context.Context,
-		token, org string,
+		org string,
+		settings GitProviderSettings,
 		listOptions ListOptions,
 	) ([]models.Repository, error)
+}
+
+type GitProviderSettings struct {
+	Url   string
+	Token string
 }
 
 type RepositoriesService struct {
@@ -37,12 +44,12 @@ func (r *RepositoriesService) GetRepository(
 	ctx context.Context,
 	gitServerName, owner, repo string,
 ) (*models.Repository, error) {
-	token, err := r.gitServerService.GetGitProviderToken(ctx, gitServerName)
+	settings, err := r.gitServerService.GetGitProviderSettings(ctx, gitServerName)
 	if err != nil {
 		return nil, err
 	}
 
-	return r.gitRepositoriesService.GetRepository(ctx, token, owner, repo)
+	return r.gitRepositoriesService.GetRepository(ctx, owner, repo, settings)
 }
 
 func (r *RepositoriesService) ListOrganizationsRepositories(
@@ -50,10 +57,10 @@ func (r *RepositoriesService) ListOrganizationsRepositories(
 	gitServerName, org string,
 	listOptions ListOptions,
 ) ([]models.Repository, error) {
-	token, err := r.gitServerService.GetGitProviderToken(ctx, gitServerName)
+	settings, err := r.gitServerService.GetGitProviderSettings(ctx, gitServerName)
 	if err != nil {
 		return nil, err
 	}
 
-	return r.gitRepositoriesService.ListOrganizationsRepositories(ctx, token, org, listOptions)
+	return r.gitRepositoriesService.ListOrganizationsRepositories(ctx, org, settings, listOptions)
 }

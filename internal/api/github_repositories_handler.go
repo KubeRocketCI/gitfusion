@@ -9,8 +9,20 @@ import (
 	"github.com/KubeRocketCI/gitfusion/internal/services"
 )
 
+// GitHubRepositoryHandler handles requests related to GitHub repositories.
+type GitHubRepositoryHandler struct {
+	repositoriesService *services.RepositoriesService
+}
+
+// NewGitHubRepositoryHandler creates a new GitHubRepositoryHandler.
+func NewGitHubRepositoryHandler(repositoriesService *services.RepositoriesService) *GitHubRepositoryHandler {
+	return &GitHubRepositoryHandler{
+		repositoriesService: repositoriesService,
+	}
+}
+
 // GetGitHubRepository implements api.StrictServerInterface.
-func (r *Server) GetGitHubRepository(
+func (r *GitHubRepositoryHandler) GetGitHubRepository(
 	ctx context.Context,
 	request GetGitHubRepositoryRequestObject,
 ) (GetGitHubRepositoryResponseObject, error) {
@@ -23,7 +35,7 @@ func (r *Server) GetGitHubRepository(
 }
 
 // ListGitHubRepositories implements api.StrictServerInterface.
-func (r *Server) ListGitHubRepositories(
+func (r *GitHubRepositoryHandler) ListGitHubRepositories(
 	ctx context.Context,
 	request ListGitHubRepositoriesRequestObject,
 ) (ListGitHubRepositoriesResponseObject, error) {
@@ -31,7 +43,7 @@ func (r *Server) ListGitHubRepositories(
 		ctx,
 		request.GitServer,
 		request.Org,
-		getListOptions(request.Params.Pagination),
+		getListOptions(request.Params.Page, request.Params.PerPage),
 	)
 	if err != nil {
 		return ListGitHubRepositories400JSONResponse{
@@ -46,23 +58,7 @@ func (r *Server) ListGitHubRepositories(
 	}, nil
 }
 
-func getListOptions(pagination *models.PaginationParameters) services.ListOptions {
-	listOptions := services.ListOptions{}
-
-	if pagination != nil {
-		if pagination.PerPage != nil {
-			listOptions.PerPage = pagination.PerPage
-		}
-
-		if pagination.Page != nil {
-			listOptions.Page = pagination.Page
-		}
-	}
-
-	return listOptions
-}
-
-func (r *Server) errResponse(err error) GetGitHubRepositoryResponseObject {
+func (r *GitHubRepositoryHandler) errResponse(err error) GetGitHubRepositoryResponseObject {
 	if err == nil {
 		return GetGitHubRepository200JSONResponse{}
 	}
@@ -78,4 +74,18 @@ func (r *Server) errResponse(err error) GetGitHubRepositoryResponseObject {
 		Message: err.Error(),
 		Code:    "bad_request",
 	}
+}
+
+func getListOptions(page, perPage *int) services.ListOptions {
+	listOptions := services.ListOptions{}
+
+	if page != nil {
+		listOptions.Page = page
+	}
+
+	if perPage != nil {
+		listOptions.PerPage = perPage
+	}
+
+	return listOptions
 }

@@ -10,17 +10,76 @@ paths:
       tags:
         - Repositories
       parameters:
-        - name: git-server
-          in: path
-          required: true
-          schema:
-            type: string
-        - name: org
-          in: path
-          required: true
-          schema:
-            type: string
-        - $ref: '#/components/parameters/PaginationParameters'
+        - $ref: '#/components/parameters/gitServerParam'
+        - $ref: '#/components/parameters/orgParam'
+        - $ref: '#/components/parameters/pageParam'
+        - $ref: '#/components/parameters/perPageParam'
+      responses:
+        '200':
+          description: A list of repositories
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RepositoriesResponse'
+        '400':
+          description: Bad request due to invalid parameters or missing fields.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized access due to invalid credentials.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/providers/github/{git-server}/repositories/{owner}/{repo}:
+    get:
+      summary: Get detailed information for a specific GitHub repository
+      operationId: getGitHubRepository
+      tags:
+        - Repositories
+      parameters:
+        - $ref: '#/components/parameters/gitServerParam'
+        - $ref: '#/components/parameters/ownerParam'
+        - $ref: '#/components/parameters/repoParam'
+      responses:
+        '200':
+          description: Detailed information about a repository
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Repository'
+        '404':
+          description: Git server not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '400':
+          description: Something went wrong with the request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v1/providers/gitlab/{git-server}/{org}/repositories:
+    get:
+      summary: List organization repositories
+      operationId: listGitlabRepositories
+      tags:
+        - Repositories
+      parameters:
+        - $ref: '#/components/parameters/gitServerParam'
+        - $ref: '#/components/parameters/orgParam'
+        - $ref: '#/components/parameters/pageParam'
+        - $ref: '#/components/parameters/perPageParam'
       responses:
         '200':
           description: A list of repositories
@@ -35,28 +94,16 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /api/v1/providers/github/{git-server}/repositories/{owner}/{repo}:
+  /api/v1/providers/gitlab/{git-server}/repositories/{owner}/{repo}:
     get:
-      summary: Get detailed information for a specific GitHub repository
-      operationId: getGitHubRepository
+      summary: Get detailed information for a specific Gitlab repository
+      operationId: getGitlabRepository
       tags:
         - Repositories
       parameters:
-        - name: owner
-          in: path
-          required: true
-          schema:
-            type: string
-        - name: repo
-          in: path
-          required: true
-          schema:
-            type: string
-        - name: git-server
-          in: path
-          required: true
-          schema:
-            type: string
+        - $ref: '#/components/parameters/gitServerParam'
+        - $ref: '#/components/parameters/ownerParam'
+        - $ref: '#/components/parameters/repoParam'
       responses:
         '200':
           description: Detailed information about a repository
@@ -79,19 +126,48 @@ paths:
 
 components:
   parameters:
-    PaginationParameters:
-      name: pagination
+    pageParam:
+      name: page
       in: query
-      description: Pagination parameters
+      required: false
+      description: The page number for pagination.
       schema:
-        type: object
-        properties:
-          page:
-            type: integer
-            description: The page number for pagination
-          per_page:
-            type: integer
-            description: The number of items per page for pagination
+        type: integer
+    perPageParam:
+      name: per_page
+      in: query
+      required: false
+      description: The number of items per page for pagination.
+      schema:
+        type: integer
+    gitServerParam:
+      name: git-server
+      in: path
+      required: true
+      description: The Git server name.
+      schema:
+        type: string
+    orgParam:
+      name: org
+      in: path
+      required: true
+      description: The organization name in the Git server.
+      schema:
+        type: string
+    ownerParam:
+      name: owner
+      in: path
+      required: true
+      description: The owner of the repository.
+      schema:
+        type: string
+    repoParam:
+      name: repo
+      in: path
+      required: true
+      description: The name of the repository.
+      schema:
+        type: string
   schemas:
     Owner:
       type: object
@@ -125,7 +201,7 @@ components:
           type: string
       required:
         - id
-        - nam
+        - name
     Pagination:
       type: object
       properties:

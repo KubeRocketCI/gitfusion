@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	codebaseApi "github.com/epam/edp-codebase-operator/v2/api/v1"
+	gitprovider "github.com/epam/edp-codebase-operator/v2/pkg/gitprovider"
 	codebaseUtil "github.com/epam/edp-codebase-operator/v2/pkg/util"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -22,14 +23,17 @@ func NewGitServerService(k8sClinet client.Client, namespace string) *GitServerSe
 	}
 }
 
-func (g *GitServerService) GetGitProviderToken(ctx context.Context, gitServerName string) (string, error) {
+func (g *GitServerService) GetGitProviderSettings(
+	ctx context.Context,
+	gitServerName string,
+) (GitProviderSettings, error) {
 	gitServer := &codebaseApi.GitServer{}
 	if err := g.k8sClinet.Get(
 		ctx,
 		client.ObjectKey{Name: gitServerName, Namespace: g.namespace},
 		gitServer,
 	); err != nil {
-		return "", err
+		return GitProviderSettings{}, err
 	}
 
 	secret := &corev1.Secret{}
@@ -38,14 +42,17 @@ func (g *GitServerService) GetGitProviderToken(ctx context.Context, gitServerNam
 		client.ObjectKey{Name: gitServer.Spec.NameSshKeySecret, Namespace: g.namespace},
 		secret,
 	); err != nil {
-		return "", err
+		return GitProviderSettings{}, err
 	}
 
 	token := string(secret.Data[codebaseUtil.GitServerSecretTokenField])
 
 	if token == "" {
-		return "", errors.New("git provider token is empty")
+		return GitProviderSettings{}, errors.New("git provider token is empty")
 	}
 
-	return token, nil
+	return GitProviderSettings{
+		Url:   gitprovider.GetGitProviderAPIURL(gitServer),
+		Token: token,
+	}, nil
 }
