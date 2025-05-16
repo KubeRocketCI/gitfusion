@@ -43,7 +43,7 @@ func (g *GitlabService) GetRepository(
 	return convertGitlabRepoToRepository(repository), nil
 }
 
-func (g *GitlabService) ListOrganizationsRepositories(
+func (g *GitlabService) ListRepositories(
 	ctx context.Context,
 	org string,
 	settings GitProviderSettings,
