@@ -17,6 +17,12 @@ import (
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// Get detailed information for a specific Bitbucket repository
+	// (GET /api/v1/providers/bitbucket/{git-server}/repositories/{owner}/{repo})
+	GetBitbucketRepository(w http.ResponseWriter, r *http.Request, gitServer GitServerParam, owner OwnerParam, repo RepoParam)
+	// List repositories
+	// (GET /api/v1/providers/bitbucket/{git-server}/{org}/repositories)
+	ListBitbucketRepositories(w http.ResponseWriter, r *http.Request, gitServer GitServerParam, org OrgParam, params ListBitbucketRepositoriesParams)
 	// Get detailed information for a specific GitHub repository
 	// (GET /api/v1/providers/github/{git-server}/repositories/{owner}/{repo})
 	GetGitHubRepository(w http.ResponseWriter, r *http.Request, gitServer GitServerParam, owner OwnerParam, repo RepoParam)
@@ -34,6 +40,18 @@ type ServerInterface interface {
 // Unimplemented server implementation that returns http.StatusNotImplemented for each endpoint.
 
 type Unimplemented struct{}
+
+// Get detailed information for a specific Bitbucket repository
+// (GET /api/v1/providers/bitbucket/{git-server}/repositories/{owner}/{repo})
+func (_ Unimplemented) GetBitbucketRepository(w http.ResponseWriter, r *http.Request, gitServer GitServerParam, owner OwnerParam, repo RepoParam) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// List repositories
+// (GET /api/v1/providers/bitbucket/{git-server}/{org}/repositories)
+func (_ Unimplemented) ListBitbucketRepositories(w http.ResponseWriter, r *http.Request, gitServer GitServerParam, org OrgParam, params ListBitbucketRepositoriesParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
 
 // Get detailed information for a specific GitHub repository
 // (GET /api/v1/providers/github/{git-server}/repositories/{owner}/{repo})
@@ -67,6 +85,102 @@ type ServerInterfaceWrapper struct {
 }
 
 type MiddlewareFunc func(http.Handler) http.Handler
+
+// GetBitbucketRepository operation middleware
+func (siw *ServerInterfaceWrapper) GetBitbucketRepository(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "git-server" -------------
+	var gitServer GitServerParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "git-server", chi.URLParam(r, "git-server"), &gitServer, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "git-server", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "owner" -------------
+	var owner OwnerParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "owner", chi.URLParam(r, "owner"), &owner, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "owner", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "repo" -------------
+	var repo RepoParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "repo", chi.URLParam(r, "repo"), &repo, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "repo", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetBitbucketRepository(w, r, gitServer, owner, repo)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListBitbucketRepositories operation middleware
+func (siw *ServerInterfaceWrapper) ListBitbucketRepositories(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "git-server" -------------
+	var gitServer GitServerParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "git-server", chi.URLParam(r, "git-server"), &gitServer, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "git-server", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "org" -------------
+	var org OrgParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "org", chi.URLParam(r, "org"), &org, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "org", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListBitbucketRepositoriesParams
+
+	// ------------- Optional query parameter "page" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "page", r.URL.Query(), &params.Page)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "page", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "per_page" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "per_page", r.URL.Query(), &params.PerPage)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "per_page", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListBitbucketRepositories(w, r, gitServer, org, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
 
 // GetGitHubRepository operation middleware
 func (siw *ServerInterfaceWrapper) GetGitHubRepository(w http.ResponseWriter, r *http.Request) {
@@ -374,6 +488,12 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	}
 
 	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/api/v1/providers/bitbucket/{git-server}/repositories/{owner}/{repo}", wrapper.GetBitbucketRepository)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/api/v1/providers/bitbucket/{git-server}/{org}/repositories", wrapper.ListBitbucketRepositories)
+	})
+	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/api/v1/providers/github/{git-server}/repositories/{owner}/{repo}", wrapper.GetGitHubRepository)
 	})
 	r.Group(func(r chi.Router) {
@@ -387,6 +507,89 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 
 	return r
+}
+
+type GetBitbucketRepositoryRequestObject struct {
+	GitServer GitServerParam `json:"git-server"`
+	Owner     OwnerParam     `json:"owner"`
+	Repo      RepoParam      `json:"repo"`
+}
+
+type GetBitbucketRepositoryResponseObject interface {
+	VisitGetBitbucketRepositoryResponse(w http.ResponseWriter) error
+}
+
+type GetBitbucketRepository200JSONResponse Repository
+
+func (response GetBitbucketRepository200JSONResponse) VisitGetBitbucketRepositoryResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetBitbucketRepository400JSONResponse Error
+
+func (response GetBitbucketRepository400JSONResponse) VisitGetBitbucketRepositoryResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetBitbucketRepository404JSONResponse Error
+
+func (response GetBitbucketRepository404JSONResponse) VisitGetBitbucketRepositoryResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListBitbucketRepositoriesRequestObject struct {
+	GitServer GitServerParam `json:"git-server"`
+	Org       OrgParam       `json:"org"`
+	Params    ListBitbucketRepositoriesParams
+}
+
+type ListBitbucketRepositoriesResponseObject interface {
+	VisitListBitbucketRepositoriesResponse(w http.ResponseWriter) error
+}
+
+type ListBitbucketRepositories200JSONResponse RepositoriesResponse
+
+func (response ListBitbucketRepositories200JSONResponse) VisitListBitbucketRepositoriesResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListBitbucketRepositories400JSONResponse Error
+
+func (response ListBitbucketRepositories400JSONResponse) VisitListBitbucketRepositoriesResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListBitbucketRepositories401JSONResponse Error
+
+func (response ListBitbucketRepositories401JSONResponse) VisitListBitbucketRepositoriesResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListBitbucketRepositories500JSONResponse Error
+
+func (response ListBitbucketRepositories500JSONResponse) VisitListBitbucketRepositoriesResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
 }
 
 type GetGitHubRepositoryRequestObject struct {
@@ -539,6 +742,12 @@ func (response ListGitlabRepositories400JSONResponse) VisitListGitlabRepositorie
 
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
+	// Get detailed information for a specific Bitbucket repository
+	// (GET /api/v1/providers/bitbucket/{git-server}/repositories/{owner}/{repo})
+	GetBitbucketRepository(ctx context.Context, request GetBitbucketRepositoryRequestObject) (GetBitbucketRepositoryResponseObject, error)
+	// List repositories
+	// (GET /api/v1/providers/bitbucket/{git-server}/{org}/repositories)
+	ListBitbucketRepositories(ctx context.Context, request ListBitbucketRepositoriesRequestObject) (ListBitbucketRepositoriesResponseObject, error)
 	// Get detailed information for a specific GitHub repository
 	// (GET /api/v1/providers/github/{git-server}/repositories/{owner}/{repo})
 	GetGitHubRepository(ctx context.Context, request GetGitHubRepositoryRequestObject) (GetGitHubRepositoryResponseObject, error)
@@ -580,6 +789,62 @@ type strictHandler struct {
 	ssi         StrictServerInterface
 	middlewares []StrictMiddlewareFunc
 	options     StrictHTTPServerOptions
+}
+
+// GetBitbucketRepository operation middleware
+func (sh *strictHandler) GetBitbucketRepository(w http.ResponseWriter, r *http.Request, gitServer GitServerParam, owner OwnerParam, repo RepoParam) {
+	var request GetBitbucketRepositoryRequestObject
+
+	request.GitServer = gitServer
+	request.Owner = owner
+	request.Repo = repo
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetBitbucketRepository(ctx, request.(GetBitbucketRepositoryRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetBitbucketRepository")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetBitbucketRepositoryResponseObject); ok {
+		if err := validResponse.VisitGetBitbucketRepositoryResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListBitbucketRepositories operation middleware
+func (sh *strictHandler) ListBitbucketRepositories(w http.ResponseWriter, r *http.Request, gitServer GitServerParam, org OrgParam, params ListBitbucketRepositoriesParams) {
+	var request ListBitbucketRepositoriesRequestObject
+
+	request.GitServer = gitServer
+	request.Org = org
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListBitbucketRepositories(ctx, request.(ListBitbucketRepositoriesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListBitbucketRepositories")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListBitbucketRepositoriesResponseObject); ok {
+		if err := validResponse.VisitListBitbucketRepositoriesResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
 }
 
 // GetGitHubRepository operation middleware

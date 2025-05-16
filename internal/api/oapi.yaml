@@ -71,7 +71,7 @@ paths:
                 $ref: '#/components/schemas/Error'
   /api/v1/providers/gitlab/{git-server}/{org}/repositories:
     get:
-      summary: List organization repositories
+      summary: List repositories
       operationId: listGitlabRepositories
       tags:
         - Repositories
@@ -98,6 +98,72 @@ paths:
     get:
       summary: Get detailed information for a specific Gitlab repository
       operationId: getGitlabRepository
+      tags:
+        - Repositories
+      parameters:
+        - $ref: '#/components/parameters/gitServerParam'
+        - $ref: '#/components/parameters/ownerParam'
+        - $ref: '#/components/parameters/repoParam'
+      responses:
+        '200':
+          description: Detailed information about a repository
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Repository'
+        '404':
+          description: Git server not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '400':
+          description: Something went wrong with the request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v1/providers/bitbucket/{git-server}/{org}/repositories:
+    get:
+      summary: List repositories
+      operationId: listBitbucketRepositories
+      tags:
+        - Repositories
+      parameters:
+        - $ref: '#/components/parameters/gitServerParam'
+        - $ref: '#/components/parameters/orgParam'
+        - $ref: '#/components/parameters/pageParam'
+        - $ref: '#/components/parameters/perPageParam'
+      responses:
+        '200':
+          description: A list of repositories
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RepositoriesResponse'
+        '400':
+          description: Bad request due to invalid parameters or missing fields.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized access due to invalid credentials.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/providers/bitbucket/{git-server}/repositories/{owner}/{repo}:
+    get:
+      summary: Get detailed information for a specific Bitbucket repository
+      operationId: getBitbucketRepository
       tags:
         - Repositories
       parameters:

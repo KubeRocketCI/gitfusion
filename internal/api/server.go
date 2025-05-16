@@ -16,19 +16,38 @@ var _ StrictServerInterface = (*Server)(nil)
 
 // Server is the main server struct that implements the StrictServerInterface.
 type Server struct {
-	gitHubRepositoryHandler *GitHubRepositoryHandler
-	gitlabRepositoryHandler *GitlabRepositoryHandler
+	gitHubRepositoryHandler    *GitHubRepositoryHandler
+	gitlabRepositoryHandler    *GitlabRepositoryHandler
+	bitbucketRepositoryHandler *BitbucketRepositoryHandler
 }
 
 // NewServer creates a new Server instance.
 func NewServer(
 	gitHubRepositoryHandler *GitHubRepositoryHandler,
 	gitlabRepositoryHandler *GitlabRepositoryHandler,
+	bitbucketRepositoryHandler *BitbucketRepositoryHandler,
 ) *Server {
 	return &Server{
-		gitHubRepositoryHandler: gitHubRepositoryHandler,
-		gitlabRepositoryHandler: gitlabRepositoryHandler,
+		gitHubRepositoryHandler:    gitHubRepositoryHandler,
+		gitlabRepositoryHandler:    gitlabRepositoryHandler,
+		bitbucketRepositoryHandler: bitbucketRepositoryHandler,
 	}
+}
+
+// GetBitbucketRepository implements StrictServerInterface.
+func (r *Server) GetBitbucketRepository(
+	ctx context.Context,
+	request GetBitbucketRepositoryRequestObject,
+) (GetBitbucketRepositoryResponseObject, error) {
+	return r.bitbucketRepositoryHandler.GetBitbucketRepository(ctx, request)
+}
+
+// ListBitbucketRepositories implements StrictServerInterface.
+func (r *Server) ListBitbucketRepositories(
+	ctx context.Context,
+	request ListBitbucketRepositoriesRequestObject,
+) (ListBitbucketRepositoriesResponseObject, error) {
+	return r.bitbucketRepositoryHandler.ListBitbucketRepositories(ctx, request)
 }
 
 // GetGitlabRepository implements StrictServerInterface.
@@ -82,6 +101,12 @@ func BuildHandler(conf Config) (ServerInterface, error) {
 			NewGitlabRepositoryHandler(
 				services.NewRepositoriesService(
 					services.NewGitlabService(),
+					gitServerService,
+				),
+			),
+			NewBitbucketRepositoryHandler(
+				services.NewRepositoriesService(
+					services.NewBitbucketService(),
 					gitServerService,
 				),
 			),

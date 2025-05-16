@@ -100,6 +100,15 @@ type PerPageParam = int
 // RepoParam defines model for repoParam.
 type RepoParam = string
 
+// ListBitbucketRepositoriesParams defines parameters for ListBitbucketRepositories.
+type ListBitbucketRepositoriesParams struct {
+	// Page The page number for pagination.
+	Page *PageParam `form:"page,omitempty" json:"page,omitempty"`
+
+	// PerPage The number of items per page for pagination.
+	PerPage *PerPageParam `form:"per_page,omitempty" json:"per_page,omitempty"`
+}
+
 // ListGitHubRepositoriesParams defines parameters for ListGitHubRepositories.
 type ListGitHubRepositoriesParams struct {
 	// Page The page number for pagination.

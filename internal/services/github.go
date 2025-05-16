@@ -45,7 +45,7 @@ type ListOptions struct {
 	Page    *int
 }
 
-func (g *GitHubService) ListOrganizationsRepositories(
+func (g *GitHubService) ListRepositories(
 	ctx context.Context,
 	org string,
 	settings GitProviderSettings,

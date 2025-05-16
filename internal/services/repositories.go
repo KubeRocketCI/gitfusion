@@ -12,7 +12,7 @@ type Repositories interface {
 		owner, repo string,
 		settings GitProviderSettings,
 	) (*models.Repository, error)
-	ListOrganizationsRepositories(
+	ListRepositories(
 		ctx context.Context,
 		org string,
 		settings GitProviderSettings,
@@ -62,5 +62,5 @@ func (r *RepositoriesService) ListOrganizationsRepositories(
 		return nil, err
 	}
 
-	return r.gitRepositoriesService.ListOrganizationsRepositories(ctx, org, settings, listOptions)
+	return r.gitRepositoriesService.ListRepositories(ctx, org, settings, listOptions)
 }
