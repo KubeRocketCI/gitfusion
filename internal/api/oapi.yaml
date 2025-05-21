@@ -3,7 +3,7 @@ info:
   version: 1.0.0
   title: GitFusion API server
 paths:
-  /api/v1/providers/github/{git-server}/{org}/repositories:
+  /api/v1/providers/github/{gitServer}/{owner}/repositories:
     get:
       summary: List organization repositories
       operationId: listGitHubRepositories
@@ -11,9 +11,8 @@ paths:
         - Repositories
       parameters:
         - $ref: '#/components/parameters/gitServerParam'
-        - $ref: '#/components/parameters/orgParam'
-        - $ref: '#/components/parameters/pageParam'
-        - $ref: '#/components/parameters/perPageParam'
+        - $ref: '#/components/parameters/repoOwnerParam'
+        - $ref: '#/components/parameters/repoNameQueryParam'
       responses:
         '200':
           description: A list of repositories
@@ -40,7 +39,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /api/v1/providers/github/{git-server}/repositories/{owner}/{repo}:
+  /api/v1/providers/github/{gitServer}/repositories/{owner}/{repo}:
     get:
       summary: Get detailed information for a specific GitHub repository
       operationId: getGitHubRepository
@@ -48,8 +47,8 @@ paths:
         - Repositories
       parameters:
         - $ref: '#/components/parameters/gitServerParam'
-        - $ref: '#/components/parameters/ownerParam'
-        - $ref: '#/components/parameters/repoParam'
+        - $ref: '#/components/parameters/repoOwnerParam'
+        - $ref: '#/components/parameters/repoNameParam'
       responses:
         '200':
           description: Detailed information about a repository
@@ -69,7 +68,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-  /api/v1/providers/gitlab/{git-server}/{org}/repositories:
+  /api/v1/providers/gitlab/{gitServer}/{owner}/repositories:
     get:
       summary: List repositories
       operationId: listGitlabRepositories
@@ -77,9 +76,8 @@ paths:
         - Repositories
       parameters:
         - $ref: '#/components/parameters/gitServerParam'
-        - $ref: '#/components/parameters/orgParam'
-        - $ref: '#/components/parameters/pageParam'
-        - $ref: '#/components/parameters/perPageParam'
+        - $ref: '#/components/parameters/repoOwnerParam'
+        - $ref: '#/components/parameters/repoNameQueryParam'
       responses:
         '200':
           description: A list of repositories
@@ -94,7 +92,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /api/v1/providers/gitlab/{git-server}/repositories/{owner}/{repo}:
+  /api/v1/providers/gitlab/{gitServer}/repositories/{owner}/{repo}:
     get:
       summary: Get detailed information for a specific Gitlab repository
       operationId: getGitlabRepository
@@ -102,8 +100,8 @@ paths:
         - Repositories
       parameters:
         - $ref: '#/components/parameters/gitServerParam'
-        - $ref: '#/components/parameters/ownerParam'
-        - $ref: '#/components/parameters/repoParam'
+        - $ref: '#/components/parameters/repoOwnerParam'
+        - $ref: '#/components/parameters/repoNameParam'
       responses:
         '200':
           description: Detailed information about a repository
@@ -123,7 +121,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-  /api/v1/providers/bitbucket/{git-server}/{org}/repositories:
+  /api/v1/providers/bitbucket/{gitServer}/{owner}/repositories:
     get:
       summary: List repositories
       operationId: listBitbucketRepositories
@@ -131,9 +129,8 @@ paths:
         - Repositories
       parameters:
         - $ref: '#/components/parameters/gitServerParam'
-        - $ref: '#/components/parameters/orgParam'
-        - $ref: '#/components/parameters/pageParam'
-        - $ref: '#/components/parameters/perPageParam'
+        - $ref: '#/components/parameters/repoOwnerParam'
+        - $ref: '#/components/parameters/repoNameQueryParam'
       responses:
         '200':
           description: A list of repositories
@@ -160,7 +157,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /api/v1/providers/bitbucket/{git-server}/repositories/{owner}/{repo}:
+  /api/v1/providers/bitbucket/{gitServer}/repositories/{owner}/{repo}:
     get:
       summary: Get detailed information for a specific Bitbucket repository
       operationId: getBitbucketRepository
@@ -168,8 +165,8 @@ paths:
         - Repositories
       parameters:
         - $ref: '#/components/parameters/gitServerParam'
-        - $ref: '#/components/parameters/ownerParam'
-        - $ref: '#/components/parameters/repoParam'
+        - $ref: '#/components/parameters/repoOwnerParam'
+        - $ref: '#/components/parameters/repoNameParam'
       responses:
         '200':
           description: Detailed information about a repository
@@ -192,42 +189,28 @@ paths:
 
 components:
   parameters:
-    pageParam:
-      name: page
+    repoNameQueryParam:
+      name: repoName
       in: query
       required: false
-      description: The page number for pagination.
+      description: The name of the repository to search for.
       schema:
-        type: integer
-    perPageParam:
-      name: per_page
-      in: query
-      required: false
-      description: The number of items per page for pagination.
-      schema:
-        type: integer
+        type: string
     gitServerParam:
-      name: git-server
+      name: gitServer
       in: path
       required: true
       description: The Git server name.
       schema:
         type: string
-    orgParam:
-      name: org
-      in: path
-      required: true
-      description: The organization name in the Git server.
-      schema:
-        type: string
-    ownerParam:
+    repoOwnerParam:
       name: owner
       in: path
       required: true
       description: The owner of the repository.
       schema:
         type: string
-    repoParam:
+    repoNameParam:
       name: repo
       in: path
       required: true
@@ -319,15 +302,12 @@ components:
     RepositoriesResponse:
       type: object
       properties:
-        repositories:
+        data:
           type: array
           items:
             $ref: '#/components/schemas/Repository'
-        pagination:
-          $ref: '#/components/schemas/Pagination'
       required:
-        - repositories
-        - pagination
+        - data
     Error:
       type: object
       properties:

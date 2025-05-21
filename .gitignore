@@ -10,6 +10,7 @@
 /bin
 /dist
 # .vscode
+cmd/gitfusion-api/*_debug_*
 
 # Test binary, built with `go test -c`
 *.test
