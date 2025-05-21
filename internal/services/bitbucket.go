@@ -59,7 +59,8 @@ func (b *BitbucketService) ListRepositories(
 
 	client := bitbucket.NewBasicAuth(username, password)
 	repoOptions := &bitbucket.RepositoriesOptions{
-		Owner: account,
+		Owner:   account,
+		Keyword: listOptions.Name,
 	}
 
 	repositories, err := client.Repositories.ListForAccount(repoOptions)

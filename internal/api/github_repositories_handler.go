@@ -5,7 +5,6 @@ import (
 	"errors"
 
 	gferrors "github.com/KubeRocketCI/gitfusion/internal/errors"
-	"github.com/KubeRocketCI/gitfusion/internal/models"
 	"github.com/KubeRocketCI/gitfusion/internal/services"
 )
 
@@ -39,11 +38,11 @@ func (r *GitHubRepositoryHandler) ListGitHubRepositories(
 	ctx context.Context,
 	request ListGitHubRepositoriesRequestObject,
 ) (ListGitHubRepositoriesResponseObject, error) {
-	repositories, err := r.repositoriesService.ListOrganizationsRepositories(
+	repositories, err := r.repositoriesService.ListRepositories(
 		ctx,
 		request.GitServer,
-		request.Org,
-		getListOptions(request.Params.Page, request.Params.PerPage),
+		request.Owner,
+		r.getListOptions(request),
 	)
 	if err != nil {
 		return ListGitHubRepositories400JSONResponse{
@@ -53,8 +52,7 @@ func (r *GitHubRepositoryHandler) ListGitHubRepositories(
 	}
 
 	return ListGitHubRepositories200JSONResponse{
-		Repositories: repositories,
-		Pagination:   models.Pagination{}, // TODO: implement pagination after all rit providers are implemented
+		Data: repositories,
 	}, nil
 }
 
@@ -76,16 +74,10 @@ func (r *GitHubRepositoryHandler) errResponse(err error) GetGitHubRepositoryResp
 	}
 }
 
-func getListOptions(page, perPage *int) services.ListOptions {
-	listOptions := services.ListOptions{}
-
-	if page != nil {
-		listOptions.Page = page
+func (r *GitHubRepositoryHandler) getListOptions(
+	request ListGitHubRepositoriesRequestObject,
+) services.ListOptions {
+	return services.ListOptions{
+		Name: request.Params.RepoName,
 	}
-
-	if perPage != nil {
-		listOptions.PerPage = perPage
-	}
-
-	return listOptions
 }

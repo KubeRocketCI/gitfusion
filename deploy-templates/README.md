@@ -32,7 +32,7 @@ A Helm chart for Kubernetes
 | imagePullSecrets[0].name | string | `"regcred"` |  |
 | ingress.annotations | object | `{}` |  |
 | ingress.className | string | `""` |  |
-| ingress.dnsWildcard | string | `"core.kuberocketci.io"` |  |
+| ingress.dnsWildcard | string | `""` |  |
 | ingress.enabled | bool | `false` |  |
 | ingress.hosts[0].host | string | `"edpDefault"` |  |
 | ingress.hosts[0].paths[0].path | string | `"/"` |  |

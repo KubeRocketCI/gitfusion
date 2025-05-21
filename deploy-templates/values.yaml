@@ -46,7 +46,7 @@ service:
 
 ingress:
   enabled: false
-  dnsWildcard: core.kuberocketci.io
+  dnsWildcard: ""
   className: ""
   annotations: {}
     # kubernetes.io/ingress.class: nginx

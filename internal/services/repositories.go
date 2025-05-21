@@ -14,7 +14,7 @@ type Repositories interface {
 	) (*models.Repository, error)
 	ListRepositories(
 		ctx context.Context,
-		org string,
+		owner string,
 		settings GitProviderSettings,
 		listOptions ListOptions,
 	) ([]models.Repository, error)
@@ -52,9 +52,9 @@ func (r *RepositoriesService) GetRepository(
 	return r.gitRepositoriesService.GetRepository(ctx, owner, repo, settings)
 }
 
-func (r *RepositoriesService) ListOrganizationsRepositories(
+func (r *RepositoriesService) ListRepositories(
 	ctx context.Context,
-	gitServerName, org string,
+	gitServerName, owner string,
 	listOptions ListOptions,
 ) ([]models.Repository, error) {
 	settings, err := r.gitServerService.GetGitProviderSettings(ctx, gitServerName)
@@ -62,5 +62,5 @@ func (r *RepositoriesService) ListOrganizationsRepositories(
 		return nil, err
 	}
 
-	return r.gitRepositoriesService.ListRepositories(ctx, org, settings, listOptions)
+	return r.gitRepositoriesService.ListRepositories(ctx, owner, settings, listOptions)
 }

@@ -45,8 +45,7 @@ type Pagination struct {
 
 // RepositoriesResponse defines model for RepositoriesResponse.
 type RepositoriesResponse struct {
-	Pagination   Pagination   `json:"pagination"`
-	Repositories []Repository `json:"repositories"`
+	Data []Repository `json:"data"`
 }
 
 // Repository defines model for Repository.
@@ -85,44 +84,29 @@ type RepositoryDetailsVisibility string
 // GitServerParam defines model for gitServerParam.
 type GitServerParam = string
 
-// OrgParam defines model for orgParam.
-type OrgParam = string
+// RepoNameParam defines model for repoNameParam.
+type RepoNameParam = string
 
-// OwnerParam defines model for ownerParam.
-type OwnerParam = string
+// RepoNameQueryParam defines model for repoNameQueryParam.
+type RepoNameQueryParam = string
 
-// PageParam defines model for pageParam.
-type PageParam = int
-
-// PerPageParam defines model for perPageParam.
-type PerPageParam = int
-
-// RepoParam defines model for repoParam.
-type RepoParam = string
+// RepoOwnerParam defines model for repoOwnerParam.
+type RepoOwnerParam = string
 
 // ListBitbucketRepositoriesParams defines parameters for ListBitbucketRepositories.
 type ListBitbucketRepositoriesParams struct {
-	// Page The page number for pagination.
-	Page *PageParam `form:"page,omitempty" json:"page,omitempty"`
-
-	// PerPage The number of items per page for pagination.
-	PerPage *PerPageParam `form:"per_page,omitempty" json:"per_page,omitempty"`
+	// RepoName The name of the repository to search for.
+	RepoName *RepoNameQueryParam `form:"repoName,omitempty" json:"repoName,omitempty"`
 }
 
 // ListGitHubRepositoriesParams defines parameters for ListGitHubRepositories.
 type ListGitHubRepositoriesParams struct {
-	// Page The page number for pagination.
-	Page *PageParam `form:"page,omitempty" json:"page,omitempty"`
-
-	// PerPage The number of items per page for pagination.
-	PerPage *PerPageParam `form:"per_page,omitempty" json:"per_page,omitempty"`
+	// RepoName The name of the repository to search for.
+	RepoName *RepoNameQueryParam `form:"repoName,omitempty" json:"repoName,omitempty"`
 }
 
 // ListGitlabRepositoriesParams defines parameters for ListGitlabRepositories.
 type ListGitlabRepositoriesParams struct {
-	// Page The page number for pagination.
-	Page *PageParam `form:"page,omitempty" json:"page,omitempty"`
-
-	// PerPage The number of items per page for pagination.
-	PerPage *PerPageParam `form:"per_page,omitempty" json:"per_page,omitempty"`
+	// RepoName The name of the repository to search for.
+	RepoName *RepoNameQueryParam `form:"repoName,omitempty" json:"repoName,omitempty"`
 }

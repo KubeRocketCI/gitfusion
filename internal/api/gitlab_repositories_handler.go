@@ -5,7 +5,6 @@ import (
 	"errors"
 
 	gferrors "github.com/KubeRocketCI/gitfusion/internal/errors"
-	"github.com/KubeRocketCI/gitfusion/internal/models"
 	"github.com/KubeRocketCI/gitfusion/internal/services"
 )
 
@@ -39,11 +38,11 @@ func (r *GitlabRepositoryHandler) ListGitlabRepositories(
 	ctx context.Context,
 	request ListGitlabRepositoriesRequestObject,
 ) (ListGitlabRepositoriesResponseObject, error) {
-	repositories, err := r.repositoriesService.ListOrganizationsRepositories(
+	repositories, err := r.repositoriesService.ListRepositories(
 		ctx,
 		request.GitServer,
-		request.Org,
-		getListOptions(request.Params.Page, request.Params.PerPage),
+		request.Owner,
+		r.getListOptions(request),
 	)
 	if err != nil {
 		return ListGitlabRepositories400JSONResponse{
@@ -53,9 +52,14 @@ func (r *GitlabRepositoryHandler) ListGitlabRepositories(
 	}
 
 	return ListGitlabRepositories200JSONResponse{
-		Repositories: repositories,
-		Pagination:   models.Pagination{}, // TODO: implement pagination after all rit providers are implemented
+		Data: repositories,
 	}, nil
+}
+
+func (r *GitlabRepositoryHandler) getListOptions(request ListGitlabRepositoriesRequestObject) services.ListOptions {
+	return services.ListOptions{
+		Name: request.Params.RepoName,
+	}
 }
 
 func (r *GitlabRepositoryHandler) gitlabErrResponse(err error) GetGitlabRepositoryResponseObject {
