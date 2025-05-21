@@ -45,7 +45,7 @@ func (g *GitlabService) GetRepository(
 
 func (g *GitlabService) ListRepositories(
 	ctx context.Context,
-	org string,
+	owner string,
 	settings GitProviderSettings,
 	listOptions ListOptions,
 ) ([]models.Repository, error) {
@@ -54,23 +54,25 @@ func (g *GitlabService) ListRepositories(
 		return nil, err
 	}
 
-	repositories, _, err := client.Groups.ListGroupProjects(
-		org,
-		&gitlab.ListGroupProjectsOptions{
-			ListOptions: *newGitlabRepositoryListByOrgOptions(listOptions),
-		},
-		gitlab.WithContext(ctx),
-	)
-	if err != nil {
-		if errors.Is(err, gitlab.ErrNotFound) {
-			return nil, fmt.Errorf("organization %s %w", org, gferrors.ErrNotFound)
+	it := gitlab.Scan2(func(p gitlab.PaginationOptionFunc) ([]*gitlab.Project, *gitlab.Response, error) {
+		return client.Groups.ListGroupProjects(
+			owner,
+			newGitlabRepositoryListByOrgOptions(listOptions),
+			gitlab.WithContext(ctx),
+		)
+	})
+
+	result := make([]models.Repository, 0)
+
+	for repo, err := range it {
+		if err != nil {
+			if errors.Is(err, gitlab.ErrNotFound) {
+				return nil, fmt.Errorf("owner %s %w", owner, gferrors.ErrNotFound)
+			}
+
+			return nil, err
 		}
 
-		return nil, err
-	}
-
-	result := make([]models.Repository, 0, len(repositories))
-	for _, repo := range repositories {
 		result = append(result, *convertGitlabRepoToRepository(repo))
 	}
 
@@ -93,16 +95,11 @@ func convertGitlabRepoToRepository(repo *gitlab.Project) *models.Repository {
 	}
 }
 
-func newGitlabRepositoryListByOrgOptions(listOptions ListOptions) *gitlab.ListOptions {
-	opt := &gitlab.ListOptions{}
-
-	if listOptions.PerPage != nil {
-		opt.PerPage = *listOptions.PerPage
+func newGitlabRepositoryListByOrgOptions(listOptions ListOptions) *gitlab.ListGroupProjectsOptions {
+	return &gitlab.ListGroupProjectsOptions{
+		ListOptions: gitlab.ListOptions{
+			PerPage: 100,
+		},
+		Search: listOptions.Name,
 	}
-
-	if listOptions.Page != nil {
-		opt.Page = *listOptions.Page
-	}
-
-	return opt
 }

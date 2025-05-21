@@ -5,7 +5,6 @@ import (
 	"errors"
 
 	gferrors "github.com/KubeRocketCI/gitfusion/internal/errors"
-	"github.com/KubeRocketCI/gitfusion/internal/models"
 	"github.com/KubeRocketCI/gitfusion/internal/services"
 )
 
@@ -38,11 +37,11 @@ func (r *BitbucketRepositoryHandler) ListBitbucketRepositories(
 	ctx context.Context,
 	request ListBitbucketRepositoriesRequestObject,
 ) (ListBitbucketRepositoriesResponseObject, error) {
-	repositories, err := r.repositoriesService.ListOrganizationsRepositories(
+	repositories, err := r.repositoriesService.ListRepositories(
 		ctx,
 		request.GitServer,
-		request.Org,
-		getListOptions(request.Params.Page, request.Params.PerPage),
+		request.Owner,
+		r.getListOptions(request),
 	)
 	if err != nil {
 		return ListBitbucketRepositories400JSONResponse{
@@ -52,9 +51,16 @@ func (r *BitbucketRepositoryHandler) ListBitbucketRepositories(
 	}
 
 	return ListBitbucketRepositories200JSONResponse{
-		Repositories: repositories,
-		Pagination:   models.Pagination{}, // TODO: implement pagination after all rit providers are implemented
+		Data: repositories,
 	}, nil
+}
+
+func (r *BitbucketRepositoryHandler) getListOptions(
+	request ListBitbucketRepositoriesRequestObject,
+) services.ListOptions {
+	return services.ListOptions{
+		Name: request.Params.RepoName,
+	}
 }
 
 func (r *BitbucketRepositoryHandler) errResponse(err error) GetBitbucketRepositoryResponseObject {
