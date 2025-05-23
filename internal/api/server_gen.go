@@ -26,7 +26,7 @@ type ServerInterface interface {
 	// Get detailed information for a specific GitHub repository
 	// (GET /api/v1/providers/github/{gitServer}/repositories/{owner}/{repo})
 	GetGitHubRepository(w http.ResponseWriter, r *http.Request, gitServer GitServerParam, owner RepoOwnerParam, repo RepoNameParam)
-	// List organization repositories
+	// List repositories
 	// (GET /api/v1/providers/github/{gitServer}/{owner}/repositories)
 	ListGitHubRepositories(w http.ResponseWriter, r *http.Request, gitServer GitServerParam, owner RepoOwnerParam, params ListGitHubRepositoriesParams)
 	// Get detailed information for a specific Gitlab repository
@@ -34,7 +34,7 @@ type ServerInterface interface {
 	GetGitlabRepository(w http.ResponseWriter, r *http.Request, gitServer GitServerParam, owner RepoOwnerParam, repo RepoNameParam)
 	// List repositories
 	// (GET /api/v1/providers/gitlab/{gitServer}/{owner}/repositories)
-	ListGitlabRepositories(w http.ResponseWriter, r *http.Request, gitServer GitServerParam, owner RepoOwnerParam, params ListGitlabRepositoriesParams)
+	ListGitlabRepositories(w http.ResponseWriter, r *http.Request, gitServer GitServerParam, owner GitlabRepoOwnerParam, params ListGitlabRepositoriesParams)
 }
 
 // Unimplemented server implementation that returns http.StatusNotImplemented for each endpoint.
@@ -59,7 +59,7 @@ func (_ Unimplemented) GetGitHubRepository(w http.ResponseWriter, r *http.Reques
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
-// List organization repositories
+// List repositories
 // (GET /api/v1/providers/github/{gitServer}/{owner}/repositories)
 func (_ Unimplemented) ListGitHubRepositories(w http.ResponseWriter, r *http.Request, gitServer GitServerParam, owner RepoOwnerParam, params ListGitHubRepositoriesParams) {
 	w.WriteHeader(http.StatusNotImplemented)
@@ -73,7 +73,7 @@ func (_ Unimplemented) GetGitlabRepository(w http.ResponseWriter, r *http.Reques
 
 // List repositories
 // (GET /api/v1/providers/gitlab/{gitServer}/{owner}/repositories)
-func (_ Unimplemented) ListGitlabRepositories(w http.ResponseWriter, r *http.Request, gitServer GitServerParam, owner RepoOwnerParam, params ListGitlabRepositoriesParams) {
+func (_ Unimplemented) ListGitlabRepositories(w http.ResponseWriter, r *http.Request, gitServer GitServerParam, owner GitlabRepoOwnerParam, params ListGitlabRepositoriesParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -320,7 +320,7 @@ func (siw *ServerInterfaceWrapper) ListGitlabRepositories(w http.ResponseWriter,
 	}
 
 	// ------------- Path parameter "owner" -------------
-	var owner RepoOwnerParam
+	var owner GitlabRepoOwnerParam
 
 	err = runtime.BindStyledParameterWithOptions("simple", "owner", chi.URLParam(r, "owner"), &owner, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
 	if err != nil {
@@ -689,8 +689,8 @@ func (response GetGitlabRepository404JSONResponse) VisitGetGitlabRepositoryRespo
 }
 
 type ListGitlabRepositoriesRequestObject struct {
-	GitServer GitServerParam `json:"gitServer"`
-	Owner     RepoOwnerParam `json:"owner"`
+	GitServer GitServerParam       `json:"gitServer"`
+	Owner     GitlabRepoOwnerParam `json:"owner"`
 	Params    ListGitlabRepositoriesParams
 }
 
@@ -727,7 +727,7 @@ type StrictServerInterface interface {
 	// Get detailed information for a specific GitHub repository
 	// (GET /api/v1/providers/github/{gitServer}/repositories/{owner}/{repo})
 	GetGitHubRepository(ctx context.Context, request GetGitHubRepositoryRequestObject) (GetGitHubRepositoryResponseObject, error)
-	// List organization repositories
+	// List repositories
 	// (GET /api/v1/providers/github/{gitServer}/{owner}/repositories)
 	ListGitHubRepositories(ctx context.Context, request ListGitHubRepositoriesRequestObject) (ListGitHubRepositoriesResponseObject, error)
 	// Get detailed information for a specific Gitlab repository
@@ -908,7 +908,7 @@ func (sh *strictHandler) GetGitlabRepository(w http.ResponseWriter, r *http.Requ
 }
 
 // ListGitlabRepositories operation middleware
-func (sh *strictHandler) ListGitlabRepositories(w http.ResponseWriter, r *http.Request, gitServer GitServerParam, owner RepoOwnerParam, params ListGitlabRepositoriesParams) {
+func (sh *strictHandler) ListGitlabRepositories(w http.ResponseWriter, r *http.Request, gitServer GitServerParam, owner GitlabRepoOwnerParam, params ListGitlabRepositoriesParams) {
 	var request ListGitlabRepositoriesRequestObject
 
 	request.GitServer = gitServer

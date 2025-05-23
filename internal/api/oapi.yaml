@@ -5,7 +5,7 @@ info:
 paths:
   /api/v1/providers/github/{gitServer}/{owner}/repositories:
     get:
-      summary: List organization repositories
+      summary: List repositories
       operationId: listGitHubRepositories
       tags:
         - Repositories
@@ -76,7 +76,7 @@ paths:
         - Repositories
       parameters:
         - $ref: '#/components/parameters/gitServerParam'
-        - $ref: '#/components/parameters/repoOwnerParam'
+        - $ref: '#/components/parameters/gitlabRepoOwnerParam'
         - $ref: '#/components/parameters/repoNameQueryParam'
       responses:
         '200':
@@ -208,6 +208,13 @@ components:
       in: path
       required: true
       description: The owner of the repository.
+      schema:
+        type: string
+    gitlabRepoOwnerParam:
+      name: owner
+      in: path
+      required: true
+      description: The owner of the repository. If the owner is "my-org/my-repo", it should be passed as "my-org%2Fmy-repo".
       schema:
         type: string
     repoNameParam:

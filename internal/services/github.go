@@ -50,24 +50,14 @@ type ListOptions struct {
 
 func (g *GitHubService) ListRepositories(
 	ctx context.Context,
-	org string,
+	owner string,
 	settings GitProviderSettings,
 	listOptions ListOptions,
 ) ([]models.Repository, error) {
 	client := github.NewClient(nil).WithAuthToken(settings.Token)
 
-	it := filterrepositoriesByName(
-		gfgithub.ScanGitHubList(
-			func(opt github.ListOptions) ([]*github.Repository, *github.Response, error) {
-				return client.Repositories.ListByOrg(
-					ctx,
-					org,
-					&github.RepositoryListByOrgOptions{
-						ListOptions: github.ListOptions{PerPage: 100},
-					},
-				)
-			},
-		),
+	it := filterRepositoriesByName(
+		g.listRepositories(ctx, owner, client),
 		listOptions,
 	)
 
@@ -78,11 +68,11 @@ func (g *GitHubService) ListRepositories(
 			ghErr := &github.ErrorResponse{}
 			if errors.As(err, &ghErr) {
 				if ghErr.Response.StatusCode == http.StatusNotFound {
-					return nil, fmt.Errorf("organization %s: %w", org, gferrors.ErrNotFound)
+					return nil, fmt.Errorf("organization or user %s: %w", owner, gferrors.ErrNotFound)
 				}
 			}
 
-			return nil, fmt.Errorf("failed to list repositories for org %s: %w", org, err)
+			return nil, fmt.Errorf("failed to list repositories for org %s: %w", owner, err)
 		}
 
 		result = append(result, *convertGitHubRepoToRepository(repo))
@@ -91,7 +81,7 @@ func (g *GitHubService) ListRepositories(
 	return result, nil
 }
 
-func filterrepositoriesByName(
+func filterRepositoriesByName(
 	it iter.Seq2[*github.Repository, error],
 	opt ListOptions,
 ) iter.Seq2[*github.Repository, error] {
@@ -119,6 +109,39 @@ func filterrepositoriesByName(
 			return true
 		})
 	}
+}
+
+func (g *GitHubService) listRepositories(
+	ctx context.Context,
+	owner string,
+	client *github.Client,
+) iter.Seq2[*github.Repository, error] {
+	_, _, orgErr := client.Organizations.Get(ctx, owner)
+	if orgErr == nil {
+		return gfgithub.ScanGitHubList(
+			func(opt github.ListOptions) ([]*github.Repository, *github.Response, error) {
+				return client.Repositories.ListByOrg(
+					ctx,
+					owner,
+					&github.RepositoryListByOrgOptions{
+						ListOptions: opt,
+					},
+				)
+			},
+		)
+	}
+
+	return gfgithub.ScanGitHubList(
+		func(opt github.ListOptions) ([]*github.Repository, *github.Response, error) {
+			return client.Repositories.ListByUser(
+				ctx,
+				owner,
+				&github.RepositoryListByUserOptions{
+					ListOptions: opt,
+				},
+			)
+		},
+	)
 }
 
 func convertGitHubRepoToRepository(repo *github.Repository) *models.Repository {

@@ -84,6 +84,9 @@ type RepositoryDetailsVisibility string
 // GitServerParam defines model for gitServerParam.
 type GitServerParam = string
 
+// GitlabRepoOwnerParam defines model for gitlabRepoOwnerParam.
+type GitlabRepoOwnerParam = string
+
 // RepoNameParam defines model for repoNameParam.
 type RepoNameParam = string
 
