@@ -88,7 +88,7 @@ func Test_filterProjectsByName(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := gfgithub.CollectFromScan(filterrepositoriesByName(tt.args.it, tt.args.opt))
+			got, err := gfgithub.CollectFromScan(filterRepositoriesByName(tt.args.it, tt.args.opt))
 			assert.True(t, slices.EqualFunc(got, tt.want, func(a, b *github.Repository) bool {
 				return a.GetName() == b.GetName()
 			}))
