@@ -1,11 +1,17 @@
 {
   "chat.promptFiles": true,
-  "chat.promptFilesLocations": [".github/prompts"],
-  "chat.instructionsFilesLocations": [".github/instructions"],
   "github.copilot.chat.codeGeneration.useInstructionFiles": true,
   "github.copilot.chat.pullRequestDescriptionGeneration.instructions": [
     {
       "file": ".github/instructions/pr-generation.instructions.md"
+    }
+  ],
+  "github.copilot.chat.codeGeneration.instructions": [
+    {
+      "text": "Follow Go best practices with proper error handling. Use interfaces for abstractions."
+    },
+    {
+      "file": ".github/copilot-instructions.md"
     }
   ]
 }
