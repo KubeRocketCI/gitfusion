@@ -17,63 +17,27 @@ import (
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
-	// Get detailed information for a specific Bitbucket repository
-	// (GET /api/v1/providers/bitbucket/{gitServer}/repositories/{owner}/{repo})
-	GetBitbucketRepository(w http.ResponseWriter, r *http.Request, gitServer GitServerParam, owner RepoOwnerParam, repo RepoNameParam)
 	// List repositories
-	// (GET /api/v1/providers/bitbucket/{gitServer}/{owner}/repositories)
-	ListBitbucketRepositories(w http.ResponseWriter, r *http.Request, gitServer GitServerParam, owner RepoOwnerParam, params ListBitbucketRepositoriesParams)
-	// Get detailed information for a specific GitHub repository
-	// (GET /api/v1/providers/github/{gitServer}/repositories/{owner}/{repo})
-	GetGitHubRepository(w http.ResponseWriter, r *http.Request, gitServer GitServerParam, owner RepoOwnerParam, repo RepoNameParam)
-	// List repositories
-	// (GET /api/v1/providers/github/{gitServer}/{owner}/repositories)
-	ListGitHubRepositories(w http.ResponseWriter, r *http.Request, gitServer GitServerParam, owner RepoOwnerParam, params ListGitHubRepositoriesParams)
-	// Get detailed information for a specific Gitlab repository
-	// (GET /api/v1/providers/gitlab/{gitServer}/repositories/{owner}/{repo})
-	GetGitlabRepository(w http.ResponseWriter, r *http.Request, gitServer GitServerParam, owner RepoOwnerParam, repo RepoNameParam)
-	// List repositories
-	// (GET /api/v1/providers/gitlab/{gitServer}/{owner}/repositories)
-	ListGitlabRepositories(w http.ResponseWriter, r *http.Request, gitServer GitServerParam, owner GitlabRepoOwnerParam, params ListGitlabRepositoriesParams)
+	// (GET /api/v1/repositories)
+	ListRepositories(w http.ResponseWriter, r *http.Request, params ListRepositoriesParams)
+	// Get detailed information for a specific repository
+	// (GET /api/v1/repository)
+	GetRepository(w http.ResponseWriter, r *http.Request, params GetRepositoryParams)
 }
 
 // Unimplemented server implementation that returns http.StatusNotImplemented for each endpoint.
 
 type Unimplemented struct{}
 
-// Get detailed information for a specific Bitbucket repository
-// (GET /api/v1/providers/bitbucket/{gitServer}/repositories/{owner}/{repo})
-func (_ Unimplemented) GetBitbucketRepository(w http.ResponseWriter, r *http.Request, gitServer GitServerParam, owner RepoOwnerParam, repo RepoNameParam) {
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
 // List repositories
-// (GET /api/v1/providers/bitbucket/{gitServer}/{owner}/repositories)
-func (_ Unimplemented) ListBitbucketRepositories(w http.ResponseWriter, r *http.Request, gitServer GitServerParam, owner RepoOwnerParam, params ListBitbucketRepositoriesParams) {
+// (GET /api/v1/repositories)
+func (_ Unimplemented) ListRepositories(w http.ResponseWriter, r *http.Request, params ListRepositoriesParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
-// Get detailed information for a specific GitHub repository
-// (GET /api/v1/providers/github/{gitServer}/repositories/{owner}/{repo})
-func (_ Unimplemented) GetGitHubRepository(w http.ResponseWriter, r *http.Request, gitServer GitServerParam, owner RepoOwnerParam, repo RepoNameParam) {
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-// List repositories
-// (GET /api/v1/providers/github/{gitServer}/{owner}/repositories)
-func (_ Unimplemented) ListGitHubRepositories(w http.ResponseWriter, r *http.Request, gitServer GitServerParam, owner RepoOwnerParam, params ListGitHubRepositoriesParams) {
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-// Get detailed information for a specific Gitlab repository
-// (GET /api/v1/providers/gitlab/{gitServer}/repositories/{owner}/{repo})
-func (_ Unimplemented) GetGitlabRepository(w http.ResponseWriter, r *http.Request, gitServer GitServerParam, owner RepoOwnerParam, repo RepoNameParam) {
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-// List repositories
-// (GET /api/v1/providers/gitlab/{gitServer}/{owner}/repositories)
-func (_ Unimplemented) ListGitlabRepositories(w http.ResponseWriter, r *http.Request, gitServer GitServerParam, owner GitlabRepoOwnerParam, params ListGitlabRepositoriesParams) {
+// Get detailed information for a specific repository
+// (GET /api/v1/repository)
+func (_ Unimplemented) GetRepository(w http.ResponseWriter, r *http.Request, params GetRepositoryParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -86,74 +50,43 @@ type ServerInterfaceWrapper struct {
 
 type MiddlewareFunc func(http.Handler) http.Handler
 
-// GetBitbucketRepository operation middleware
-func (siw *ServerInterfaceWrapper) GetBitbucketRepository(w http.ResponseWriter, r *http.Request) {
+// ListRepositories operation middleware
+func (siw *ServerInterfaceWrapper) ListRepositories(w http.ResponseWriter, r *http.Request) {
 
 	var err error
-
-	// ------------- Path parameter "gitServer" -------------
-	var gitServer GitServerParam
-
-	err = runtime.BindStyledParameterWithOptions("simple", "gitServer", chi.URLParam(r, "gitServer"), &gitServer, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "gitServer", Err: err})
-		return
-	}
-
-	// ------------- Path parameter "owner" -------------
-	var owner RepoOwnerParam
-
-	err = runtime.BindStyledParameterWithOptions("simple", "owner", chi.URLParam(r, "owner"), &owner, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "owner", Err: err})
-		return
-	}
-
-	// ------------- Path parameter "repo" -------------
-	var repo RepoNameParam
-
-	err = runtime.BindStyledParameterWithOptions("simple", "repo", chi.URLParam(r, "repo"), &repo, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "repo", Err: err})
-		return
-	}
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetBitbucketRepository(w, r, gitServer, owner, repo)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r)
-}
-
-// ListBitbucketRepositories operation middleware
-func (siw *ServerInterfaceWrapper) ListBitbucketRepositories(w http.ResponseWriter, r *http.Request) {
-
-	var err error
-
-	// ------------- Path parameter "gitServer" -------------
-	var gitServer GitServerParam
-
-	err = runtime.BindStyledParameterWithOptions("simple", "gitServer", chi.URLParam(r, "gitServer"), &gitServer, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "gitServer", Err: err})
-		return
-	}
-
-	// ------------- Path parameter "owner" -------------
-	var owner RepoOwnerParam
-
-	err = runtime.BindStyledParameterWithOptions("simple", "owner", chi.URLParam(r, "owner"), &owner, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "owner", Err: err})
-		return
-	}
 
 	// Parameter object where we will unmarshal all parameters from the context
-	var params ListBitbucketRepositoriesParams
+	var params ListRepositoriesParams
+
+	// ------------- Required query parameter "gitServer" -------------
+
+	if paramValue := r.URL.Query().Get("gitServer"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "gitServer"})
+		return
+	}
+
+	err = runtime.BindQueryParameter("form", true, true, "gitServer", r.URL.Query(), &params.GitServer)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "gitServer", Err: err})
+		return
+	}
+
+	// ------------- Required query parameter "owner" -------------
+
+	if paramValue := r.URL.Query().Get("owner"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "owner"})
+		return
+	}
+
+	err = runtime.BindQueryParameter("form", true, true, "owner", r.URL.Query(), &params.Owner)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "owner", Err: err})
+		return
+	}
 
 	// ------------- Optional query parameter "repoName" -------------
 
@@ -164,7 +97,7 @@ func (siw *ServerInterfaceWrapper) ListBitbucketRepositories(w http.ResponseWrit
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.ListBitbucketRepositories(w, r, gitServer, owner, params)
+		siw.Handler.ListRepositories(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -174,173 +107,61 @@ func (siw *ServerInterfaceWrapper) ListBitbucketRepositories(w http.ResponseWrit
 	handler.ServeHTTP(w, r)
 }
 
-// GetGitHubRepository operation middleware
-func (siw *ServerInterfaceWrapper) GetGitHubRepository(w http.ResponseWriter, r *http.Request) {
+// GetRepository operation middleware
+func (siw *ServerInterfaceWrapper) GetRepository(w http.ResponseWriter, r *http.Request) {
 
 	var err error
-
-	// ------------- Path parameter "gitServer" -------------
-	var gitServer GitServerParam
-
-	err = runtime.BindStyledParameterWithOptions("simple", "gitServer", chi.URLParam(r, "gitServer"), &gitServer, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "gitServer", Err: err})
-		return
-	}
-
-	// ------------- Path parameter "owner" -------------
-	var owner RepoOwnerParam
-
-	err = runtime.BindStyledParameterWithOptions("simple", "owner", chi.URLParam(r, "owner"), &owner, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "owner", Err: err})
-		return
-	}
-
-	// ------------- Path parameter "repo" -------------
-	var repo RepoNameParam
-
-	err = runtime.BindStyledParameterWithOptions("simple", "repo", chi.URLParam(r, "repo"), &repo, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "repo", Err: err})
-		return
-	}
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetGitHubRepository(w, r, gitServer, owner, repo)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r)
-}
-
-// ListGitHubRepositories operation middleware
-func (siw *ServerInterfaceWrapper) ListGitHubRepositories(w http.ResponseWriter, r *http.Request) {
-
-	var err error
-
-	// ------------- Path parameter "gitServer" -------------
-	var gitServer GitServerParam
-
-	err = runtime.BindStyledParameterWithOptions("simple", "gitServer", chi.URLParam(r, "gitServer"), &gitServer, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "gitServer", Err: err})
-		return
-	}
-
-	// ------------- Path parameter "owner" -------------
-	var owner RepoOwnerParam
-
-	err = runtime.BindStyledParameterWithOptions("simple", "owner", chi.URLParam(r, "owner"), &owner, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "owner", Err: err})
-		return
-	}
 
 	// Parameter object where we will unmarshal all parameters from the context
-	var params ListGitHubRepositoriesParams
+	var params GetRepositoryParams
 
-	// ------------- Optional query parameter "repoName" -------------
+	// ------------- Required query parameter "gitServer" -------------
 
-	err = runtime.BindQueryParameter("form", true, false, "repoName", r.URL.Query(), &params.RepoName)
+	if paramValue := r.URL.Query().Get("gitServer"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "gitServer"})
+		return
+	}
+
+	err = runtime.BindQueryParameter("form", true, true, "gitServer", r.URL.Query(), &params.GitServer)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "gitServer", Err: err})
+		return
+	}
+
+	// ------------- Required query parameter "owner" -------------
+
+	if paramValue := r.URL.Query().Get("owner"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "owner"})
+		return
+	}
+
+	err = runtime.BindQueryParameter("form", true, true, "owner", r.URL.Query(), &params.Owner)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "owner", Err: err})
+		return
+	}
+
+	// ------------- Required query parameter "repoName" -------------
+
+	if paramValue := r.URL.Query().Get("repoName"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "repoName"})
+		return
+	}
+
+	err = runtime.BindQueryParameter("form", true, true, "repoName", r.URL.Query(), &params.RepoName)
 	if err != nil {
 		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "repoName", Err: err})
 		return
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.ListGitHubRepositories(w, r, gitServer, owner, params)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r)
-}
-
-// GetGitlabRepository operation middleware
-func (siw *ServerInterfaceWrapper) GetGitlabRepository(w http.ResponseWriter, r *http.Request) {
-
-	var err error
-
-	// ------------- Path parameter "gitServer" -------------
-	var gitServer GitServerParam
-
-	err = runtime.BindStyledParameterWithOptions("simple", "gitServer", chi.URLParam(r, "gitServer"), &gitServer, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "gitServer", Err: err})
-		return
-	}
-
-	// ------------- Path parameter "owner" -------------
-	var owner RepoOwnerParam
-
-	err = runtime.BindStyledParameterWithOptions("simple", "owner", chi.URLParam(r, "owner"), &owner, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "owner", Err: err})
-		return
-	}
-
-	// ------------- Path parameter "repo" -------------
-	var repo RepoNameParam
-
-	err = runtime.BindStyledParameterWithOptions("simple", "repo", chi.URLParam(r, "repo"), &repo, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "repo", Err: err})
-		return
-	}
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetGitlabRepository(w, r, gitServer, owner, repo)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r)
-}
-
-// ListGitlabRepositories operation middleware
-func (siw *ServerInterfaceWrapper) ListGitlabRepositories(w http.ResponseWriter, r *http.Request) {
-
-	var err error
-
-	// ------------- Path parameter "gitServer" -------------
-	var gitServer GitServerParam
-
-	err = runtime.BindStyledParameterWithOptions("simple", "gitServer", chi.URLParam(r, "gitServer"), &gitServer, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "gitServer", Err: err})
-		return
-	}
-
-	// ------------- Path parameter "owner" -------------
-	var owner GitlabRepoOwnerParam
-
-	err = runtime.BindStyledParameterWithOptions("simple", "owner", chi.URLParam(r, "owner"), &owner, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "owner", Err: err})
-		return
-	}
-
-	// Parameter object where we will unmarshal all parameters from the context
-	var params ListGitlabRepositoriesParams
-
-	// ------------- Optional query parameter "repoName" -------------
-
-	err = runtime.BindQueryParameter("form", true, false, "repoName", r.URL.Query(), &params.RepoName)
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "repoName", Err: err})
-		return
-	}
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.ListGitlabRepositories(w, r, gitServer, owner, params)
+		siw.Handler.GetRepository(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -464,278 +285,102 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	}
 
 	r.Group(func(r chi.Router) {
-		r.Get(options.BaseURL+"/api/v1/providers/bitbucket/{gitServer}/repositories/{owner}/{repo}", wrapper.GetBitbucketRepository)
+		r.Get(options.BaseURL+"/api/v1/repositories", wrapper.ListRepositories)
 	})
 	r.Group(func(r chi.Router) {
-		r.Get(options.BaseURL+"/api/v1/providers/bitbucket/{gitServer}/{owner}/repositories", wrapper.ListBitbucketRepositories)
-	})
-	r.Group(func(r chi.Router) {
-		r.Get(options.BaseURL+"/api/v1/providers/github/{gitServer}/repositories/{owner}/{repo}", wrapper.GetGitHubRepository)
-	})
-	r.Group(func(r chi.Router) {
-		r.Get(options.BaseURL+"/api/v1/providers/github/{gitServer}/{owner}/repositories", wrapper.ListGitHubRepositories)
-	})
-	r.Group(func(r chi.Router) {
-		r.Get(options.BaseURL+"/api/v1/providers/gitlab/{gitServer}/repositories/{owner}/{repo}", wrapper.GetGitlabRepository)
-	})
-	r.Group(func(r chi.Router) {
-		r.Get(options.BaseURL+"/api/v1/providers/gitlab/{gitServer}/{owner}/repositories", wrapper.ListGitlabRepositories)
+		r.Get(options.BaseURL+"/api/v1/repository", wrapper.GetRepository)
 	})
 
 	return r
 }
 
-type GetBitbucketRepositoryRequestObject struct {
-	GitServer GitServerParam `json:"gitServer"`
-	Owner     RepoOwnerParam `json:"owner"`
-	Repo      RepoNameParam  `json:"repo"`
+type ListRepositoriesRequestObject struct {
+	Params ListRepositoriesParams
 }
 
-type GetBitbucketRepositoryResponseObject interface {
-	VisitGetBitbucketRepositoryResponse(w http.ResponseWriter) error
+type ListRepositoriesResponseObject interface {
+	VisitListRepositoriesResponse(w http.ResponseWriter) error
 }
 
-type GetBitbucketRepository200JSONResponse Repository
+type ListRepositories200JSONResponse RepositoriesResponse
 
-func (response GetBitbucketRepository200JSONResponse) VisitGetBitbucketRepositoryResponse(w http.ResponseWriter) error {
+func (response ListRepositories200JSONResponse) VisitListRepositoriesResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type GetBitbucketRepository400JSONResponse Error
+type ListRepositories400JSONResponse Error
 
-func (response GetBitbucketRepository400JSONResponse) VisitGetBitbucketRepositoryResponse(w http.ResponseWriter) error {
+func (response ListRepositories400JSONResponse) VisitListRepositoriesResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(400)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type GetBitbucketRepository404JSONResponse Error
+type ListRepositories401JSONResponse Error
 
-func (response GetBitbucketRepository404JSONResponse) VisitGetBitbucketRepositoryResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(404)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type ListBitbucketRepositoriesRequestObject struct {
-	GitServer GitServerParam `json:"gitServer"`
-	Owner     RepoOwnerParam `json:"owner"`
-	Params    ListBitbucketRepositoriesParams
-}
-
-type ListBitbucketRepositoriesResponseObject interface {
-	VisitListBitbucketRepositoriesResponse(w http.ResponseWriter) error
-}
-
-type ListBitbucketRepositories200JSONResponse RepositoriesResponse
-
-func (response ListBitbucketRepositories200JSONResponse) VisitListBitbucketRepositoriesResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(200)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type ListBitbucketRepositories400JSONResponse Error
-
-func (response ListBitbucketRepositories400JSONResponse) VisitListBitbucketRepositoriesResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(400)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type ListBitbucketRepositories401JSONResponse Error
-
-func (response ListBitbucketRepositories401JSONResponse) VisitListBitbucketRepositoriesResponse(w http.ResponseWriter) error {
+func (response ListRepositories401JSONResponse) VisitListRepositoriesResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(401)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type ListBitbucketRepositories500JSONResponse Error
+type ListRepositories500JSONResponse Error
 
-func (response ListBitbucketRepositories500JSONResponse) VisitListBitbucketRepositoriesResponse(w http.ResponseWriter) error {
+func (response ListRepositories500JSONResponse) VisitListRepositoriesResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(500)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type GetGitHubRepositoryRequestObject struct {
-	GitServer GitServerParam `json:"gitServer"`
-	Owner     RepoOwnerParam `json:"owner"`
-	Repo      RepoNameParam  `json:"repo"`
+type GetRepositoryRequestObject struct {
+	Params GetRepositoryParams
 }
 
-type GetGitHubRepositoryResponseObject interface {
-	VisitGetGitHubRepositoryResponse(w http.ResponseWriter) error
+type GetRepositoryResponseObject interface {
+	VisitGetRepositoryResponse(w http.ResponseWriter) error
 }
 
-type GetGitHubRepository200JSONResponse Repository
+type GetRepository200JSONResponse Repository
 
-func (response GetGitHubRepository200JSONResponse) VisitGetGitHubRepositoryResponse(w http.ResponseWriter) error {
+func (response GetRepository200JSONResponse) VisitGetRepositoryResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type GetGitHubRepository400JSONResponse Error
+type GetRepository400JSONResponse Error
 
-func (response GetGitHubRepository400JSONResponse) VisitGetGitHubRepositoryResponse(w http.ResponseWriter) error {
+func (response GetRepository400JSONResponse) VisitGetRepositoryResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(400)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type GetGitHubRepository404JSONResponse Error
+type GetRepository404JSONResponse Error
 
-func (response GetGitHubRepository404JSONResponse) VisitGetGitHubRepositoryResponse(w http.ResponseWriter) error {
+func (response GetRepository404JSONResponse) VisitGetRepositoryResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(404)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type ListGitHubRepositoriesRequestObject struct {
-	GitServer GitServerParam `json:"gitServer"`
-	Owner     RepoOwnerParam `json:"owner"`
-	Params    ListGitHubRepositoriesParams
-}
-
-type ListGitHubRepositoriesResponseObject interface {
-	VisitListGitHubRepositoriesResponse(w http.ResponseWriter) error
-}
-
-type ListGitHubRepositories200JSONResponse RepositoriesResponse
-
-func (response ListGitHubRepositories200JSONResponse) VisitListGitHubRepositoriesResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(200)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type ListGitHubRepositories400JSONResponse Error
-
-func (response ListGitHubRepositories400JSONResponse) VisitListGitHubRepositoriesResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(400)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type ListGitHubRepositories401JSONResponse Error
-
-func (response ListGitHubRepositories401JSONResponse) VisitListGitHubRepositoriesResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(401)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type ListGitHubRepositories500JSONResponse Error
-
-func (response ListGitHubRepositories500JSONResponse) VisitListGitHubRepositoriesResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(500)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type GetGitlabRepositoryRequestObject struct {
-	GitServer GitServerParam `json:"gitServer"`
-	Owner     RepoOwnerParam `json:"owner"`
-	Repo      RepoNameParam  `json:"repo"`
-}
-
-type GetGitlabRepositoryResponseObject interface {
-	VisitGetGitlabRepositoryResponse(w http.ResponseWriter) error
-}
-
-type GetGitlabRepository200JSONResponse Repository
-
-func (response GetGitlabRepository200JSONResponse) VisitGetGitlabRepositoryResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(200)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type GetGitlabRepository400JSONResponse Error
-
-func (response GetGitlabRepository400JSONResponse) VisitGetGitlabRepositoryResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(400)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type GetGitlabRepository404JSONResponse Error
-
-func (response GetGitlabRepository404JSONResponse) VisitGetGitlabRepositoryResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(404)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type ListGitlabRepositoriesRequestObject struct {
-	GitServer GitServerParam       `json:"gitServer"`
-	Owner     GitlabRepoOwnerParam `json:"owner"`
-	Params    ListGitlabRepositoriesParams
-}
-
-type ListGitlabRepositoriesResponseObject interface {
-	VisitListGitlabRepositoriesResponse(w http.ResponseWriter) error
-}
-
-type ListGitlabRepositories200JSONResponse RepositoriesResponse
-
-func (response ListGitlabRepositories200JSONResponse) VisitListGitlabRepositoriesResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(200)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type ListGitlabRepositories400JSONResponse Error
-
-func (response ListGitlabRepositories400JSONResponse) VisitListGitlabRepositoriesResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(400)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
-	// Get detailed information for a specific Bitbucket repository
-	// (GET /api/v1/providers/bitbucket/{gitServer}/repositories/{owner}/{repo})
-	GetBitbucketRepository(ctx context.Context, request GetBitbucketRepositoryRequestObject) (GetBitbucketRepositoryResponseObject, error)
 	// List repositories
-	// (GET /api/v1/providers/bitbucket/{gitServer}/{owner}/repositories)
-	ListBitbucketRepositories(ctx context.Context, request ListBitbucketRepositoriesRequestObject) (ListBitbucketRepositoriesResponseObject, error)
-	// Get detailed information for a specific GitHub repository
-	// (GET /api/v1/providers/github/{gitServer}/repositories/{owner}/{repo})
-	GetGitHubRepository(ctx context.Context, request GetGitHubRepositoryRequestObject) (GetGitHubRepositoryResponseObject, error)
-	// List repositories
-	// (GET /api/v1/providers/github/{gitServer}/{owner}/repositories)
-	ListGitHubRepositories(ctx context.Context, request ListGitHubRepositoriesRequestObject) (ListGitHubRepositoriesResponseObject, error)
-	// Get detailed information for a specific Gitlab repository
-	// (GET /api/v1/providers/gitlab/{gitServer}/repositories/{owner}/{repo})
-	GetGitlabRepository(ctx context.Context, request GetGitlabRepositoryRequestObject) (GetGitlabRepositoryResponseObject, error)
-	// List repositories
-	// (GET /api/v1/providers/gitlab/{gitServer}/{owner}/repositories)
-	ListGitlabRepositories(ctx context.Context, request ListGitlabRepositoriesRequestObject) (ListGitlabRepositoriesResponseObject, error)
+	// (GET /api/v1/repositories)
+	ListRepositories(ctx context.Context, request ListRepositoriesRequestObject) (ListRepositoriesResponseObject, error)
+	// Get detailed information for a specific repository
+	// (GET /api/v1/repository)
+	GetRepository(ctx context.Context, request GetRepositoryRequestObject) (GetRepositoryResponseObject, error)
 }
 
 type StrictHandlerFunc = strictnethttp.StrictHTTPHandlerFunc
@@ -767,55 +412,25 @@ type strictHandler struct {
 	options     StrictHTTPServerOptions
 }
 
-// GetBitbucketRepository operation middleware
-func (sh *strictHandler) GetBitbucketRepository(w http.ResponseWriter, r *http.Request, gitServer GitServerParam, owner RepoOwnerParam, repo RepoNameParam) {
-	var request GetBitbucketRepositoryRequestObject
+// ListRepositories operation middleware
+func (sh *strictHandler) ListRepositories(w http.ResponseWriter, r *http.Request, params ListRepositoriesParams) {
+	var request ListRepositoriesRequestObject
 
-	request.GitServer = gitServer
-	request.Owner = owner
-	request.Repo = repo
-
-	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
-		return sh.ssi.GetBitbucketRepository(ctx, request.(GetBitbucketRepositoryRequestObject))
-	}
-	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "GetBitbucketRepository")
-	}
-
-	response, err := handler(r.Context(), w, r, request)
-
-	if err != nil {
-		sh.options.ResponseErrorHandlerFunc(w, r, err)
-	} else if validResponse, ok := response.(GetBitbucketRepositoryResponseObject); ok {
-		if err := validResponse.VisitGetBitbucketRepositoryResponse(w); err != nil {
-			sh.options.ResponseErrorHandlerFunc(w, r, err)
-		}
-	} else if response != nil {
-		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
-	}
-}
-
-// ListBitbucketRepositories operation middleware
-func (sh *strictHandler) ListBitbucketRepositories(w http.ResponseWriter, r *http.Request, gitServer GitServerParam, owner RepoOwnerParam, params ListBitbucketRepositoriesParams) {
-	var request ListBitbucketRepositoriesRequestObject
-
-	request.GitServer = gitServer
-	request.Owner = owner
 	request.Params = params
 
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
-		return sh.ssi.ListBitbucketRepositories(ctx, request.(ListBitbucketRepositoriesRequestObject))
+		return sh.ssi.ListRepositories(ctx, request.(ListRepositoriesRequestObject))
 	}
 	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "ListBitbucketRepositories")
+		handler = middleware(handler, "ListRepositories")
 	}
 
 	response, err := handler(r.Context(), w, r, request)
 
 	if err != nil {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
-	} else if validResponse, ok := response.(ListBitbucketRepositoriesResponseObject); ok {
-		if err := validResponse.VisitListBitbucketRepositoriesResponse(w); err != nil {
+	} else if validResponse, ok := response.(ListRepositoriesResponseObject); ok {
+		if err := validResponse.VisitListRepositoriesResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -823,111 +438,25 @@ func (sh *strictHandler) ListBitbucketRepositories(w http.ResponseWriter, r *htt
 	}
 }
 
-// GetGitHubRepository operation middleware
-func (sh *strictHandler) GetGitHubRepository(w http.ResponseWriter, r *http.Request, gitServer GitServerParam, owner RepoOwnerParam, repo RepoNameParam) {
-	var request GetGitHubRepositoryRequestObject
+// GetRepository operation middleware
+func (sh *strictHandler) GetRepository(w http.ResponseWriter, r *http.Request, params GetRepositoryParams) {
+	var request GetRepositoryRequestObject
 
-	request.GitServer = gitServer
-	request.Owner = owner
-	request.Repo = repo
-
-	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
-		return sh.ssi.GetGitHubRepository(ctx, request.(GetGitHubRepositoryRequestObject))
-	}
-	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "GetGitHubRepository")
-	}
-
-	response, err := handler(r.Context(), w, r, request)
-
-	if err != nil {
-		sh.options.ResponseErrorHandlerFunc(w, r, err)
-	} else if validResponse, ok := response.(GetGitHubRepositoryResponseObject); ok {
-		if err := validResponse.VisitGetGitHubRepositoryResponse(w); err != nil {
-			sh.options.ResponseErrorHandlerFunc(w, r, err)
-		}
-	} else if response != nil {
-		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
-	}
-}
-
-// ListGitHubRepositories operation middleware
-func (sh *strictHandler) ListGitHubRepositories(w http.ResponseWriter, r *http.Request, gitServer GitServerParam, owner RepoOwnerParam, params ListGitHubRepositoriesParams) {
-	var request ListGitHubRepositoriesRequestObject
-
-	request.GitServer = gitServer
-	request.Owner = owner
 	request.Params = params
 
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
-		return sh.ssi.ListGitHubRepositories(ctx, request.(ListGitHubRepositoriesRequestObject))
+		return sh.ssi.GetRepository(ctx, request.(GetRepositoryRequestObject))
 	}
 	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "ListGitHubRepositories")
+		handler = middleware(handler, "GetRepository")
 	}
 
 	response, err := handler(r.Context(), w, r, request)
 
 	if err != nil {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
-	} else if validResponse, ok := response.(ListGitHubRepositoriesResponseObject); ok {
-		if err := validResponse.VisitListGitHubRepositoriesResponse(w); err != nil {
-			sh.options.ResponseErrorHandlerFunc(w, r, err)
-		}
-	} else if response != nil {
-		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
-	}
-}
-
-// GetGitlabRepository operation middleware
-func (sh *strictHandler) GetGitlabRepository(w http.ResponseWriter, r *http.Request, gitServer GitServerParam, owner RepoOwnerParam, repo RepoNameParam) {
-	var request GetGitlabRepositoryRequestObject
-
-	request.GitServer = gitServer
-	request.Owner = owner
-	request.Repo = repo
-
-	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
-		return sh.ssi.GetGitlabRepository(ctx, request.(GetGitlabRepositoryRequestObject))
-	}
-	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "GetGitlabRepository")
-	}
-
-	response, err := handler(r.Context(), w, r, request)
-
-	if err != nil {
-		sh.options.ResponseErrorHandlerFunc(w, r, err)
-	} else if validResponse, ok := response.(GetGitlabRepositoryResponseObject); ok {
-		if err := validResponse.VisitGetGitlabRepositoryResponse(w); err != nil {
-			sh.options.ResponseErrorHandlerFunc(w, r, err)
-		}
-	} else if response != nil {
-		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
-	}
-}
-
-// ListGitlabRepositories operation middleware
-func (sh *strictHandler) ListGitlabRepositories(w http.ResponseWriter, r *http.Request, gitServer GitServerParam, owner GitlabRepoOwnerParam, params ListGitlabRepositoriesParams) {
-	var request ListGitlabRepositoriesRequestObject
-
-	request.GitServer = gitServer
-	request.Owner = owner
-	request.Params = params
-
-	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
-		return sh.ssi.ListGitlabRepositories(ctx, request.(ListGitlabRepositoriesRequestObject))
-	}
-	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "ListGitlabRepositories")
-	}
-
-	response, err := handler(r.Context(), w, r, request)
-
-	if err != nil {
-		sh.options.ResponseErrorHandlerFunc(w, r, err)
-	} else if validResponse, ok := response.(ListGitlabRepositoriesResponseObject); ok {
-		if err := validResponse.VisitListGitlabRepositoriesResponse(w); err != nil {
+	} else if validResponse, ok := response.(GetRepositoryResponseObject); ok {
+		if err := validResponse.VisitGetRepositoryResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
