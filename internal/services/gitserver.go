@@ -52,7 +52,8 @@ func (g *GitServerService) GetGitProviderSettings(
 	}
 
 	return GitProviderSettings{
-		Url:   gitprovider.GetGitProviderAPIURL(gitServer),
-		Token: token,
+		Url:         gitprovider.GetGitProviderAPIURL(gitServer),
+		Token:       token,
+		GitProvider: gitServer.Spec.GitProvider,
 	}, nil
 }

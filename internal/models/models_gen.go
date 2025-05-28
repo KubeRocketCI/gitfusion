@@ -84,9 +84,6 @@ type RepositoryDetailsVisibility string
 // GitServerParam defines model for gitServerParam.
 type GitServerParam = string
 
-// GitlabRepoOwnerParam defines model for gitlabRepoOwnerParam.
-type GitlabRepoOwnerParam = string
-
 // RepoNameParam defines model for repoNameParam.
 type RepoNameParam = string
 
@@ -96,20 +93,26 @@ type RepoNameQueryParam = string
 // RepoOwnerParam defines model for repoOwnerParam.
 type RepoOwnerParam = string
 
-// ListBitbucketRepositoriesParams defines parameters for ListBitbucketRepositories.
-type ListBitbucketRepositoriesParams struct {
+// ListRepositoriesParams defines parameters for ListRepositories.
+type ListRepositoriesParams struct {
+	// GitServer The Git server name.
+	GitServer GitServerParam `form:"gitServer" json:"gitServer"`
+
+	// Owner The owner of the repository.
+	Owner RepoOwnerParam `form:"owner" json:"owner"`
+
 	// RepoName The name of the repository to search for.
 	RepoName *RepoNameQueryParam `form:"repoName,omitempty" json:"repoName,omitempty"`
 }
 
-// ListGitHubRepositoriesParams defines parameters for ListGitHubRepositories.
-type ListGitHubRepositoriesParams struct {
-	// RepoName The name of the repository to search for.
-	RepoName *RepoNameQueryParam `form:"repoName,omitempty" json:"repoName,omitempty"`
-}
+// GetRepositoryParams defines parameters for GetRepository.
+type GetRepositoryParams struct {
+	// GitServer The Git server name.
+	GitServer GitServerParam `form:"gitServer" json:"gitServer"`
 
-// ListGitlabRepositoriesParams defines parameters for ListGitlabRepositories.
-type ListGitlabRepositoriesParams struct {
-	// RepoName The name of the repository to search for.
-	RepoName *RepoNameQueryParam `form:"repoName,omitempty" json:"repoName,omitempty"`
+	// Owner The owner of the repository.
+	Owner RepoOwnerParam `form:"owner" json:"owner"`
+
+	// RepoName The name of the repository.
+	RepoName RepoNameParam `form:"repoName" json:"repoName"`
 }
