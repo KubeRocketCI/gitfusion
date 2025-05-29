@@ -23,6 +23,9 @@ type ServerInterface interface {
 	// Get detailed information for a specific repository
 	// (GET /api/v1/repository)
 	GetRepository(w http.ResponseWriter, r *http.Request, params GetRepositoryParams)
+	// List organizations for the authenticated user
+	// (GET /api/v1/user/organizations)
+	ListUserOrganizations(w http.ResponseWriter, r *http.Request, params ListUserOrganizationsParams)
 }
 
 // Unimplemented server implementation that returns http.StatusNotImplemented for each endpoint.
@@ -38,6 +41,12 @@ func (_ Unimplemented) ListRepositories(w http.ResponseWriter, r *http.Request, 
 // Get detailed information for a specific repository
 // (GET /api/v1/repository)
 func (_ Unimplemented) GetRepository(w http.ResponseWriter, r *http.Request, params GetRepositoryParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// List organizations for the authenticated user
+// (GET /api/v1/user/organizations)
+func (_ Unimplemented) ListUserOrganizations(w http.ResponseWriter, r *http.Request, params ListUserOrganizationsParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -171,6 +180,40 @@ func (siw *ServerInterfaceWrapper) GetRepository(w http.ResponseWriter, r *http.
 	handler.ServeHTTP(w, r)
 }
 
+// ListUserOrganizations operation middleware
+func (siw *ServerInterfaceWrapper) ListUserOrganizations(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListUserOrganizationsParams
+
+	// ------------- Required query parameter "gitServer" -------------
+
+	if paramValue := r.URL.Query().Get("gitServer"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "gitServer"})
+		return
+	}
+
+	err = runtime.BindQueryParameter("form", true, true, "gitServer", r.URL.Query(), &params.GitServer)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "gitServer", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListUserOrganizations(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 type UnescapedCookieParamError struct {
 	ParamName string
 	Err       error
@@ -290,6 +333,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/api/v1/repository", wrapper.GetRepository)
 	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/api/v1/user/organizations", wrapper.ListUserOrganizations)
+	})
 
 	return r
 }
@@ -373,6 +419,50 @@ func (response GetRepository404JSONResponse) VisitGetRepositoryResponse(w http.R
 	return json.NewEncoder(w).Encode(response)
 }
 
+type ListUserOrganizationsRequestObject struct {
+	Params ListUserOrganizationsParams
+}
+
+type ListUserOrganizationsResponseObject interface {
+	VisitListUserOrganizationsResponse(w http.ResponseWriter) error
+}
+
+type ListUserOrganizations200JSONResponse OrganizationsResponse
+
+func (response ListUserOrganizations200JSONResponse) VisitListUserOrganizationsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListUserOrganizations400JSONResponse Error
+
+func (response ListUserOrganizations400JSONResponse) VisitListUserOrganizationsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListUserOrganizations401JSONResponse Error
+
+func (response ListUserOrganizations401JSONResponse) VisitListUserOrganizationsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListUserOrganizations500JSONResponse Error
+
+func (response ListUserOrganizations500JSONResponse) VisitListUserOrganizationsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
 	// List repositories
@@ -381,6 +471,9 @@ type StrictServerInterface interface {
 	// Get detailed information for a specific repository
 	// (GET /api/v1/repository)
 	GetRepository(ctx context.Context, request GetRepositoryRequestObject) (GetRepositoryResponseObject, error)
+	// List organizations for the authenticated user
+	// (GET /api/v1/user/organizations)
+	ListUserOrganizations(ctx context.Context, request ListUserOrganizationsRequestObject) (ListUserOrganizationsResponseObject, error)
 }
 
 type StrictHandlerFunc = strictnethttp.StrictHTTPHandlerFunc
@@ -457,6 +550,32 @@ func (sh *strictHandler) GetRepository(w http.ResponseWriter, r *http.Request, p
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(GetRepositoryResponseObject); ok {
 		if err := validResponse.VisitGetRepositoryResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListUserOrganizations operation middleware
+func (sh *strictHandler) ListUserOrganizations(w http.ResponseWriter, r *http.Request, params ListUserOrganizationsParams) {
+	var request ListUserOrganizationsRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListUserOrganizations(ctx, request.(ListUserOrganizationsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListUserOrganizations")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListUserOrganizationsResponseObject); ok {
+		if err := validResponse.VisitListUserOrganizationsResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

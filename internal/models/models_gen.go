@@ -28,6 +28,18 @@ type Error struct {
 	Message string `json:"message"`
 }
 
+// Organization defines model for Organization.
+type Organization struct {
+	AvatarUrl *string `json:"avatar_url,omitempty"`
+	Id        string  `json:"id"`
+	Name      string  `json:"name"`
+}
+
+// OrganizationsResponse defines model for OrganizationsResponse.
+type OrganizationsResponse struct {
+	Data []Organization `json:"data"`
+}
+
 // Owner defines model for Owner.
 type Owner struct {
 	AvatarUrl *string `json:"avatar_url,omitempty"`
@@ -115,4 +127,10 @@ type GetRepositoryParams struct {
 
 	// RepoName The name of the repository.
 	RepoName RepoNameParam `form:"repoName" json:"repoName"`
+}
+
+// ListUserOrganizationsParams defines parameters for ListUserOrganizations.
+type ListUserOrganizationsParams struct {
+	// GitServer The Git server name.
+	GitServer GitServerParam `form:"gitServer" json:"gitServer"`
 }

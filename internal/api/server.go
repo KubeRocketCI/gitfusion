@@ -16,15 +16,18 @@ var _ StrictServerInterface = (*Server)(nil)
 
 // Server is the main server struct that implements the StrictServerInterface.
 type Server struct {
-	repositoryHandler *RepositoryHandler
+	repositoryHandler   *RepositoryHandler
+	organizationHandler *OrganizationHandler
 }
 
 // NewServer creates a new Server instance.
 func NewServer(
 	repositoryHandler *RepositoryHandler,
+	organizationHandler *OrganizationHandler,
 ) *Server {
 	return &Server{
-		repositoryHandler: repositoryHandler,
+		repositoryHandler:   repositoryHandler,
+		organizationHandler: organizationHandler,
 	}
 }
 
@@ -44,6 +47,14 @@ func (r *Server) ListRepositories(
 	return r.repositoryHandler.ListRepositories(ctx, request)
 }
 
+// ListUserOrganizations implements StrictServerInterface.
+func (s *Server) ListUserOrganizations(
+	ctx context.Context,
+	request ListUserOrganizationsRequestObject,
+) (ListUserOrganizationsResponseObject, error) {
+	return s.organizationHandler.ListUserOrganizations(ctx, request)
+}
+
 func BuildHandler(conf Config) (ServerInterface, error) {
 	k8sCl, err := initk8sClient()
 	if err != nil {
@@ -52,14 +63,19 @@ func BuildHandler(conf Config) (ServerInterface, error) {
 
 	gitServerService := services.NewGitServerService(k8sCl, conf.Namespace)
 
+	repoSvc := services.NewRepositoriesService(
+		services.NewMultiProviderRepositoryService(),
+		gitServerService,
+	)
+	orgSvc := services.NewOrganizationsService(
+		services.NewMultiProviderOrganizationsService(),
+		gitServerService,
+	)
+
 	return NewStrictHandlerWithOptions(
 		NewServer(
-			NewRepositoryHandler(
-				services.NewRepositoriesService(
-					services.NewMultiProviderRepositoryService(), // Dynamically supports GitHub, GitLab, Bitbucket
-					gitServerService,
-				),
-			),
+			NewRepositoryHandler(repoSvc),
+			NewOrganizationHandler(orgSvc),
 		),
 		[]StrictMiddlewareFunc{},
 		StrictHTTPServerOptions{},
