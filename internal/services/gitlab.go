@@ -79,6 +79,41 @@ func (g *GitlabService) ListRepositories(
 	return result, nil
 }
 
+// ListUserOrganizations returns organizations for the authenticated user
+func (g *GitlabService) ListUserOrganizations(
+	ctx context.Context,
+	settings GitProviderSettings,
+) ([]models.Organization, error) {
+	client, err := gitlab.NewClient(settings.Token, gitlab.WithBaseURL(settings.Url))
+	if err != nil {
+		return nil, err
+	}
+
+	it := gitlab.Scan2(func(p gitlab.PaginationOptionFunc) ([]*gitlab.Group, *gitlab.Response, error) {
+		return client.Groups.ListGroups(&gitlab.ListGroupsOptions{}, gitlab.WithContext(ctx), p)
+	})
+
+	result := make([]models.Organization, 0)
+
+	for group, err := range it {
+		if err != nil {
+			return nil, fmt.Errorf("failed to list groups: %w", err)
+		}
+
+		org := models.Organization{
+			Id:   strconv.Itoa(group.ID),
+			Name: group.FullPath,
+		}
+		if group.AvatarURL != "" {
+			org.AvatarUrl = &group.AvatarURL
+		}
+
+		result = append(result, org)
+	}
+
+	return result, nil
+}
+
 func convertGitlabRepoToRepository(repo *gitlab.Project) *models.Repository {
 	if repo == nil {
 		return nil

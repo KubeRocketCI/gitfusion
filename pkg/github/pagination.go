@@ -21,7 +21,7 @@ func ScanGitHubList[T any](
 		}
 
 		for {
-			repos, resp, err := fetchPage(opt)
+			list, resp, err := fetchPage(opt)
 			if err != nil {
 				var t T
 
@@ -30,8 +30,8 @@ func ScanGitHubList[T any](
 				return
 			}
 
-			for _, repo := range repos {
-				if !yield(repo, nil) {
+			for _, item := range list {
+				if !yield(item, nil) {
 					return
 				}
 			}

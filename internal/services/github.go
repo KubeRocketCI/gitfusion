@@ -184,3 +184,48 @@ func convertVisibility(isPrivate bool) *models.RepositoryVisibility {
 
 	return &visibility
 }
+
+// ListUserOrganizations returns organizations for the authenticated user
+func (g *GitHubService) ListUserOrganizations(
+	ctx context.Context,
+	settings GitProviderSettings,
+) ([]models.Organization, error) {
+	client := github.NewClient(nil).WithAuthToken(settings.Token)
+
+	it := gfgithub.ScanGitHubList(
+		func(opt github.ListOptions) ([]*github.Membership, *github.Response, error) {
+			return client.Organizations.ListOrgMemberships(
+				ctx,
+				&github.ListOrgMembershipsOptions{
+					State:       "active",
+					ListOptions: opt,
+				},
+			)
+		},
+	)
+
+	result := make([]models.Organization, 0)
+
+	for membership, err := range it {
+		if err != nil {
+			return nil, fmt.Errorf("failed to list organizations: %w", err)
+		}
+
+		org := membership.Organization
+		if org == nil {
+			continue
+		}
+
+		orgModel := models.Organization{
+			Id:   strconv.FormatInt(org.GetID(), 10),
+			Name: org.GetLogin(),
+		}
+		if org.AvatarURL != nil {
+			orgModel.AvatarUrl = org.AvatarURL
+		}
+
+		result = append(result, orgModel)
+	}
+
+	return result, nil
+}

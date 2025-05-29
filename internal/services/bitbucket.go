@@ -76,6 +76,37 @@ func (b *BitbucketService) ListRepositories(
 	return result, nil
 }
 
+// ListUserOrganizations returns workspaces for the authenticated user using go-bitbucket client
+func (b *BitbucketService) ListUserOrganizations(
+	_ context.Context,
+	settings GitProviderSettings,
+) ([]models.Organization, error) {
+	username, password, err := decodeBitbucketToken(settings.Token)
+	if err != nil {
+		return nil, err
+	}
+
+	client := bitbucket.NewBasicAuth(username, password)
+
+	workspaces, err := client.Workspaces.List()
+	if err != nil {
+		return nil, fmt.Errorf("failed to list workspaces: %w", err)
+	}
+
+	result := make([]models.Organization, 0, len(workspaces.Workspaces))
+
+	for _, ws := range workspaces.Workspaces {
+		org := models.Organization{
+			Id:   ws.UUID,
+			Name: ws.Name,
+		}
+
+		result = append(result, org)
+	}
+
+	return result, nil
+}
+
 func convertBitbucketRepoToRepository(repo *bitbucket.Repository) *models.Repository {
 	if repo == nil {
 		return nil
@@ -105,7 +136,7 @@ func convertBitbucketRepoToRepository(repo *bitbucket.Repository) *models.Reposi
 	}
 }
 
-func decodeBitbucketToken(token string) (username, pasword string, err error) {
+func decodeBitbucketToken(token string) (username, password string, err error) {
 	decodedToken, err := base64.StdEncoding.DecodeString(token)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to decode token: %w", err)
