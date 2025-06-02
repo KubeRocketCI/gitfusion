@@ -11,6 +11,7 @@ require (
 	github.com/ktrysmt/go-bitbucket v0.9.85
 	github.com/oapi-codegen/runtime v1.1.1
 	github.com/stretchr/testify v1.10.0
+	github.com/viccon/sturdyc v1.1.5
 	gitlab.com/gitlab-org/api/client-go v0.128.0
 	k8s.io/api v0.32.1
 	k8s.io/apimachinery v0.32.1

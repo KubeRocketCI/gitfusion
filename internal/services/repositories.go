@@ -4,7 +4,10 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/KubeRocketCI/gitfusion/internal/cache"
 	"github.com/KubeRocketCI/gitfusion/internal/models"
+	"github.com/KubeRocketCI/gitfusion/pkg/pointer"
+	"github.com/viccon/sturdyc"
 )
 
 type Repositories interface {
@@ -22,9 +25,10 @@ type Repositories interface {
 }
 
 type GitProviderSettings struct {
-	Url         string
-	Token       string
-	GitProvider string
+	Url           string
+	Token         string
+	GitProvider   string
+	GitServerName string
 }
 
 type RepositoriesService struct {
@@ -70,6 +74,7 @@ func (r *RepositoriesService) ListRepositories(
 // MultiProviderRepositoryService dynamically dispatches to the correct provider implementation.
 type MultiProviderRepositoryService struct {
 	providers map[string]Repositories
+	cache     *sturdyc.Client[[]models.Repository]
 }
 
 func NewMultiProviderRepositoryService() *MultiProviderRepositoryService {
@@ -79,6 +84,7 @@ func NewMultiProviderRepositoryService() *MultiProviderRepositoryService {
 			"gitlab":    NewGitlabService(),
 			"bitbucket": NewBitbucketService(),
 		},
+		cache: cache.NewRepositoryCache(),
 	}
 }
 
@@ -106,5 +112,11 @@ func (m *MultiProviderRepositoryService) ListRepositories(
 		return nil, fmt.Errorf("unsupported provider: %s", settings.GitProvider)
 	}
 
-	return provider.ListRepositories(ctx, owner, settings, listOptions)
+	key := fmt.Sprintf("%s|%s|%s", settings.GitServerName, owner, pointer.ValueOrEmpty(listOptions.Name))
+
+	fetchFn := func(ctx context.Context) ([]models.Repository, error) {
+		return provider.ListRepositories(ctx, owner, settings, listOptions)
+	}
+
+	return m.cache.GetOrFetch(ctx, key, fetchFn)
 }
