@@ -90,7 +90,7 @@ func main() {
 }
 
 func initLogger(config api.Config) *httplog.Logger {
-	return httplog.NewLogger("gitfusion-api", httplog.Options{
+	l := httplog.NewLogger("gitfusion-api", httplog.Options{
 		JSON:            true,
 		LogLevel:        slog.LevelDebug,
 		Concise:         true,
@@ -106,4 +106,8 @@ func initLogger(config api.Config) *httplog.Logger {
 		QuietDownPeriod: 10 * time.Second,
 		SourceFieldName: "source",
 	})
+
+	slog.SetDefault(l.Logger)
+
+	return l
 }

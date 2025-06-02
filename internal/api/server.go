@@ -68,7 +68,9 @@ func BuildHandler(conf Config) (ServerInterface, error) {
 		gitServerService,
 	)
 	orgSvc := services.NewOrganizationsService(
-		services.NewMultiProviderOrganizationsService(),
+		services.NewMultiProviderOrganizationsService(
+			gitServerService,
+		),
 		gitServerService,
 	)
 
