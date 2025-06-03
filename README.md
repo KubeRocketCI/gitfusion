@@ -62,14 +62,15 @@ GitFusion can be deployed using the provided Helm chart:
 helm install gitfusion ./deploy-templates -n my-namespace
 ```
 
-## API Endpoints
+## API Documentation
 
-GitFusion exposes a RESTful API defined using OpenAPI specification. Key endpoints include:
+GitFusion exposes a RESTful API defined using OpenAPI specification. The API includes endpoints for:
 
-- `/api/v1/providers/github/{git-server}/{org}/repositories` - List organization repositories
-- `/api/v1/providers/github/{git-server}/repositories/{owner}/{repo}` - Get repository details
+- Repository management (listing, getting details)
+- Organization operations
+- And more as the project evolves
 
-For full API documentation, refer to the OpenAPI specification at `internal/api/oapi.yaml`.
+Rather than listing specific endpoints here which may change over time, we recommend referring to the OpenAPI specification at `internal/api/oapi.yaml` for the most up-to-date and complete API documentation.
 
 ## Contributing
 
