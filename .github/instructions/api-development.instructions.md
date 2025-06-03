@@ -15,21 +15,10 @@ applyTo: "**/api/**/*.go"
 - Provide meaningful error messages with error codes
 - Follow JSON naming conventions (camelCase)
 
-## Authentication & Authorization
-> **Important Notice:** Authentication and authorization are NOT currently implemented in GitFusion.
-> This section is preserved as a placeholder for future implementation.
-> DO NOT suggest or generate code that includes authentication or authorization features at this time.
-
 ## OpenAPI Specification
 - All API changes must be reflected in the OpenAPI specification
 - Generate server stubs from the OpenAPI spec
 - Keep the spec and implementation in sync
-
-## Rate Limiting & Performance
-> **Important Notice:** Rate limiting and performance optimizations are NOT currently implemented in GitFusion.
-> This section is preserved as a placeholder for future implementation.
-> DO NOT suggest or generate code that includes rate limiting or complex caching features at this time.
-> However, still focus on writing efficient and performant code as a general practice.
 
 ## Security
 - Validate all input data
