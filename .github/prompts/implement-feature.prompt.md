@@ -21,6 +21,7 @@ I'll help you implement a new feature in the GitFusion service, following best p
 3. **Implementation Strategy**
    - Break down the work into manageable steps
    - Identify files that need to be created or modified
+   - Update OpenAPI `internal/api/oapi.yaml` if API changes are needed and run `make generate` to regenerate code for API stubs and models
    - Plan tests to verify the implementation
 
 4. **Testing Approach**

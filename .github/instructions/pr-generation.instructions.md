@@ -1,6 +1,3 @@
----
-applyTo: "**"
----
 # Pull Request Title and Description Generation Guidelines
 
 ## PR Title Guidelines

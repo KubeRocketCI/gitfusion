@@ -7,11 +7,10 @@ applyTo: "**/github/*.go,**/gitlab/*.go,**/bitbucket/*.go"
 - Maintain consistent interfaces across all Git providers
 - Abstract provider-specific details behind common interfaces
 - Implement proper error handling and recovery
-- Cache results when appropriate to minimize API calls
+- Cache results when appropriate to minimize API calls. Use `github.com/viccon/sturdyc` for caching.
 
 ## API Client Implementation
 - Use appropriate client libraries when available
-- Implement proper retry logic with exponential backoff
 - Add logging for API requests (with sensitive data redacted)
 - Include comprehensive error context in returned errors
 
