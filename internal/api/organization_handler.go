@@ -3,16 +3,16 @@ package api
 import (
 	"context"
 
-	"github.com/KubeRocketCI/gitfusion/internal/services"
+	"github.com/KubeRocketCI/gitfusion/internal/services/organizations"
 )
 
 // OrganizationHandler handles requests related to organizations (all providers).
 type OrganizationHandler struct {
-	organizationsService *services.OrganizationsService
+	organizationsService *organizations.OrganizationsService
 }
 
 // NewOrganizationHandler creates a new OrganizationHandler.
-func NewOrganizationHandler(organizationsService *services.OrganizationsService) *OrganizationHandler {
+func NewOrganizationHandler(organizationsService *organizations.OrganizationsService) *OrganizationHandler {
 	return &OrganizationHandler{
 		organizationsService: organizationsService,
 	}

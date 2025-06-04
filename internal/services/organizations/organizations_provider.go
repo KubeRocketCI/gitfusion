@@ -1,4 +1,4 @@
-package services
+package organizations
 
 import (
 	"context"
@@ -7,50 +7,33 @@ import (
 
 	"github.com/KubeRocketCI/gitfusion/internal/cache"
 	"github.com/KubeRocketCI/gitfusion/internal/models"
+	"github.com/KubeRocketCI/gitfusion/internal/services/bitbucket"
+	"github.com/KubeRocketCI/gitfusion/internal/services/github"
+	"github.com/KubeRocketCI/gitfusion/internal/services/gitlab"
+	"github.com/KubeRocketCI/gitfusion/internal/services/krci"
 	"github.com/viccon/sturdyc"
 )
 
-type Organizations interface {
-	ListUserOrganizations(ctx context.Context, settings GitProviderSettings) ([]models.Organization, error)
-}
-
-type OrganizationsService struct {
-	organizations    Organizations
-	gitServerService *GitServerService
-}
-
-func NewOrganizationsService(organizations Organizations, gitServerService *GitServerService) *OrganizationsService {
-	return &OrganizationsService{
-		organizations:    organizations,
-		gitServerService: gitServerService,
-	}
-}
-
-func (s *OrganizationsService) ListUserOrganizations(
-	ctx context.Context,
-	gitServerName string,
-) ([]models.Organization, error) {
-	settings, err := s.gitServerService.GetGitProviderSettings(ctx, gitServerName)
-	if err != nil {
-		return nil, err
-	}
-
-	return s.organizations.ListUserOrganizations(ctx, settings)
+type OrganizationsProvider interface {
+	ListUserOrganizations(
+		ctx context.Context,
+		settings krci.GitServerSettings,
+	) ([]models.Organization, error)
 }
 
 type MultiProviderOrganizationsService struct {
-	providers map[string]Organizations
+	providers map[string]OrganizationsProvider
 	cache     *sturdyc.Client[[]models.Organization]
 }
 
 func NewMultiProviderOrganizationsService(
-	gitServerService *GitServerService,
+	gitServerService *krci.GitServerService,
 ) *MultiProviderOrganizationsService {
 	service := &MultiProviderOrganizationsService{
-		providers: map[string]Organizations{
-			"github":    NewGitHubService(),
-			"gitlab":    NewGitlabService(),
-			"bitbucket": NewBitbucketService(),
+		providers: map[string]OrganizationsProvider{
+			"github":    github.NewGitHubProvider(),
+			"gitlab":    gitlab.NewGitlabProvider(),
+			"bitbucket": bitbucket.NewBitbucketProvider(),
 		},
 		cache: cache.NewOrganizationCache(),
 	}
@@ -68,7 +51,7 @@ func NewMultiProviderOrganizationsService(
 
 		for _, setting := range settings {
 			// It's safe to spawn new goroutines for each provider because we may have only a few providers.
-			go func(setting GitProviderSettings) {
+			go func(setting krci.GitServerSettings) {
 				if _, fetchErr := service.ListUserOrganizations(ctx, setting); fetchErr != nil {
 					slog.Error("Failed to list user organizations", "provider", setting.GitProvider, "error", fetchErr)
 
@@ -85,7 +68,7 @@ func NewMultiProviderOrganizationsService(
 
 func (m *MultiProviderOrganizationsService) ListUserOrganizations(
 	ctx context.Context,
-	settings GitProviderSettings,
+	settings krci.GitServerSettings,
 ) ([]models.Organization, error) {
 	provider, ok := m.providers[settings.GitProvider]
 	if !ok {

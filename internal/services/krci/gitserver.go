@@ -1,4 +1,4 @@
-package services
+package krci
 
 import (
 	"context"
@@ -17,6 +17,13 @@ type GitServerService struct {
 	namespace string
 }
 
+type GitServerSettings struct {
+	Url           string
+	Token         string
+	GitProvider   string
+	GitServerName string
+}
+
 func NewGitServerService(k8sClinet client.Client, namespace string) *GitServerService {
 	return &GitServerService{
 		k8sClinet: k8sClinet,
@@ -27,27 +34,27 @@ func NewGitServerService(k8sClinet client.Client, namespace string) *GitServerSe
 func (g *GitServerService) GetGitProviderSettings(
 	ctx context.Context,
 	gitServerName string,
-) (GitProviderSettings, error) {
+) (GitServerSettings, error) {
 	gitServer := &codebaseApi.GitServer{}
 	if err := g.k8sClinet.Get(
 		ctx,
 		client.ObjectKey{Name: gitServerName, Namespace: g.namespace},
 		gitServer,
 	); err != nil {
-		return GitProviderSettings{}, err
+		return GitServerSettings{}, err
 	}
 
 	return g.getGitProviderSettingsForServer(ctx, gitServer)
 }
 
 // GetGitProviderSettingsList returns a list of GitProviderSettings for all GitServers in the namespace.
-func (g *GitServerService) GetGitProviderSettingsList(ctx context.Context) ([]GitProviderSettings, error) {
+func (g *GitServerService) GetGitProviderSettingsList(ctx context.Context) ([]GitServerSettings, error) {
 	gitServerList := &codebaseApi.GitServerList{}
 	if err := g.k8sClinet.List(ctx, gitServerList, client.InNamespace(g.namespace)); err != nil {
 		return nil, fmt.Errorf("failed to list GitServers: %w", err)
 	}
 
-	settingsList := make([]GitProviderSettings, 0, len(gitServerList.Items))
+	settingsList := make([]GitServerSettings, 0, len(gitServerList.Items))
 
 	for i := range gitServerList.Items {
 		gs := &gitServerList.Items[i]
@@ -66,22 +73,22 @@ func (g *GitServerService) GetGitProviderSettingsList(ctx context.Context) ([]Gi
 func (g *GitServerService) getGitProviderSettingsForServer(
 	ctx context.Context,
 	gitServer *codebaseApi.GitServer,
-) (GitProviderSettings, error) {
+) (GitServerSettings, error) {
 	secret := &corev1.Secret{}
 	if err := g.k8sClinet.Get(
 		ctx,
 		client.ObjectKey{Name: gitServer.Spec.NameSshKeySecret, Namespace: g.namespace},
 		secret,
 	); err != nil {
-		return GitProviderSettings{}, err
+		return GitServerSettings{}, err
 	}
 
 	token := string(secret.Data[codebaseUtil.GitServerSecretTokenField])
 	if token == "" {
-		return GitProviderSettings{}, errors.New("git provider token is empty")
+		return GitServerSettings{}, errors.New("git provider token is empty")
 	}
 
-	return GitProviderSettings{
+	return GitServerSettings{
 		Url:           gitprovider.GetGitProviderAPIURL(gitServer),
 		Token:         token,
 		GitProvider:   gitServer.Spec.GitProvider,

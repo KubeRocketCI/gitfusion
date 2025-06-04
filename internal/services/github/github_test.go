@@ -1,10 +1,11 @@
-package services
+package github
 
 import (
 	"iter"
 	"slices"
 	"testing"
 
+	"github.com/KubeRocketCI/gitfusion/internal/models"
 	gfgithub "github.com/KubeRocketCI/gitfusion/pkg/github"
 	"github.com/google/go-github/v72/github"
 	"github.com/stretchr/testify/assert"
@@ -13,7 +14,7 @@ import (
 func Test_filterProjectsByName(t *testing.T) {
 	type args struct {
 		it  iter.Seq2[*github.Repository, error]
-		opt ListOptions
+		opt models.ListOptions
 	}
 
 	tests := []struct {
@@ -31,7 +32,7 @@ func Test_filterProjectsByName(t *testing.T) {
 					}
 					yield(&github.Repository{Name: github.Ptr("repo2")}, nil)
 				}),
-				opt: ListOptions{Name: nil},
+				opt: models.ListOptions{Name: nil},
 			},
 			want: []*github.Repository{
 				{Name: github.Ptr("repo1")},
@@ -51,7 +52,7 @@ func Test_filterProjectsByName(t *testing.T) {
 					}
 					yield(&github.Repository{Name: github.Ptr("with A")}, nil)
 				}),
-				opt: ListOptions{Name: github.Ptr("a")},
+				opt: models.ListOptions{Name: github.Ptr("a")},
 			},
 			want: []*github.Repository{
 				{Name: github.Ptr("with a")},
@@ -68,7 +69,7 @@ func Test_filterProjectsByName(t *testing.T) {
 					}
 					yield(&github.Repository{Name: github.Ptr("bar")}, nil)
 				}),
-				opt: ListOptions{Name: github.Ptr("baz")},
+				opt: models.ListOptions{Name: github.Ptr("baz")},
 			},
 			want:    []*github.Repository{},
 			wantErr: assert.NoError,
@@ -79,7 +80,7 @@ func Test_filterProjectsByName(t *testing.T) {
 				it: iter.Seq2[*github.Repository, error](func(yield func(*github.Repository, error) bool) {
 					yield(nil, assert.AnError)
 				}),
-				opt: ListOptions{Name: nil},
+				opt: models.ListOptions{Name: nil},
 			},
 			want:    []*github.Repository{},
 			wantErr: assert.Error,

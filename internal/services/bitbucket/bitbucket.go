@@ -1,4 +1,4 @@
-package services
+package bitbucket
 
 import (
 	"context"
@@ -8,19 +8,20 @@ import (
 
 	gferrors "github.com/KubeRocketCI/gitfusion/internal/errors"
 	"github.com/KubeRocketCI/gitfusion/internal/models"
+	"github.com/KubeRocketCI/gitfusion/internal/services/krci"
 	"github.com/ktrysmt/go-bitbucket"
 )
 
 type BitbucketService struct{}
 
-func NewBitbucketService() *BitbucketService {
+func NewBitbucketProvider() *BitbucketService {
 	return &BitbucketService{}
 }
 
 func (b *BitbucketService) GetRepository(
 	ctx context.Context,
 	owner, repo string,
-	settings GitProviderSettings,
+	settings krci.GitServerSettings,
 ) (*models.Repository, error) {
 	username, password, err := decodeBitbucketToken(settings.Token)
 	if err != nil {
@@ -49,8 +50,8 @@ func (b *BitbucketService) GetRepository(
 func (b *BitbucketService) ListRepositories(
 	ctx context.Context,
 	account string,
-	settings GitProviderSettings,
-	listOptions ListOptions,
+	settings krci.GitServerSettings,
+	listOptions models.ListOptions,
 ) ([]models.Repository, error) {
 	username, password, err := decodeBitbucketToken(settings.Token)
 	if err != nil {
@@ -79,7 +80,7 @@ func (b *BitbucketService) ListRepositories(
 // ListUserOrganizations returns workspaces for the authenticated user using go-bitbucket client
 func (b *BitbucketService) ListUserOrganizations(
 	_ context.Context,
-	settings GitProviderSettings,
+	settings krci.GitServerSettings,
 ) ([]models.Organization, error) {
 	username, password, err := decodeBitbucketToken(settings.Token)
 	if err != nil {
@@ -102,6 +103,40 @@ func (b *BitbucketService) ListUserOrganizations(
 		}
 
 		result = append(result, org)
+	}
+
+	return result, nil
+}
+
+// ListBranches implements BranchesProvider for BitbucketService.
+func (b *BitbucketService) ListBranches(
+	ctx context.Context,
+	owner, repo string,
+	settings krci.GitServerSettings,
+	_ models.ListOptions,
+) ([]models.Branch, error) {
+	username, password, err := decodeBitbucketToken(settings.Token)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode bitbucket token: %w", err)
+	}
+
+	client := bitbucket.NewBasicAuth(username, password)
+	branchOptions := &bitbucket.RepositoryBranchOptions{
+		Owner:    owner,
+		RepoSlug: repo,
+	}
+
+	branchesResp, err := client.Repositories.Repository.ListBranches(branchOptions)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list branches for %s/%s: %w", owner, repo, err)
+	}
+
+	result := make([]models.Branch, 0, len(branchesResp.Branches))
+
+	for _, b := range branchesResp.Branches {
+		result = append(result, models.Branch{
+			Name: b.Name,
+		})
 	}
 
 	return result, nil

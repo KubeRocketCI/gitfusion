@@ -19,6 +19,16 @@ const (
 	RepositoryDetailsVisibilityPublic  RepositoryDetailsVisibility = "public"
 )
 
+// Branch defines model for Branch.
+type Branch struct {
+	Name string `json:"name"`
+}
+
+// BranchesResponse defines model for BranchesResponse.
+type BranchesResponse struct {
+	Data []Branch `json:"data"`
+}
+
 // Error defines model for Error.
 type Error struct {
 	// Code A short error code representing the type of error
@@ -49,10 +59,7 @@ type Owner struct {
 
 // Pagination defines model for Pagination.
 type Pagination struct {
-	NextPage int `json:"next_page"`
-	Page     int `json:"page"`
-	PerPage  int `json:"per_page"`
-	Total    int `json:"total"`
+	Total int `json:"total"`
 }
 
 // RepositoriesResponse defines model for RepositoriesResponse.
@@ -104,6 +111,18 @@ type RepoNameQueryParam = string
 
 // RepoOwnerParam defines model for repoOwnerParam.
 type RepoOwnerParam = string
+
+// ListBranchesParams defines parameters for ListBranches.
+type ListBranchesParams struct {
+	// GitServer The Git server name.
+	GitServer GitServerParam `form:"gitServer" json:"gitServer"`
+
+	// Owner The owner of the repository.
+	Owner RepoOwnerParam `form:"owner" json:"owner"`
+
+	// RepoName The name of the repository.
+	RepoName RepoNameParam `form:"repoName" json:"repoName"`
+}
 
 // ListRepositoriesParams defines parameters for ListRepositories.
 type ListRepositoriesParams struct {
