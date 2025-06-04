@@ -1,4 +1,4 @@
-package services
+package gitlab
 
 import (
 	"context"
@@ -8,19 +8,20 @@ import (
 
 	gferrors "github.com/KubeRocketCI/gitfusion/internal/errors"
 	"github.com/KubeRocketCI/gitfusion/internal/models"
+	"github.com/KubeRocketCI/gitfusion/internal/services/krci"
 	gitlab "gitlab.com/gitlab-org/api/client-go"
 )
 
-type GitlabService struct{}
+type GitlabProvider struct{}
 
-func NewGitlabService() *GitlabService {
-	return &GitlabService{}
+func NewGitlabProvider() *GitlabProvider {
+	return &GitlabProvider{}
 }
 
-func (g *GitlabService) GetRepository(
+func (g *GitlabProvider) GetRepository(
 	ctx context.Context,
 	owner, repo string,
-	settings GitProviderSettings,
+	settings krci.GitServerSettings,
 ) (*models.Repository, error) {
 	client, err := gitlab.NewClient(settings.Token, gitlab.WithBaseURL(settings.Url))
 	if err != nil {
@@ -43,11 +44,11 @@ func (g *GitlabService) GetRepository(
 	return convertGitlabRepoToRepository(repository), nil
 }
 
-func (g *GitlabService) ListRepositories(
+func (g *GitlabProvider) ListRepositories(
 	ctx context.Context,
 	owner string,
-	settings GitProviderSettings,
-	listOptions ListOptions,
+	settings krci.GitServerSettings,
+	listOptions models.ListOptions,
 ) ([]models.Repository, error) {
 	client, err := gitlab.NewClient(settings.Token, gitlab.WithBaseURL(settings.Url))
 	if err != nil {
@@ -80,9 +81,9 @@ func (g *GitlabService) ListRepositories(
 }
 
 // ListUserOrganizations returns organizations for the authenticated user
-func (g *GitlabService) ListUserOrganizations(
+func (g *GitlabProvider) ListUserOrganizations(
 	ctx context.Context,
-	settings GitProviderSettings,
+	settings krci.GitServerSettings,
 ) ([]models.Organization, error) {
 	client, err := gitlab.NewClient(settings.Token, gitlab.WithBaseURL(settings.Url))
 	if err != nil {
@@ -114,6 +115,42 @@ func (g *GitlabService) ListUserOrganizations(
 	return result, nil
 }
 
+// ListBranches implements BranchesProvider for GitlabService.
+func (g *GitlabProvider) ListBranches(
+	ctx context.Context,
+	owner, repo string,
+	settings krci.GitServerSettings,
+	_ models.ListOptions,
+) ([]models.Branch, error) {
+	client, err := gitlab.NewClient(settings.Token, gitlab.WithBaseURL(settings.Url))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create gitlab client: %w", err)
+	}
+
+	it := gitlab.Scan2(func(p gitlab.PaginationOptionFunc) ([]*gitlab.Branch, *gitlab.Response, error) {
+		return client.Branches.ListBranches(
+			fmt.Sprintf("%s/%s", owner, repo),
+			&gitlab.ListBranchesOptions{},
+			gitlab.WithContext(ctx),
+			p,
+		)
+	})
+
+	result := make([]models.Branch, 0)
+
+	for b, err := range it {
+		if err != nil {
+			return nil, fmt.Errorf("failed to list branches for %s/%s: %w", owner, repo, err)
+		}
+
+		result = append(result, models.Branch{
+			Name: b.Name,
+		})
+	}
+
+	return result, nil
+}
+
 func convertGitlabRepoToRepository(repo *gitlab.Project) *models.Repository {
 	if repo == nil {
 		return nil
@@ -130,11 +167,23 @@ func convertGitlabRepoToRepository(repo *gitlab.Project) *models.Repository {
 	}
 }
 
-func newGitlabRepositoryListByOrgOptions(listOptions ListOptions) *gitlab.ListGroupProjectsOptions {
+func newGitlabRepositoryListByOrgOptions(listOptions models.ListOptions) *gitlab.ListGroupProjectsOptions {
 	return &gitlab.ListGroupProjectsOptions{
 		ListOptions: gitlab.ListOptions{
 			PerPage: 100,
 		},
 		Search: listOptions.Name,
 	}
+}
+
+func convertVisibility(isPrivate bool) *models.RepositoryVisibility {
+	if isPrivate {
+		visibility := models.RepositoryVisibilityPrivate
+
+		return &visibility
+	}
+
+	visibility := models.RepositoryVisibilityPublic
+
+	return &visibility
 }

@@ -3,7 +3,10 @@ package api
 import (
 	"context"
 
-	"github.com/KubeRocketCI/gitfusion/internal/services"
+	"github.com/KubeRocketCI/gitfusion/internal/services/branches"
+	"github.com/KubeRocketCI/gitfusion/internal/services/krci"
+	"github.com/KubeRocketCI/gitfusion/internal/services/organizations"
+	"github.com/KubeRocketCI/gitfusion/internal/services/repositories"
 	codebaseApi "github.com/epam/edp-codebase-operator/v2/api/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -18,16 +21,19 @@ var _ StrictServerInterface = (*Server)(nil)
 type Server struct {
 	repositoryHandler   *RepositoryHandler
 	organizationHandler *OrganizationHandler
+	branchHandler       *BranchHandler
 }
 
 // NewServer creates a new Server instance.
 func NewServer(
 	repositoryHandler *RepositoryHandler,
 	organizationHandler *OrganizationHandler,
+	branchHandler *BranchHandler,
 ) *Server {
 	return &Server{
 		repositoryHandler:   repositoryHandler,
 		organizationHandler: organizationHandler,
+		branchHandler:       branchHandler,
 	}
 }
 
@@ -55,29 +61,43 @@ func (s *Server) ListUserOrganizations(
 	return s.organizationHandler.ListUserOrganizations(ctx, request)
 }
 
+// ListBranches implements StrictServerInterface.
+func (s *Server) ListBranches(
+	ctx context.Context,
+	request ListBranchesRequestObject,
+) (ListBranchesResponseObject, error) {
+	return s.branchHandler.ListBranches(ctx, request)
+}
+
 func BuildHandler(conf Config) (ServerInterface, error) {
 	k8sCl, err := initk8sClient()
 	if err != nil {
 		return nil, err
 	}
 
-	gitServerService := services.NewGitServerService(k8sCl, conf.Namespace)
+	gitServerService := krci.NewGitServerService(k8sCl, conf.Namespace)
 
-	repoSvc := services.NewRepositoriesService(
-		services.NewMultiProviderRepositoryService(),
+	repoSvc := repositories.NewRepositoriesService(
+		repositories.NewMultiProviderRepositoryService(),
 		gitServerService,
 	)
-	orgSvc := services.NewOrganizationsService(
-		services.NewMultiProviderOrganizationsService(
+	orgSvc := organizations.NewOrganizationsService(
+		organizations.NewMultiProviderOrganizationsService(
 			gitServerService,
 		),
 		gitServerService,
 	)
+	branchesSvc := branches.NewBranchesService(
+		branches.NewMultiProviderBranchesService(),
+		gitServerService,
+	)
+	branchHandler := NewBranchHandler(branchesSvc)
 
 	return NewStrictHandlerWithOptions(
 		NewServer(
 			NewRepositoryHandler(repoSvc),
 			NewOrganizationHandler(orgSvc),
+			branchHandler,
 		),
 		[]StrictMiddlewareFunc{},
 		StrictHTTPServerOptions{},

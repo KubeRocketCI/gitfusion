@@ -1,4 +1,4 @@
-package services
+package repositories
 
 import (
 	"context"
@@ -6,83 +6,40 @@ import (
 
 	"github.com/KubeRocketCI/gitfusion/internal/cache"
 	"github.com/KubeRocketCI/gitfusion/internal/models"
+	"github.com/KubeRocketCI/gitfusion/internal/services/bitbucket"
+	"github.com/KubeRocketCI/gitfusion/internal/services/github"
+	"github.com/KubeRocketCI/gitfusion/internal/services/gitlab"
+	"github.com/KubeRocketCI/gitfusion/internal/services/krci"
 	"github.com/KubeRocketCI/gitfusion/pkg/pointer"
 	"github.com/viccon/sturdyc"
 )
 
-type Repositories interface {
+type RepositoriesProvider interface {
 	GetRepository(
 		ctx context.Context,
 		owner, repo string,
-		settings GitProviderSettings,
+		settings krci.GitServerSettings,
 	) (*models.Repository, error)
 	ListRepositories(
 		ctx context.Context,
 		owner string,
-		settings GitProviderSettings,
-		listOptions ListOptions,
+		settings krci.GitServerSettings,
+		listOptions models.ListOptions,
 	) ([]models.Repository, error)
-}
-
-type GitProviderSettings struct {
-	Url           string
-	Token         string
-	GitProvider   string
-	GitServerName string
-}
-
-type RepositoriesService struct {
-	gitRepositoriesService Repositories
-	gitServerService       *GitServerService
-}
-
-func NewRepositoriesService(
-	gitRepositoriesService Repositories,
-	gitServerService *GitServerService,
-) *RepositoriesService {
-	return &RepositoriesService{
-		gitRepositoriesService: gitRepositoriesService,
-		gitServerService:       gitServerService,
-	}
-}
-
-func (r *RepositoriesService) GetRepository(
-	ctx context.Context,
-	gitServerName, owner, repo string,
-) (*models.Repository, error) {
-	settings, err := r.gitServerService.GetGitProviderSettings(ctx, gitServerName)
-	if err != nil {
-		return nil, err
-	}
-
-	return r.gitRepositoriesService.GetRepository(ctx, owner, repo, settings)
-}
-
-func (r *RepositoriesService) ListRepositories(
-	ctx context.Context,
-	gitServerName, owner string,
-	listOptions ListOptions,
-) ([]models.Repository, error) {
-	settings, err := r.gitServerService.GetGitProviderSettings(ctx, gitServerName)
-	if err != nil {
-		return nil, err
-	}
-
-	return r.gitRepositoriesService.ListRepositories(ctx, owner, settings, listOptions)
 }
 
 // MultiProviderRepositoryService dynamically dispatches to the correct provider implementation.
 type MultiProviderRepositoryService struct {
-	providers map[string]Repositories
+	providers map[string]RepositoriesProvider
 	cache     *sturdyc.Client[[]models.Repository]
 }
 
 func NewMultiProviderRepositoryService() *MultiProviderRepositoryService {
 	return &MultiProviderRepositoryService{
-		providers: map[string]Repositories{
-			"github":    NewGitHubService(),
-			"gitlab":    NewGitlabService(),
-			"bitbucket": NewBitbucketService(),
+		providers: map[string]RepositoriesProvider{
+			"github":    github.NewGitHubProvider(),
+			"gitlab":    gitlab.NewGitlabProvider(),
+			"bitbucket": bitbucket.NewBitbucketProvider(),
 		},
 		cache: cache.NewRepositoryCache(),
 	}
@@ -91,7 +48,7 @@ func NewMultiProviderRepositoryService() *MultiProviderRepositoryService {
 func (m *MultiProviderRepositoryService) GetRepository(
 	ctx context.Context,
 	owner, repo string,
-	settings GitProviderSettings,
+	settings krci.GitServerSettings,
 ) (*models.Repository, error) {
 	provider, ok := m.providers[settings.GitProvider]
 	if !ok {
@@ -104,8 +61,8 @@ func (m *MultiProviderRepositoryService) GetRepository(
 func (m *MultiProviderRepositoryService) ListRepositories(
 	ctx context.Context,
 	owner string,
-	settings GitProviderSettings,
-	listOptions ListOptions,
+	settings krci.GitServerSettings,
+	listOptions models.ListOptions,
 ) ([]models.Repository, error) {
 	provider, ok := m.providers[settings.GitProvider]
 	if !ok {

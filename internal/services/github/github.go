@@ -1,4 +1,4 @@
-package services
+package github
 
 import (
 	"context"
@@ -11,21 +11,22 @@ import (
 
 	gferrors "github.com/KubeRocketCI/gitfusion/internal/errors"
 	"github.com/KubeRocketCI/gitfusion/internal/models"
+	"github.com/KubeRocketCI/gitfusion/internal/services/krci"
 	gfgithub "github.com/KubeRocketCI/gitfusion/pkg/github"
 	"github.com/KubeRocketCI/gitfusion/pkg/pointer"
 	"github.com/google/go-github/v72/github"
 )
 
-type GitHubService struct{}
+type GitHubProvider struct{}
 
-func NewGitHubService() *GitHubService {
-	return &GitHubService{}
+func NewGitHubProvider() *GitHubProvider {
+	return &GitHubProvider{}
 }
 
-func (g *GitHubService) GetRepository(
+func (g *GitHubProvider) GetRepository(
 	ctx context.Context,
 	owner, repo string,
-	settings GitProviderSettings,
+	settings krci.GitServerSettings,
 ) (*models.Repository, error) {
 	client := github.NewClient(nil).WithAuthToken(settings.Token)
 
@@ -44,15 +45,11 @@ func (g *GitHubService) GetRepository(
 	return convertGitHubRepoToRepository(repository), nil
 }
 
-type ListOptions struct {
-	Name *string
-}
-
-func (g *GitHubService) ListRepositories(
+func (g *GitHubProvider) ListRepositories(
 	ctx context.Context,
 	owner string,
-	settings GitProviderSettings,
-	listOptions ListOptions,
+	settings krci.GitServerSettings,
+	listOptions models.ListOptions,
 ) ([]models.Repository, error) {
 	client := github.NewClient(nil).WithAuthToken(settings.Token)
 
@@ -83,7 +80,7 @@ func (g *GitHubService) ListRepositories(
 
 func filterRepositoriesByName(
 	it iter.Seq2[*github.Repository, error],
-	opt ListOptions,
+	opt models.ListOptions,
 ) iter.Seq2[*github.Repository, error] {
 	return func(yield func(*github.Repository, error) bool) {
 		it(func(repo *github.Repository, err error) bool {
@@ -111,7 +108,7 @@ func filterRepositoriesByName(
 	}
 }
 
-func (g *GitHubService) listRepositories(
+func (g *GitHubProvider) listRepositories(
 	ctx context.Context,
 	owner string,
 	client *github.Client,
@@ -186,9 +183,9 @@ func convertVisibility(isPrivate bool) *models.RepositoryVisibility {
 }
 
 // ListUserOrganizations returns organizations for the authenticated user
-func (g *GitHubService) ListUserOrganizations(
+func (g *GitHubProvider) ListUserOrganizations(
 	ctx context.Context,
-	settings GitProviderSettings,
+	settings krci.GitServerSettings,
 ) ([]models.Organization, error) {
 	client := github.NewClient(nil).WithAuthToken(settings.Token)
 
@@ -228,4 +225,39 @@ func (g *GitHubService) ListUserOrganizations(
 	}
 
 	return result, nil
+}
+
+// ListBranches implements BranchesProvider for GitHubService.
+// Returns all branches for the given repository. Pagination fields in the response reflect the full result.
+func (g *GitHubProvider) ListBranches(
+	ctx context.Context,
+	owner, repo string,
+	settings krci.GitServerSettings,
+	_ models.ListOptions,
+) ([]models.Branch, error) {
+	client := github.NewClient(nil).WithAuthToken(settings.Token)
+
+	it := gfgithub.ScanGitHubList(
+		func(opt github.ListOptions) ([]*github.Branch, *github.Response, error) {
+			branchOpts := &github.BranchListOptions{
+				ListOptions: opt,
+			}
+
+			return client.Repositories.ListBranches(ctx, owner, repo, branchOpts)
+		},
+	)
+
+	branches := make([]models.Branch, 0)
+
+	for b, err := range it {
+		if err != nil {
+			return nil, fmt.Errorf("failed to list branches: %w", err)
+		}
+
+		branches = append(branches, models.Branch{
+			Name: b.GetName(),
+		})
+	}
+
+	return branches, nil
 }

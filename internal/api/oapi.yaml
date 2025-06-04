@@ -103,6 +103,42 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  /api/v1/branches:
+    get:
+      summary: List branches for a repository
+      operationId: listBranches
+      tags:
+        - Branches
+      parameters:
+        - $ref: '#/components/parameters/gitServerParam'
+        - $ref: '#/components/parameters/repoOwnerParam'
+        - $ref: '#/components/parameters/repoNameParam'
+      responses:
+        '200':
+          description: A list of branches
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BranchesResponse'
+        '400':
+          description: Bad request due to invalid parameters or missing fields.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized access due to invalid credentials.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
 components:
   parameters:
     repoNameQueryParam:
@@ -172,17 +208,8 @@ components:
       properties:
         total:
           type: integer
-        page:
-          type: integer
-        per_page:
-          type: integer
-        next_page:
-          type: integer
       required:
         - total
-        - page
-        - per_page
-        - next_page
     RepositoryDetails:
       type: object
       properties:
@@ -257,3 +284,19 @@ components:
       required:
         - id
         - name
+    Branch:
+      type: object
+      properties:
+        name:
+          type: string
+      required:
+        - name
+    BranchesResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Branch'
+      required:
+        - data

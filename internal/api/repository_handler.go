@@ -5,16 +5,17 @@ import (
 	"errors"
 
 	gferrors "github.com/KubeRocketCI/gitfusion/internal/errors"
-	"github.com/KubeRocketCI/gitfusion/internal/services"
+	"github.com/KubeRocketCI/gitfusion/internal/models"
+	"github.com/KubeRocketCI/gitfusion/internal/services/repositories"
 )
 
 // RepositoryHandler handles requests related to repositories (all providers).
 type RepositoryHandler struct {
-	repositoriesService *services.RepositoriesService
+	repositoriesService *repositories.RepositoriesService
 }
 
 // NewRepositoryHandler creates a new RepositoryHandler.
-func NewRepositoryHandler(repositoriesService *services.RepositoriesService) *RepositoryHandler {
+func NewRepositoryHandler(repositoriesService *repositories.RepositoriesService) *RepositoryHandler {
 	return &RepositoryHandler{
 		repositoriesService: repositoriesService,
 	}
@@ -81,8 +82,8 @@ func (r *RepositoryHandler) errResponse(err error) GetRepositoryResponseObject {
 
 func (r *RepositoryHandler) getListOptions(
 	request ListRepositoriesRequestObject,
-) services.ListOptions {
-	return services.ListOptions{
+) models.ListOptions {
+	return models.ListOptions{
 		Name: request.Params.RepoName,
 	}
 }

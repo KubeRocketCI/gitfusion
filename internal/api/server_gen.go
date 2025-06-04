@@ -17,6 +17,9 @@ import (
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// List branches for a repository
+	// (GET /api/v1/branches)
+	ListBranches(w http.ResponseWriter, r *http.Request, params ListBranchesParams)
 	// List repositories
 	// (GET /api/v1/repositories)
 	ListRepositories(w http.ResponseWriter, r *http.Request, params ListRepositoriesParams)
@@ -31,6 +34,12 @@ type ServerInterface interface {
 // Unimplemented server implementation that returns http.StatusNotImplemented for each endpoint.
 
 type Unimplemented struct{}
+
+// List branches for a repository
+// (GET /api/v1/branches)
+func (_ Unimplemented) ListBranches(w http.ResponseWriter, r *http.Request, params ListBranchesParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
 
 // List repositories
 // (GET /api/v1/repositories)
@@ -58,6 +67,70 @@ type ServerInterfaceWrapper struct {
 }
 
 type MiddlewareFunc func(http.Handler) http.Handler
+
+// ListBranches operation middleware
+func (siw *ServerInterfaceWrapper) ListBranches(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListBranchesParams
+
+	// ------------- Required query parameter "gitServer" -------------
+
+	if paramValue := r.URL.Query().Get("gitServer"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "gitServer"})
+		return
+	}
+
+	err = runtime.BindQueryParameter("form", true, true, "gitServer", r.URL.Query(), &params.GitServer)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "gitServer", Err: err})
+		return
+	}
+
+	// ------------- Required query parameter "owner" -------------
+
+	if paramValue := r.URL.Query().Get("owner"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "owner"})
+		return
+	}
+
+	err = runtime.BindQueryParameter("form", true, true, "owner", r.URL.Query(), &params.Owner)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "owner", Err: err})
+		return
+	}
+
+	// ------------- Required query parameter "repoName" -------------
+
+	if paramValue := r.URL.Query().Get("repoName"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "repoName"})
+		return
+	}
+
+	err = runtime.BindQueryParameter("form", true, true, "repoName", r.URL.Query(), &params.RepoName)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "repoName", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListBranches(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
 
 // ListRepositories operation middleware
 func (siw *ServerInterfaceWrapper) ListRepositories(w http.ResponseWriter, r *http.Request) {
@@ -328,6 +401,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	}
 
 	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/api/v1/branches", wrapper.ListBranches)
+	})
+	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/api/v1/repositories", wrapper.ListRepositories)
 	})
 	r.Group(func(r chi.Router) {
@@ -338,6 +414,50 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 
 	return r
+}
+
+type ListBranchesRequestObject struct {
+	Params ListBranchesParams
+}
+
+type ListBranchesResponseObject interface {
+	VisitListBranchesResponse(w http.ResponseWriter) error
+}
+
+type ListBranches200JSONResponse BranchesResponse
+
+func (response ListBranches200JSONResponse) VisitListBranchesResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListBranches400JSONResponse Error
+
+func (response ListBranches400JSONResponse) VisitListBranchesResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListBranches401JSONResponse Error
+
+func (response ListBranches401JSONResponse) VisitListBranchesResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListBranches500JSONResponse Error
+
+func (response ListBranches500JSONResponse) VisitListBranchesResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
 }
 
 type ListRepositoriesRequestObject struct {
@@ -465,6 +585,9 @@ func (response ListUserOrganizations500JSONResponse) VisitListUserOrganizationsR
 
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
+	// List branches for a repository
+	// (GET /api/v1/branches)
+	ListBranches(ctx context.Context, request ListBranchesRequestObject) (ListBranchesResponseObject, error)
 	// List repositories
 	// (GET /api/v1/repositories)
 	ListRepositories(ctx context.Context, request ListRepositoriesRequestObject) (ListRepositoriesResponseObject, error)
@@ -503,6 +626,32 @@ type strictHandler struct {
 	ssi         StrictServerInterface
 	middlewares []StrictMiddlewareFunc
 	options     StrictHTTPServerOptions
+}
+
+// ListBranches operation middleware
+func (sh *strictHandler) ListBranches(w http.ResponseWriter, r *http.Request, params ListBranchesParams) {
+	var request ListBranchesRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListBranches(ctx, request.(ListBranchesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListBranches")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListBranchesResponseObject); ok {
+		if err := validResponse.VisitListBranchesResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
 }
 
 // ListRepositories operation middleware
