@@ -26,7 +26,7 @@ $(LOCALBIN):
 
 .PHONY: build
 build: ## build binary
-	CGO_ENABLED=0 GOOS=${HOST_OS} GOARCH=${HOST_ARCH} go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/api -gcflags '${GCFLAGS}' ./cmd/gitfusion-api
+	CGO_ENABLED=0 GOOS=${HOST_OS} GOARCH=${HOST_ARCH} go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/api-${HOST_ARCH} -gcflags '${GCFLAGS}' ./cmd/gitfusion-api
 
 .PHONY: generate
 generate: oapi-codegen # Generate the server code from OpenAPI spec
