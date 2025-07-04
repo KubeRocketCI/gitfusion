@@ -58,3 +58,8 @@ func (m *MultiProviderBranchesService) ListBranches(
 
 	return m.cache.GetOrFetch(ctx, key, fetchFn)
 }
+
+// GetCache returns the branch cache instance for cache management.
+func (m *MultiProviderBranchesService) GetCache() *sturdyc.Client[[]models.Branch] {
+	return m.cache
+}

@@ -81,3 +81,8 @@ func (m *MultiProviderOrganizationsService) ListUserOrganizations(
 
 	return m.cache.GetOrFetch(ctx, settings.GitServerName, fetchFn)
 }
+
+// GetCache returns the organization cache instance for cache management.
+func (m *MultiProviderOrganizationsService) GetCache() *sturdyc.Client[[]models.Organization] {
+	return m.cache
+}

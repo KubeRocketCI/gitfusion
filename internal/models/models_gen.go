@@ -19,6 +19,13 @@ const (
 	RepositoryDetailsVisibilityPublic  RepositoryDetailsVisibility = "public"
 )
 
+// Defines values for InvalidateCacheParamsEndpoint.
+const (
+	Branches      InvalidateCacheParamsEndpoint = "branches"
+	Organizations InvalidateCacheParamsEndpoint = "organizations"
+	Repositories  InvalidateCacheParamsEndpoint = "repositories"
+)
+
 // Branch defines model for Branch.
 type Branch struct {
 	Name string `json:"name"`
@@ -27,6 +34,15 @@ type Branch struct {
 // BranchesResponse defines model for BranchesResponse.
 type BranchesResponse struct {
 	Data []Branch `json:"data"`
+}
+
+// CacheInvalidationResponse defines model for CacheInvalidationResponse.
+type CacheInvalidationResponse struct {
+	// Endpoint The endpoint for which cache was invalidated
+	Endpoint string `json:"endpoint"`
+
+	// Message A message indicating the result of the cache invalidation
+	Message string `json:"message"`
 }
 
 // Error defines model for Error.
@@ -123,6 +139,15 @@ type ListBranchesParams struct {
 	// RepoName The name of the repository.
 	RepoName RepoNameParam `form:"repoName" json:"repoName"`
 }
+
+// InvalidateCacheParams defines parameters for InvalidateCache.
+type InvalidateCacheParams struct {
+	// Endpoint The endpoint name to invalidate cache for (repositories, organizations, branches)
+	Endpoint InvalidateCacheParamsEndpoint `form:"endpoint" json:"endpoint"`
+}
+
+// InvalidateCacheParamsEndpoint defines parameters for InvalidateCache.
+type InvalidateCacheParamsEndpoint string
 
 // ListRepositoriesParams defines parameters for ListRepositories.
 type ListRepositoriesParams struct {

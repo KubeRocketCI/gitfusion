@@ -33,3 +33,8 @@ func (s *OrganizationsService) ListUserOrganizations(
 
 	return s.organizationsPovider.ListUserOrganizations(ctx, settings)
 }
+
+// GetProvider returns the underlying multi-provider service for direct access to its cache.
+func (s *OrganizationsService) GetProvider() *MultiProviderOrganizationsService {
+	return s.organizationsPovider
+}
