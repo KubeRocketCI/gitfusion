@@ -77,3 +77,8 @@ func (m *MultiProviderRepositoryService) ListRepositories(
 
 	return m.cache.GetOrFetch(ctx, key, fetchFn)
 }
+
+// GetCache returns the repository cache instance for cache management.
+func (m *MultiProviderRepositoryService) GetCache() *sturdyc.Client[[]models.Repository] {
+	return m.cache
+}

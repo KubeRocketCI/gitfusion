@@ -20,6 +20,9 @@ type ServerInterface interface {
 	// List branches for a repository
 	// (GET /api/v1/branches)
 	ListBranches(w http.ResponseWriter, r *http.Request, params ListBranchesParams)
+	// Invalidate cache for a specific endpoint
+	// (DELETE /api/v1/cache/invalidate)
+	InvalidateCache(w http.ResponseWriter, r *http.Request, params InvalidateCacheParams)
 	// List repositories
 	// (GET /api/v1/repositories)
 	ListRepositories(w http.ResponseWriter, r *http.Request, params ListRepositoriesParams)
@@ -38,6 +41,12 @@ type Unimplemented struct{}
 // List branches for a repository
 // (GET /api/v1/branches)
 func (_ Unimplemented) ListBranches(w http.ResponseWriter, r *http.Request, params ListBranchesParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Invalidate cache for a specific endpoint
+// (DELETE /api/v1/cache/invalidate)
+func (_ Unimplemented) InvalidateCache(w http.ResponseWriter, r *http.Request, params InvalidateCacheParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -123,6 +132,40 @@ func (siw *ServerInterfaceWrapper) ListBranches(w http.ResponseWriter, r *http.R
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ListBranches(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// InvalidateCache operation middleware
+func (siw *ServerInterfaceWrapper) InvalidateCache(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params InvalidateCacheParams
+
+	// ------------- Required query parameter "endpoint" -------------
+
+	if paramValue := r.URL.Query().Get("endpoint"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "endpoint"})
+		return
+	}
+
+	err = runtime.BindQueryParameter("form", true, true, "endpoint", r.URL.Query(), &params.Endpoint)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "endpoint", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.InvalidateCache(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -404,6 +447,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		r.Get(options.BaseURL+"/api/v1/branches", wrapper.ListBranches)
 	})
 	r.Group(func(r chi.Router) {
+		r.Delete(options.BaseURL+"/api/v1/cache/invalidate", wrapper.InvalidateCache)
+	})
+	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/api/v1/repositories", wrapper.ListRepositories)
 	})
 	r.Group(func(r chi.Router) {
@@ -454,6 +500,41 @@ func (response ListBranches401JSONResponse) VisitListBranchesResponse(w http.Res
 type ListBranches500JSONResponse Error
 
 func (response ListBranches500JSONResponse) VisitListBranchesResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type InvalidateCacheRequestObject struct {
+	Params InvalidateCacheParams
+}
+
+type InvalidateCacheResponseObject interface {
+	VisitInvalidateCacheResponse(w http.ResponseWriter) error
+}
+
+type InvalidateCache200JSONResponse CacheInvalidationResponse
+
+func (response InvalidateCache200JSONResponse) VisitInvalidateCacheResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type InvalidateCache400JSONResponse Error
+
+func (response InvalidateCache400JSONResponse) VisitInvalidateCacheResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type InvalidateCache500JSONResponse Error
+
+func (response InvalidateCache500JSONResponse) VisitInvalidateCacheResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(500)
 
@@ -588,6 +669,9 @@ type StrictServerInterface interface {
 	// List branches for a repository
 	// (GET /api/v1/branches)
 	ListBranches(ctx context.Context, request ListBranchesRequestObject) (ListBranchesResponseObject, error)
+	// Invalidate cache for a specific endpoint
+	// (DELETE /api/v1/cache/invalidate)
+	InvalidateCache(ctx context.Context, request InvalidateCacheRequestObject) (InvalidateCacheResponseObject, error)
 	// List repositories
 	// (GET /api/v1/repositories)
 	ListRepositories(ctx context.Context, request ListRepositoriesRequestObject) (ListRepositoriesResponseObject, error)
@@ -647,6 +731,32 @@ func (sh *strictHandler) ListBranches(w http.ResponseWriter, r *http.Request, pa
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(ListBranchesResponseObject); ok {
 		if err := validResponse.VisitListBranchesResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// InvalidateCache operation middleware
+func (sh *strictHandler) InvalidateCache(w http.ResponseWriter, r *http.Request, params InvalidateCacheParams) {
+	var request InvalidateCacheRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.InvalidateCache(ctx, request.(InvalidateCacheRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "InvalidateCache")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(InvalidateCacheResponseObject); ok {
+		if err := validResponse.VisitInvalidateCacheResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

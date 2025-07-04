@@ -34,3 +34,8 @@ func (s *BranchesService) ListBranches(
 
 	return s.branchesProvider.ListBranches(ctx, owner, repoName, settings, opts)
 }
+
+// GetProvider returns the underlying multi-provider service for direct access to its cache.
+func (s *BranchesService) GetProvider() *MultiProviderBranchesService {
+	return s.branchesProvider
+}

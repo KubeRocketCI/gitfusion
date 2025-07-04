@@ -7,9 +7,6 @@ applyTo: "**/*.go"
 - Follow Go best practices and idioms
 - Use latest Go 1.24 features
 - Split function parameters into separate lines if they exceed 120 characters
-- Use meaningful variable and function names
-- Keep functions concise and focused
-- Properly handle errors with appropriate context
 - Add comments for complex logic, but prefer self-documenting code
 
 ## Error Handling

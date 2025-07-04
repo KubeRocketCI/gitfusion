@@ -139,6 +139,40 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  /api/v1/cache/invalidate:
+    delete:
+      summary: Invalidate cache for a specific endpoint
+      operationId: invalidateCache
+      tags:
+        - Cache
+      parameters:
+        - name: endpoint
+          in: query
+          required: true
+          description: The endpoint name to invalidate cache for (repositories, organizations, branches)
+          schema:
+            type: string
+            enum: [repositories, organizations, branches]
+      responses:
+        '200':
+          description: Cache invalidated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CacheInvalidationResponse'
+        '400':
+          description: Bad request due to invalid parameters.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
 components:
   parameters:
     repoNameQueryParam:
@@ -300,3 +334,15 @@ components:
             $ref: '#/components/schemas/Branch'
       required:
         - data
+    CacheInvalidationResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          description: A message indicating the result of the cache invalidation
+        endpoint:
+          type: string
+          description: The endpoint for which cache was invalidated
+      required:
+        - message
+        - endpoint

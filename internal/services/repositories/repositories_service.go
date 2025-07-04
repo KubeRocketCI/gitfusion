@@ -46,3 +46,8 @@ func (r *RepositoriesService) ListRepositories(
 
 	return r.gitRepositoriesProvider.ListRepositories(ctx, owner, settings, listOptions)
 }
+
+// GetProvider returns the underlying multi-provider service for direct access to its cache.
+func (r *RepositoriesService) GetProvider() *MultiProviderRepositoryService {
+	return r.gitRepositoriesProvider
+}

@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 
+	"github.com/KubeRocketCI/gitfusion/internal/cache"
 	"github.com/KubeRocketCI/gitfusion/internal/services/branches"
 	"github.com/KubeRocketCI/gitfusion/internal/services/krci"
 	"github.com/KubeRocketCI/gitfusion/internal/services/organizations"
@@ -22,6 +23,7 @@ type Server struct {
 	repositoryHandler   *RepositoryHandler
 	organizationHandler *OrganizationHandler
 	branchHandler       *BranchHandler
+	cacheHandler        *CacheHandler
 }
 
 // NewServer creates a new Server instance.
@@ -29,11 +31,13 @@ func NewServer(
 	repositoryHandler *RepositoryHandler,
 	organizationHandler *OrganizationHandler,
 	branchHandler *BranchHandler,
+	cacheHandler *CacheHandler,
 ) *Server {
 	return &Server{
 		repositoryHandler:   repositoryHandler,
 		organizationHandler: organizationHandler,
 		branchHandler:       branchHandler,
+		cacheHandler:        cacheHandler,
 	}
 }
 
@@ -69,6 +73,14 @@ func (s *Server) ListBranches(
 	return s.branchHandler.ListBranches(ctx, request)
 }
 
+// InvalidateCache implements StrictServerInterface.
+func (s *Server) InvalidateCache(
+	ctx context.Context,
+	request InvalidateCacheRequestObject,
+) (InvalidateCacheResponseObject, error) {
+	return s.cacheHandler.InvalidateCache(ctx, request)
+}
+
 func BuildHandler(conf Config) (ServerInterface, error) {
 	k8sCl, err := initk8sClient()
 	if err != nil {
@@ -77,27 +89,33 @@ func BuildHandler(conf Config) (ServerInterface, error) {
 
 	gitServerService := krci.NewGitServerService(k8sCl, conf.Namespace)
 
-	repoSvc := repositories.NewRepositoriesService(
-		repositories.NewMultiProviderRepositoryService(),
-		gitServerService,
+	// Create multi-provider services
+	repoMultiProvider := repositories.NewMultiProviderRepositoryService()
+	orgMultiProvider := organizations.NewMultiProviderOrganizationsService(gitServerService)
+	branchesMultiProvider := branches.NewMultiProviderBranchesService()
+
+	// Create high-level services
+	repoSvc := repositories.NewRepositoriesService(repoMultiProvider, gitServerService)
+	orgSvc := organizations.NewOrganizationsService(orgMultiProvider, gitServerService)
+	branchesSvc := branches.NewBranchesService(branchesMultiProvider, gitServerService)
+
+	// Create cache manager with access to all cache instances
+	cacheManager := cache.NewManager(
+		repoSvc.GetProvider().GetCache(),
+		orgSvc.GetProvider().GetCache(),
+		branchesSvc.GetProvider().GetCache(),
 	)
-	orgSvc := organizations.NewOrganizationsService(
-		organizations.NewMultiProviderOrganizationsService(
-			gitServerService,
-		),
-		gitServerService,
-	)
-	branchesSvc := branches.NewBranchesService(
-		branches.NewMultiProviderBranchesService(),
-		gitServerService,
-	)
+
+	// Create handlers
 	branchHandler := NewBranchHandler(branchesSvc)
+	cacheHandler := NewCacheHandler(cacheManager)
 
 	return NewStrictHandlerWithOptions(
 		NewServer(
 			NewRepositoryHandler(repoSvc),
 			NewOrganizationHandler(orgSvc),
 			branchHandler,
+			cacheHandler,
 		),
 		[]StrictMiddlewareFunc{},
 		StrictHTTPServerOptions{},
