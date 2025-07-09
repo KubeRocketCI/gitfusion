@@ -15,6 +15,7 @@ import (
 	gfgithub "github.com/KubeRocketCI/gitfusion/pkg/github"
 	"github.com/KubeRocketCI/gitfusion/pkg/pointer"
 	"github.com/google/go-github/v72/github"
+	"golang.org/x/sync/errgroup"
 )
 
 type GitHubProvider struct{}
@@ -182,46 +183,76 @@ func convertVisibility(isPrivate bool) *models.RepositoryVisibility {
 	return &visibility
 }
 
-// ListUserOrganizations returns organizations for the authenticated user
+// ListUserOrganizations returns organizations for the authenticated user.
+// Also it adds the current user as an organization.
 func (g *GitHubProvider) ListUserOrganizations(
 	ctx context.Context,
 	settings krci.GitServerSettings,
 ) ([]models.Organization, error) {
 	client := github.NewClient(nil).WithAuthToken(settings.Token)
+	eg, ctx := errgroup.WithContext(ctx)
 
-	it := gfgithub.ScanGitHubList(
-		func(opt github.ListOptions) ([]*github.Membership, *github.Response, error) {
-			return client.Organizations.ListOrgMemberships(
-				ctx,
-				&github.ListOrgMembershipsOptions{
-					State:       "active",
-					ListOptions: opt,
-				},
-			)
-		},
-	)
-
-	result := make([]models.Organization, 0)
-
-	for membership, err := range it {
+	var userOrg *models.Organization
+	// Goroutine 1: Get current user
+	eg.Go(func() error {
+		user, _, err := client.Users.Get(ctx, "")
 		if err != nil {
-			return nil, fmt.Errorf("failed to list organizations: %w", err)
+			return fmt.Errorf("failed to get current user: %w", err)
 		}
 
-		org := membership.Organization
-		if org == nil {
-			continue
+		userOrg = &models.Organization{
+			Id:        strconv.FormatInt(user.GetID(), 10),
+			Name:      user.GetLogin(),
+			AvatarUrl: user.AvatarURL,
 		}
 
-		orgModel := models.Organization{
-			Id:   strconv.FormatInt(org.GetID(), 10),
-			Name: org.GetLogin(),
-		}
-		if org.AvatarURL != nil {
-			orgModel.AvatarUrl = org.AvatarURL
+		return nil
+	})
+
+	result := make([]models.Organization, 0, 10)
+
+	// Goroutine 2: Get organizations
+	eg.Go(func() error {
+		it := gfgithub.ScanGitHubList(
+			func(opt github.ListOptions) ([]*github.Membership, *github.Response, error) {
+				return client.Organizations.ListOrgMemberships(
+					ctx,
+					&github.ListOrgMembershipsOptions{
+						State:       "active",
+						ListOptions: opt,
+					},
+				)
+			},
+		)
+
+		for membership, err := range it {
+			if err != nil {
+				return fmt.Errorf("failed to list organizations: %w", err)
+			}
+
+			org := membership.Organization
+			if org == nil {
+				continue
+			}
+
+			orgModel := models.Organization{
+				Id:        strconv.FormatInt(org.GetID(), 10),
+				Name:      org.GetLogin(),
+				AvatarUrl: org.AvatarURL,
+			}
+
+			result = append(result, orgModel)
 		}
 
-		result = append(result, orgModel)
+		return nil
+	})
+
+	if err := eg.Wait(); err != nil {
+		return nil, err
+	}
+
+	if userOrg != nil {
+		result = append(result, *userOrg)
 	}
 
 	return result, nil
