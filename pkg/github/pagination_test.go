@@ -5,6 +5,7 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/KubeRocketCI/gitfusion/pkg/xiter"
 	"github.com/google/go-github/v72/github"
 	"github.com/stretchr/testify/assert"
 )
@@ -85,7 +86,7 @@ func TestScanGitHubList(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := CollectFromScan(ScanGitHubList(tt.do, tt.opts))
+			got, err := xiter.CollectFromScan(ScanGitHubList(tt.do, tt.opts))
 			assert.True(t, slices.EqualFunc(got, tt.want, func(a, b *github.Repository) bool {
 				return a.GetName() == b.GetName()
 			}))
