@@ -1,6 +1,7 @@
 OAPICODEGEN_VERSION ?= v2.4.1
 GOLANGCI_LINT_VERSION ?= v2.1.6
 HELMDOCS_VERSION ?= v1.14.2
+GITCHGLOG_VERSION ?= v0.15.4
 
 CURRENT_DIR=$(shell pwd)
 HOST_OS?=$(shell go env GOOS)
@@ -41,6 +42,15 @@ lint: golangci-lint ## Run go lint
 lint-fix: golangci-lint ## Run go lint fix
 	${GOLANGCI_LINT} run -v -c .golangci.yaml ./... --fix
 
+# use https://github.com/git-chglog/git-chglog/
+.PHONY: changelog
+changelog: git-chglog	## generate changelog
+ifneq (${NEXT_RELEASE_TAG},)
+	$(GITCHGLOG) --next-tag v${NEXT_RELEASE_TAG} -o CHANGELOG.md
+else
+	$(GITCHGLOG) -o CHANGELOG.md
+endif
+
 # Run tests
 test:
 	go test ./... -coverprofile=coverage.out
@@ -64,6 +74,11 @@ HELMDOCS = $(LOCALBIN)/helm-docs
 .PHONY: helmdocs
 helmdocs: ## Download helm-docs locally if necessary.
 	$(call go-install-tool,$(HELMDOCS),github.com/norwoodj/helm-docs/cmd/helm-docs,$(HELMDOCS_VERSION))
+
+GITCHGLOG = $(LOCALBIN)/git-chglog
+.PHONY: git-chglog
+git-chglog: ## Download git-chglog locally if necessary.
+	$(call go-install-tool,$(GITCHGLOG),github.com/git-chglog/git-chglog/cmd/git-chglog,$(GITCHGLOG_VERSION))
 
 # go-install-tool will 'go install' any package with custom target and name of binary, if it doesn't exist
 # $1 - target path with name of binary
