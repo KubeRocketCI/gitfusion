@@ -1,19 +1,18 @@
 package github
 
 import (
-	"iter"
 	"slices"
 	"testing"
 
 	"github.com/KubeRocketCI/gitfusion/internal/models"
-	gfgithub "github.com/KubeRocketCI/gitfusion/pkg/github"
+	"github.com/KubeRocketCI/gitfusion/pkg/xiter"
 	"github.com/google/go-github/v72/github"
 	"github.com/stretchr/testify/assert"
 )
 
 func Test_filterProjectsByName(t *testing.T) {
 	type args struct {
-		it  iter.Seq2[*github.Repository, error]
+		it  xiter.Scan[*github.Repository]
 		opt models.ListOptions
 	}
 
@@ -26,7 +25,7 @@ func Test_filterProjectsByName(t *testing.T) {
 		{
 			name: "returns all when Name is nil",
 			args: args{
-				it: iter.Seq2[*github.Repository, error](func(yield func(*github.Repository, error) bool) {
+				it: xiter.Scan[*github.Repository](func(yield func(*github.Repository, error) bool) {
 					if !yield(&github.Repository{Name: github.Ptr("repo1")}, nil) {
 						return
 					}
@@ -43,7 +42,7 @@ func Test_filterProjectsByName(t *testing.T) {
 		{
 			name: "filters by substring (case-insensitive)",
 			args: args{
-				it: iter.Seq2[*github.Repository, error](func(yield func(*github.Repository, error) bool) {
+				it: xiter.Scan[*github.Repository](func(yield func(*github.Repository, error) bool) {
 					if !yield(&github.Repository{Name: github.Ptr("with a")}, nil) {
 						return
 					}
@@ -63,7 +62,7 @@ func Test_filterProjectsByName(t *testing.T) {
 		{
 			name: "returns empty when no match",
 			args: args{
-				it: iter.Seq2[*github.Repository, error](func(yield func(*github.Repository, error) bool) {
+				it: xiter.Scan[*github.Repository](func(yield func(*github.Repository, error) bool) {
 					if !yield(&github.Repository{Name: github.Ptr("foo")}, nil) {
 						return
 					}
@@ -77,7 +76,7 @@ func Test_filterProjectsByName(t *testing.T) {
 		{
 			name: "handles error from iterator",
 			args: args{
-				it: iter.Seq2[*github.Repository, error](func(yield func(*github.Repository, error) bool) {
+				it: xiter.Scan[*github.Repository](func(yield func(*github.Repository, error) bool) {
 					yield(nil, assert.AnError)
 				}),
 				opt: models.ListOptions{Name: nil},
@@ -89,7 +88,7 @@ func Test_filterProjectsByName(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := gfgithub.CollectFromScan(filterRepositoriesByName(tt.args.it, tt.args.opt))
+			got, err := xiter.CollectFromScan(filterRepositoriesByName(tt.args.it, tt.args.opt))
 			assert.True(t, slices.EqualFunc(got, tt.want, func(a, b *github.Repository) bool {
 				return a.GetName() == b.GetName()
 			}))
