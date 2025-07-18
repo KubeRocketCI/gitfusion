@@ -9,6 +9,7 @@ import (
 	gferrors "github.com/KubeRocketCI/gitfusion/internal/errors"
 	"github.com/KubeRocketCI/gitfusion/internal/models"
 	"github.com/KubeRocketCI/gitfusion/internal/services/krci"
+	bitbucketpkg "github.com/KubeRocketCI/gitfusion/pkg/bitbucket"
 	"github.com/ktrysmt/go-bitbucket"
 )
 
@@ -124,16 +125,23 @@ func (b *BitbucketService) ListBranches(
 	branchOptions := &bitbucket.RepositoryBranchOptions{
 		Owner:    owner,
 		RepoSlug: repo,
+		Pagelen: 100,
 	}
 
-	branchesResp, err := client.Repositories.Repository.ListBranches(branchOptions)
-	if err != nil {
-		return nil, fmt.Errorf("failed to list branches for %s/%s: %w", owner, repo, err)
-	}
+	scanBranches := bitbucketpkg.ScanBitbucketBranches(
+		func(rbo *bitbucket.RepositoryBranchOptions) (*bitbucket.RepositoryBranches, error) {
+			return client.Repositories.Repository.ListBranches(rbo)
+		},
+		branchOptions,
+	)
 
-	result := make([]models.Branch, 0, len(branchesResp.Branches))
+	result := make([]models.Branch, 0)
 
-	for _, b := range branchesResp.Branches {
+	for b, err := range scanBranches {
+		if err != nil {
+			return nil, fmt.Errorf("failed to list branches: %w", err)
+		}
+
 		result = append(result, models.Branch{
 			Name: b.Name,
 		})
