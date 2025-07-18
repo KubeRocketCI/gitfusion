@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"iter"
 	"net/http"
 	"strconv"
 	"strings"
@@ -14,6 +13,7 @@ import (
 	"github.com/KubeRocketCI/gitfusion/internal/services/krci"
 	gfgithub "github.com/KubeRocketCI/gitfusion/pkg/github"
 	"github.com/KubeRocketCI/gitfusion/pkg/pointer"
+	"github.com/KubeRocketCI/gitfusion/pkg/xiter"
 	"github.com/google/go-github/v72/github"
 	"golang.org/x/sync/errgroup"
 )
@@ -80,11 +80,11 @@ func (g *GitHubProvider) ListRepositories(
 }
 
 func filterRepositoriesByName(
-	it iter.Seq2[*github.Repository, error],
+	scan xiter.Scan[*github.Repository],
 	opt models.ListOptions,
-) iter.Seq2[*github.Repository, error] {
+) xiter.Scan[*github.Repository] {
 	return func(yield func(*github.Repository, error) bool) {
-		it(func(repo *github.Repository, err error) bool {
+		scan(func(repo *github.Repository, err error) bool {
 			if err != nil {
 				return yield(nil, err)
 			}
@@ -113,7 +113,7 @@ func (g *GitHubProvider) listRepositories(
 	ctx context.Context,
 	owner string,
 	client *github.Client,
-) iter.Seq2[*github.Repository, error] {
+) xiter.Scan[*github.Repository] {
 	_, _, orgErr := client.Organizations.Get(ctx, owner)
 	if orgErr == nil {
 		return gfgithub.ScanGitHubList(
