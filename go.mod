@@ -5,7 +5,7 @@ go 1.24.2
 require (
 	github.com/epam/edp-codebase-operator/v2 v2.27.2
 	github.com/epam/edp-common v0.0.0-20230710145648-344bbce4120e
-	github.com/go-chi/chi/v5 v5.2.1
+	github.com/go-chi/chi/v5 v5.2.2
 	github.com/go-chi/httplog/v2 v2.1.1
 	github.com/google/go-github/v72 v72.0.0
 	github.com/ktrysmt/go-bitbucket v0.9.85
@@ -13,6 +13,7 @@ require (
 	github.com/stretchr/testify v1.10.0
 	github.com/viccon/sturdyc v1.1.5
 	gitlab.com/gitlab-org/api/client-go v0.128.0
+	golang.org/x/sync v0.13.0
 	k8s.io/api v0.32.1
 	k8s.io/apimachinery v0.32.1
 	k8s.io/client-go v0.32.1
@@ -61,7 +62,6 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/net v0.39.0 // indirect
 	golang.org/x/oauth2 v0.29.0 // indirect
-	golang.org/x/sync v0.13.0 // indirect
 	golang.org/x/sys v0.32.0 // indirect
 	golang.org/x/term v0.31.0 // indirect
 	golang.org/x/text v0.24.0 // indirect
