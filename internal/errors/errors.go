@@ -18,7 +18,8 @@ func (e *Error) Error() string {
 
 // Predefined errors
 var (
-	ErrNotFound = errors.New("not found")
+	ErrNotFound     = errors.New("not found")
+	ErrUnauthorized = errors.New("unauthorized")
 
 	ErrGitServerNotFound = &Error{
 		Code:    "git_server_not_found",

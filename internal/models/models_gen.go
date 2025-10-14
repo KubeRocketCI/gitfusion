@@ -7,6 +7,12 @@ import (
 	"time"
 )
 
+// Defines values for PipelineVariableVariableType.
+const (
+	EnvVar PipelineVariableVariableType = "env_var"
+	File   PipelineVariableVariableType = "file"
+)
+
 // Defines values for RepositoryVisibility.
 const (
 	RepositoryVisibilityPrivate RepositoryVisibility = "private"
@@ -77,6 +83,39 @@ type Owner struct {
 type Pagination struct {
 	Total int `json:"total"`
 }
+
+// PipelineResponse defines model for PipelineResponse.
+type PipelineResponse struct {
+	// Id Pipeline ID
+	Id int `json:"id"`
+
+	// Ref Branch/tag/commit used
+	Ref string `json:"ref"`
+
+	// Sha Commit SHA
+	Sha *string `json:"sha,omitempty"`
+
+	// Status Pipeline status
+	Status string `json:"status"`
+
+	// WebUrl URL to view pipeline in GitLab UI
+	WebUrl string `json:"web_url"`
+}
+
+// PipelineVariable defines model for PipelineVariable.
+type PipelineVariable struct {
+	// Key Variable name
+	Key string `json:"key"`
+
+	// Value Variable value
+	Value string `json:"value"`
+
+	// VariableType Type of variable
+	VariableType *PipelineVariableVariableType `json:"variable_type,omitempty"`
+}
+
+// PipelineVariableVariableType Type of variable
+type PipelineVariableVariableType string
 
 // RepositoriesResponse defines model for RepositoriesResponse.
 type RepositoriesResponse struct {
@@ -171,6 +210,21 @@ type GetRepositoryParams struct {
 
 	// RepoName The name of the repository.
 	RepoName RepoNameParam `form:"repoName" json:"repoName"`
+}
+
+// TriggerPipelineParams defines parameters for TriggerPipeline.
+type TriggerPipelineParams struct {
+	// GitServer The Git server name.
+	GitServer GitServerParam `form:"gitServer" json:"gitServer"`
+
+	// Project Project path (e.g., "epmd-edp/temp/sk-test")
+	Project string `form:"project" json:"project"`
+
+	// Ref Branch/tag/commit (e.g., "main")
+	Ref string `form:"ref" json:"ref"`
+
+	// Variables JSON array of pipeline variables
+	Variables *string `form:"variables,omitempty" json:"variables,omitempty"`
 }
 
 // ListUserOrganizationsParams defines parameters for ListUserOrganizations.
