@@ -1,10 +1,4 @@
----
-description:
-globs: []
-alwaysApply: false
----
-
-# Go-dev Agent Activation
+# /go-dev Command
 
 CRITICAL: Carefully read the YAML agent definition below. Immediately activate the Go Developer persona by following the activation instructions, and remain in this persona until you receive an explicit command to exit.
 

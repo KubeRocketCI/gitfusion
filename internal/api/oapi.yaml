@@ -139,6 +139,64 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  /api/v1/trigger-pipeline:
+    post:
+      summary: Trigger a CI/CD pipeline
+      operationId: triggerPipeline
+      tags:
+        - Pipeline
+      parameters:
+        - $ref: '#/components/parameters/gitServerParam'
+        - name: project
+          in: query
+          required: true
+          description: Project path (e.g., "epmd-edp/temp/sk-test")
+          schema:
+            type: string
+        - name: ref
+          in: query
+          required: true
+          description: Branch/tag/commit (e.g., "main")
+          schema:
+            type: string
+        - name: variables
+          in: query
+          required: false
+          description: JSON array of pipeline variables
+          schema:
+            type: string
+      responses:
+        '201':
+          description: Pipeline created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PipelineResponse'
+        '400':
+          description: Bad request due to invalid parameters or variables format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized access due to invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: GitServer, project, or ref not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
   /api/v1/cache/invalidate:
     delete:
       summary: Invalidate cache for a specific endpoint
@@ -346,3 +404,42 @@ components:
       required:
         - message
         - endpoint
+    PipelineVariable:
+      type: object
+      properties:
+        key:
+          type: string
+          description: Variable name
+        value:
+          type: string
+          description: Variable value
+        variable_type:
+          type: string
+          enum: [env_var, file]
+          description: Type of variable
+      required:
+        - key
+        - value
+    PipelineResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Pipeline ID
+        web_url:
+          type: string
+          description: URL to view pipeline in GitLab UI
+        status:
+          type: string
+          description: Pipeline status
+        ref:
+          type: string
+          description: Branch/tag/commit used
+        sha:
+          type: string
+          description: Commit SHA
+      required:
+        - id
+        - web_url
+        - status
+        - ref

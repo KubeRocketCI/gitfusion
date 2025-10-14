@@ -151,6 +151,56 @@ func (g *GitlabProvider) ListBranches(
 	return result, nil
 }
 
+// TriggerPipeline triggers a CI/CD pipeline in GitLab
+func (g *GitlabProvider) TriggerPipeline(
+	ctx context.Context,
+	project string,
+	ref string,
+	variables []models.PipelineVariable,
+	settings krci.GitServerSettings,
+) (*models.PipelineResponse, error) {
+	client, err := gitlab.NewClient(settings.Token, gitlab.WithBaseURL(settings.Url))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create gitlab client: %w", err)
+	}
+
+	// Create pipeline
+	opts := &gitlab.CreatePipelineOptions{
+		Ref:       gitlab.Ptr(ref),
+		Variables: convertToPipelineVariables(variables),
+	}
+
+	pipeline, resp, err := client.Pipelines.CreatePipeline(
+		project,
+		opts,
+		gitlab.WithContext(ctx),
+	)
+
+	if err != nil {
+		if errors.Is(err, gitlab.ErrNotFound) || (resp != nil && resp.StatusCode == 404) {
+			return nil, fmt.Errorf("project %s or ref %s: %w", project, ref, gferrors.ErrNotFound)
+		}
+
+		if resp != nil && resp.StatusCode == 401 {
+			return nil, fmt.Errorf("invalid credentials: %w", gferrors.ErrUnauthorized)
+		}
+
+		return nil, fmt.Errorf("create pipeline for %s ref %s: %w", project, ref, err)
+	}
+
+	result := &models.PipelineResponse{
+		Id:     pipeline.ID,
+		WebUrl: pipeline.WebURL,
+		Status: pipeline.Status,
+		Ref:    pipeline.Ref,
+	}
+	if pipeline.SHA != "" {
+		result.Sha = &pipeline.SHA
+	}
+
+	return result, nil
+}
+
 func convertGitlabRepoToRepository(repo *gitlab.Project) *models.Repository {
 	if repo == nil {
 		return nil
@@ -186,4 +236,25 @@ func convertVisibility(isPrivate bool) *models.RepositoryVisibility {
 	visibility := models.RepositoryVisibilityPublic
 
 	return &visibility
+}
+
+func convertToPipelineVariables(variables []models.PipelineVariable) *[]*gitlab.PipelineVariableOptions {
+	if len(variables) == 0 {
+		return nil
+	}
+
+	vars := make([]*gitlab.PipelineVariableOptions, len(variables))
+	for i, v := range variables {
+		vars[i] = &gitlab.PipelineVariableOptions{
+			Key:   gitlab.Ptr(v.Key),
+			Value: gitlab.Ptr(v.Value),
+		}
+
+		if v.VariableType != nil {
+			varType := gitlab.VariableTypeValue(*v.VariableType)
+			vars[i].VariableType = &varType
+		}
+	}
+
+	return &vars
 }

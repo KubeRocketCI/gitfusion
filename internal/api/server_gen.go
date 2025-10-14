@@ -29,6 +29,9 @@ type ServerInterface interface {
 	// Get detailed information for a specific repository
 	// (GET /api/v1/repository)
 	GetRepository(w http.ResponseWriter, r *http.Request, params GetRepositoryParams)
+	// Trigger a CI/CD pipeline
+	// (POST /api/v1/trigger-pipeline)
+	TriggerPipeline(w http.ResponseWriter, r *http.Request, params TriggerPipelineParams)
 	// List organizations for the authenticated user
 	// (GET /api/v1/user/organizations)
 	ListUserOrganizations(w http.ResponseWriter, r *http.Request, params ListUserOrganizationsParams)
@@ -59,6 +62,12 @@ func (_ Unimplemented) ListRepositories(w http.ResponseWriter, r *http.Request, 
 // Get detailed information for a specific repository
 // (GET /api/v1/repository)
 func (_ Unimplemented) GetRepository(w http.ResponseWriter, r *http.Request, params GetRepositoryParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Trigger a CI/CD pipeline
+// (POST /api/v1/trigger-pipeline)
+func (_ Unimplemented) TriggerPipeline(w http.ResponseWriter, r *http.Request, params TriggerPipelineParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -296,6 +305,78 @@ func (siw *ServerInterfaceWrapper) GetRepository(w http.ResponseWriter, r *http.
 	handler.ServeHTTP(w, r)
 }
 
+// TriggerPipeline operation middleware
+func (siw *ServerInterfaceWrapper) TriggerPipeline(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params TriggerPipelineParams
+
+	// ------------- Required query parameter "gitServer" -------------
+
+	if paramValue := r.URL.Query().Get("gitServer"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "gitServer"})
+		return
+	}
+
+	err = runtime.BindQueryParameter("form", true, true, "gitServer", r.URL.Query(), &params.GitServer)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "gitServer", Err: err})
+		return
+	}
+
+	// ------------- Required query parameter "project" -------------
+
+	if paramValue := r.URL.Query().Get("project"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "project"})
+		return
+	}
+
+	err = runtime.BindQueryParameter("form", true, true, "project", r.URL.Query(), &params.Project)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "project", Err: err})
+		return
+	}
+
+	// ------------- Required query parameter "ref" -------------
+
+	if paramValue := r.URL.Query().Get("ref"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "ref"})
+		return
+	}
+
+	err = runtime.BindQueryParameter("form", true, true, "ref", r.URL.Query(), &params.Ref)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "ref", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "variables" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "variables", r.URL.Query(), &params.Variables)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "variables", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.TriggerPipeline(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListUserOrganizations operation middleware
 func (siw *ServerInterfaceWrapper) ListUserOrganizations(w http.ResponseWriter, r *http.Request) {
 
@@ -454,6 +535,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/api/v1/repository", wrapper.GetRepository)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/api/v1/trigger-pipeline", wrapper.TriggerPipeline)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/api/v1/user/organizations", wrapper.ListUserOrganizations)
@@ -620,6 +704,59 @@ func (response GetRepository404JSONResponse) VisitGetRepositoryResponse(w http.R
 	return json.NewEncoder(w).Encode(response)
 }
 
+type TriggerPipelineRequestObject struct {
+	Params TriggerPipelineParams
+}
+
+type TriggerPipelineResponseObject interface {
+	VisitTriggerPipelineResponse(w http.ResponseWriter) error
+}
+
+type TriggerPipeline201JSONResponse PipelineResponse
+
+func (response TriggerPipeline201JSONResponse) VisitTriggerPipelineResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type TriggerPipeline400JSONResponse Error
+
+func (response TriggerPipeline400JSONResponse) VisitTriggerPipelineResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type TriggerPipeline401JSONResponse Error
+
+func (response TriggerPipeline401JSONResponse) VisitTriggerPipelineResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type TriggerPipeline404JSONResponse Error
+
+func (response TriggerPipeline404JSONResponse) VisitTriggerPipelineResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type TriggerPipeline500JSONResponse Error
+
+func (response TriggerPipeline500JSONResponse) VisitTriggerPipelineResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type ListUserOrganizationsRequestObject struct {
 	Params ListUserOrganizationsParams
 }
@@ -678,6 +815,9 @@ type StrictServerInterface interface {
 	// Get detailed information for a specific repository
 	// (GET /api/v1/repository)
 	GetRepository(ctx context.Context, request GetRepositoryRequestObject) (GetRepositoryResponseObject, error)
+	// Trigger a CI/CD pipeline
+	// (POST /api/v1/trigger-pipeline)
+	TriggerPipeline(ctx context.Context, request TriggerPipelineRequestObject) (TriggerPipelineResponseObject, error)
 	// List organizations for the authenticated user
 	// (GET /api/v1/user/organizations)
 	ListUserOrganizations(ctx context.Context, request ListUserOrganizationsRequestObject) (ListUserOrganizationsResponseObject, error)
@@ -809,6 +949,32 @@ func (sh *strictHandler) GetRepository(w http.ResponseWriter, r *http.Request, p
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(GetRepositoryResponseObject); ok {
 		if err := validResponse.VisitGetRepositoryResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// TriggerPipeline operation middleware
+func (sh *strictHandler) TriggerPipeline(w http.ResponseWriter, r *http.Request, params TriggerPipelineParams) {
+	var request TriggerPipelineRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.TriggerPipeline(ctx, request.(TriggerPipelineRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "TriggerPipeline")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(TriggerPipelineResponseObject); ok {
+		if err := validResponse.VisitTriggerPipelineResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
