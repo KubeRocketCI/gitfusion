@@ -210,7 +210,7 @@ func convertGitlabRepoToRepository(repo *gitlab.Project) *models.Repository {
 		DefaultBranch: &repo.DefaultBranch,
 		Description:   &repo.Description,
 		Id:            strconv.Itoa(repo.ID),
-		Name:          repo.Name,
+		Name:          repo.Path,
 		Owner:         &repo.Namespace.FullPath,
 		Url:           &repo.WebURL,
 		Visibility:    convertVisibility(repo.Visibility == gitlab.PrivateVisibility),
