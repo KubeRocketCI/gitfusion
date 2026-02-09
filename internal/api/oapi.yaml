@@ -197,6 +197,69 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  /api/v1/pull-requests:
+    get:
+      summary: List pull/merge requests for a repository
+      operationId: listPullRequests
+      tags:
+        - PullRequests
+      parameters:
+        - $ref: '#/components/parameters/gitServerParam'
+        - $ref: '#/components/parameters/repoOwnerParam'
+        - $ref: '#/components/parameters/repoNameParam'
+        - name: state
+          in: query
+          required: false
+          description: Filter by state. Defaults to open.
+          schema:
+            type: string
+            enum: [open, closed, merged, all]
+            default: open
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 1
+        - name: perPage
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+      responses:
+        '200':
+          description: A list of pull/merge requests
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PullRequestsResponse'
+        '400':
+          description: Bad request due to invalid parameters or missing fields.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized access due to invalid credentials.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Repository or git server not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
   /api/v1/cache/invalidate:
     delete:
       summary: Invalidate cache for a specific endpoint
@@ -207,10 +270,10 @@ paths:
         - name: endpoint
           in: query
           required: true
-          description: The endpoint name to invalidate cache for (repositories, organizations, branches)
+          description: The endpoint name to invalidate cache for (repositories, organizations, branches, pullrequests)
           schema:
             type: string
-            enum: [repositories, organizations, branches]
+            enum: [repositories, organizations, branches, pullrequests]
       responses:
         '200':
           description: Cache invalidated successfully
@@ -299,6 +362,10 @@ components:
       type: object
       properties:
         total:
+          type: integer
+        page:
+          type: integer
+        per_page:
           type: integer
       required:
         - total
@@ -420,6 +487,54 @@ components:
       required:
         - key
         - value
+    PullRequest:
+      type: object
+      properties:
+        id:
+          type: string
+        number:
+          type: integer
+        title:
+          type: string
+        state:
+          type: string
+          enum: [open, closed, merged]
+        author:
+          $ref: '#/components/schemas/Owner'
+        source_branch:
+          type: string
+        target_branch:
+          type: string
+        url:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - number
+        - title
+        - state
+        - source_branch
+        - target_branch
+        - url
+        - created_at
+        - updated_at
+    PullRequestsResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/PullRequest'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+      required:
+        - data
+        - pagination
     PipelineResponse:
       type: object
       properties:

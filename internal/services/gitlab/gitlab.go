@@ -5,11 +5,18 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"time"
 
 	gferrors "github.com/KubeRocketCI/gitfusion/internal/errors"
 	"github.com/KubeRocketCI/gitfusion/internal/models"
 	"github.com/KubeRocketCI/gitfusion/internal/services/krci"
 	gitlab "gitlab.com/gitlab-org/api/client-go"
+)
+
+const (
+	glStateOpened = "opened"
+	glStateClosed = "closed"
+	glStateMerged = "merged"
 )
 
 type GitlabProvider struct{}
@@ -236,6 +243,113 @@ func convertVisibility(isPrivate bool) *models.RepositoryVisibility {
 	visibility := models.RepositoryVisibilityPublic
 
 	return &visibility
+}
+
+// ListPullRequests returns merge requests for a GitLab project.
+func (g *GitlabProvider) ListPullRequests(
+	ctx context.Context,
+	owner, repo string,
+	settings krci.GitServerSettings,
+	opts models.PullRequestListOptions,
+) (*models.PullRequestsResponse, error) {
+	client, err := gitlab.NewClient(settings.Token, gitlab.WithBaseURL(settings.Url))
+	if err != nil {
+		return nil, err
+	}
+
+	glState := mapPullRequestStateToGitLab(opts.State)
+
+	mrs, resp, err := client.MergeRequests.ListProjectMergeRequests(
+		fmt.Sprintf("%s/%s", owner, repo),
+		&gitlab.ListProjectMergeRequestsOptions{
+			State: gitlab.Ptr(glState),
+			ListOptions: gitlab.ListOptions{
+				Page:    opts.Page,
+				PerPage: opts.PerPage,
+			},
+		},
+		gitlab.WithContext(ctx),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list merge requests for %s/%s: %w", owner, repo, err)
+	}
+
+	total := resp.TotalItems
+
+	result := make([]models.PullRequest, 0, len(mrs))
+
+	for _, mr := range mrs {
+		var createdAt, updatedAt time.Time
+		if mr.CreatedAt != nil {
+			createdAt = *mr.CreatedAt
+		}
+
+		if mr.UpdatedAt != nil {
+			updatedAt = *mr.UpdatedAt
+		}
+
+		pr := models.PullRequest{
+			Id:           strconv.Itoa(mr.ID),
+			Number:       mr.IID,
+			Title:        mr.Title,
+			State:        normalizeGitLabMRState(mr.State),
+			SourceBranch: mr.SourceBranch,
+			TargetBranch: mr.TargetBranch,
+			Url:          mr.WebURL,
+			CreatedAt:    createdAt,
+			UpdatedAt:    updatedAt,
+		}
+
+		if mr.Author != nil {
+			pr.Author = &models.Owner{
+				Id:   strconv.Itoa(mr.Author.ID),
+				Name: mr.Author.Username,
+			}
+
+			if mr.Author.AvatarURL != "" {
+				pr.Author.AvatarUrl = &mr.Author.AvatarURL
+			}
+		}
+
+		result = append(result, pr)
+	}
+
+	return &models.PullRequestsResponse{
+		Data: result,
+		Pagination: models.Pagination{
+			Total:   total,
+			Page:    &opts.Page,
+			PerPage: &opts.PerPage,
+		},
+	}, nil
+}
+
+func mapPullRequestStateToGitLab(state string) string {
+	switch state {
+	case "open":
+		return glStateOpened
+	case "closed":
+		return glStateClosed
+	case "merged":
+		return glStateMerged
+	case "all":
+		return "all"
+	default:
+		return glStateOpened
+	}
+}
+
+func normalizeGitLabMRState(state string) models.PullRequestState {
+	switch state {
+	case glStateOpened:
+		return models.PullRequestStateOpen
+	case glStateMerged:
+		return models.PullRequestStateMerged
+	case glStateClosed:
+		return models.PullRequestStateClosed
+	default:
+		return models.PullRequestStateOpen
+	}
 }
 
 func convertToPipelineVariables(variables []models.PipelineVariable) *[]*gitlab.PipelineVariableOptions {

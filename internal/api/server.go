@@ -8,6 +8,7 @@ import (
 	"github.com/KubeRocketCI/gitfusion/internal/services/krci"
 	"github.com/KubeRocketCI/gitfusion/internal/services/organizations"
 	"github.com/KubeRocketCI/gitfusion/internal/services/pipelines"
+	"github.com/KubeRocketCI/gitfusion/internal/services/pullrequests"
 	"github.com/KubeRocketCI/gitfusion/internal/services/repositories"
 	codebaseApi "github.com/epam/edp-codebase-operator/v2/api/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -26,6 +27,7 @@ type Server struct {
 	branchHandler       *BranchHandler
 	cacheHandler        *CacheHandler
 	pipelineHandler     *PipelineHandler
+	pullRequestHandler  *PullRequestHandler
 }
 
 // NewServer creates a new Server instance.
@@ -35,6 +37,7 @@ func NewServer(
 	branchHandler *BranchHandler,
 	cacheHandler *CacheHandler,
 	pipelineHandler *PipelineHandler,
+	pullRequestHandler *PullRequestHandler,
 ) *Server {
 	return &Server{
 		repositoryHandler:   repositoryHandler,
@@ -42,6 +45,7 @@ func NewServer(
 		branchHandler:       branchHandler,
 		cacheHandler:        cacheHandler,
 		pipelineHandler:     pipelineHandler,
+		pullRequestHandler:  pullRequestHandler,
 	}
 }
 
@@ -85,6 +89,14 @@ func (s *Server) InvalidateCache(
 	return s.cacheHandler.InvalidateCache(ctx, request)
 }
 
+// ListPullRequests implements StrictServerInterface.
+func (s *Server) ListPullRequests(
+	ctx context.Context,
+	request ListPullRequestsRequestObject,
+) (ListPullRequestsResponseObject, error) {
+	return s.pullRequestHandler.ListPullRequests(ctx, request)
+}
+
 // TriggerPipeline implements StrictServerInterface.
 func (s *Server) TriggerPipeline(
 	ctx context.Context,
@@ -106,24 +118,28 @@ func BuildHandler(conf Config) (ServerInterface, error) {
 	orgMultiProvider := organizations.NewMultiProviderOrganizationsService(gitServerService)
 	branchesMultiProvider := branches.NewMultiProviderBranchesService()
 	pipelinesMultiProvider := pipelines.NewMultiProviderPipelineService()
+	pullRequestsMultiProvider := pullrequests.NewMultiProviderPullRequestsService()
 
 	// Create high-level services
 	repoSvc := repositories.NewRepositoriesService(repoMultiProvider, gitServerService)
 	orgSvc := organizations.NewOrganizationsService(orgMultiProvider, gitServerService)
 	branchesSvc := branches.NewBranchesService(branchesMultiProvider, gitServerService)
 	pipelinesSvc := pipelines.NewPipelinesService(gitServerService, pipelinesMultiProvider)
+	pullRequestsSvc := pullrequests.NewPullRequestsService(pullRequestsMultiProvider, gitServerService)
 
 	// Create cache manager with access to all cache instances
 	cacheManager := cache.NewManager(
 		repoSvc.GetProvider().GetCache(),
 		orgSvc.GetProvider().GetCache(),
 		branchesSvc.GetProvider().GetCache(),
+		pullRequestsSvc.GetProvider().GetCache(),
 	)
 
 	// Create handlers
 	branchHandler := NewBranchHandler(branchesSvc)
 	cacheHandler := NewCacheHandler(cacheManager)
 	pipelineHandler := NewPipelineHandler(pipelinesSvc)
+	pullRequestHandler := NewPullRequestHandler(pullRequestsSvc)
 
 	return NewStrictHandlerWithOptions(
 		NewServer(
@@ -132,6 +148,7 @@ func BuildHandler(conf Config) (ServerInterface, error) {
 			branchHandler,
 			cacheHandler,
 			pipelineHandler,
+			pullRequestHandler,
 		),
 		[]StrictMiddlewareFunc{},
 		StrictHTTPServerOptions{},

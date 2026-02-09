@@ -13,6 +13,13 @@ const (
 	File   PipelineVariableVariableType = "file"
 )
 
+// Defines values for PullRequestState.
+const (
+	PullRequestStateClosed PullRequestState = "closed"
+	PullRequestStateMerged PullRequestState = "merged"
+	PullRequestStateOpen   PullRequestState = "open"
+)
+
 // Defines values for RepositoryVisibility.
 const (
 	RepositoryVisibilityPrivate RepositoryVisibility = "private"
@@ -29,7 +36,16 @@ const (
 const (
 	Branches      InvalidateCacheParamsEndpoint = "branches"
 	Organizations InvalidateCacheParamsEndpoint = "organizations"
+	Pullrequests  InvalidateCacheParamsEndpoint = "pullrequests"
 	Repositories  InvalidateCacheParamsEndpoint = "repositories"
+)
+
+// Defines values for ListPullRequestsParamsState.
+const (
+	ListPullRequestsParamsStateAll    ListPullRequestsParamsState = "all"
+	ListPullRequestsParamsStateClosed ListPullRequestsParamsState = "closed"
+	ListPullRequestsParamsStateMerged ListPullRequestsParamsState = "merged"
+	ListPullRequestsParamsStateOpen   ListPullRequestsParamsState = "open"
 )
 
 // Branch defines model for Branch.
@@ -81,7 +97,9 @@ type Owner struct {
 
 // Pagination defines model for Pagination.
 type Pagination struct {
-	Total int `json:"total"`
+	Page    *int `json:"page,omitempty"`
+	PerPage *int `json:"per_page,omitempty"`
+	Total   int  `json:"total"`
 }
 
 // PipelineResponse defines model for PipelineResponse.
@@ -116,6 +134,29 @@ type PipelineVariable struct {
 
 // PipelineVariableVariableType Type of variable
 type PipelineVariableVariableType string
+
+// PullRequest defines model for PullRequest.
+type PullRequest struct {
+	Author       *Owner           `json:"author,omitempty"`
+	CreatedAt    time.Time        `json:"created_at"`
+	Id           string           `json:"id"`
+	Number       int              `json:"number"`
+	SourceBranch string           `json:"source_branch"`
+	State        PullRequestState `json:"state"`
+	TargetBranch string           `json:"target_branch"`
+	Title        string           `json:"title"`
+	UpdatedAt    time.Time        `json:"updated_at"`
+	Url          string           `json:"url"`
+}
+
+// PullRequestState defines model for PullRequest.State.
+type PullRequestState string
+
+// PullRequestsResponse defines model for PullRequestsResponse.
+type PullRequestsResponse struct {
+	Data       []PullRequest `json:"data"`
+	Pagination Pagination    `json:"pagination"`
+}
 
 // RepositoriesResponse defines model for RepositoriesResponse.
 type RepositoriesResponse struct {
@@ -181,12 +222,32 @@ type ListBranchesParams struct {
 
 // InvalidateCacheParams defines parameters for InvalidateCache.
 type InvalidateCacheParams struct {
-	// Endpoint The endpoint name to invalidate cache for (repositories, organizations, branches)
+	// Endpoint The endpoint name to invalidate cache for (repositories, organizations, branches, pullrequests)
 	Endpoint InvalidateCacheParamsEndpoint `form:"endpoint" json:"endpoint"`
 }
 
 // InvalidateCacheParamsEndpoint defines parameters for InvalidateCache.
 type InvalidateCacheParamsEndpoint string
+
+// ListPullRequestsParams defines parameters for ListPullRequests.
+type ListPullRequestsParams struct {
+	// GitServer The Git server name.
+	GitServer GitServerParam `form:"gitServer" json:"gitServer"`
+
+	// Owner The owner of the repository.
+	Owner RepoOwnerParam `form:"owner" json:"owner"`
+
+	// RepoName The name of the repository.
+	RepoName RepoNameParam `form:"repoName" json:"repoName"`
+
+	// State Filter by state. Defaults to open.
+	State   *ListPullRequestsParamsState `form:"state,omitempty" json:"state,omitempty"`
+	Page    *int                         `form:"page,omitempty" json:"page,omitempty"`
+	PerPage *int                         `form:"perPage,omitempty" json:"perPage,omitempty"`
+}
+
+// ListPullRequestsParamsState defines parameters for ListPullRequests.
+type ListPullRequestsParamsState string
 
 // ListRepositoriesParams defines parameters for ListRepositories.
 type ListRepositoriesParams struct {

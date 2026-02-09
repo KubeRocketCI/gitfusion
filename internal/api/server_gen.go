@@ -23,6 +23,9 @@ type ServerInterface interface {
 	// Invalidate cache for a specific endpoint
 	// (DELETE /api/v1/cache/invalidate)
 	InvalidateCache(w http.ResponseWriter, r *http.Request, params InvalidateCacheParams)
+	// List pull/merge requests for a repository
+	// (GET /api/v1/pull-requests)
+	ListPullRequests(w http.ResponseWriter, r *http.Request, params ListPullRequestsParams)
 	// List repositories
 	// (GET /api/v1/repositories)
 	ListRepositories(w http.ResponseWriter, r *http.Request, params ListRepositoriesParams)
@@ -50,6 +53,12 @@ func (_ Unimplemented) ListBranches(w http.ResponseWriter, r *http.Request, para
 // Invalidate cache for a specific endpoint
 // (DELETE /api/v1/cache/invalidate)
 func (_ Unimplemented) InvalidateCache(w http.ResponseWriter, r *http.Request, params InvalidateCacheParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// List pull/merge requests for a repository
+// (GET /api/v1/pull-requests)
+func (_ Unimplemented) ListPullRequests(w http.ResponseWriter, r *http.Request, params ListPullRequestsParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -175,6 +184,94 @@ func (siw *ServerInterfaceWrapper) InvalidateCache(w http.ResponseWriter, r *htt
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.InvalidateCache(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListPullRequests operation middleware
+func (siw *ServerInterfaceWrapper) ListPullRequests(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListPullRequestsParams
+
+	// ------------- Required query parameter "gitServer" -------------
+
+	if paramValue := r.URL.Query().Get("gitServer"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "gitServer"})
+		return
+	}
+
+	err = runtime.BindQueryParameter("form", true, true, "gitServer", r.URL.Query(), &params.GitServer)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "gitServer", Err: err})
+		return
+	}
+
+	// ------------- Required query parameter "owner" -------------
+
+	if paramValue := r.URL.Query().Get("owner"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "owner"})
+		return
+	}
+
+	err = runtime.BindQueryParameter("form", true, true, "owner", r.URL.Query(), &params.Owner)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "owner", Err: err})
+		return
+	}
+
+	// ------------- Required query parameter "repoName" -------------
+
+	if paramValue := r.URL.Query().Get("repoName"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "repoName"})
+		return
+	}
+
+	err = runtime.BindQueryParameter("form", true, true, "repoName", r.URL.Query(), &params.RepoName)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "repoName", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "state" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "state", r.URL.Query(), &params.State)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "state", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "page" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "page", r.URL.Query(), &params.Page)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "page", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "perPage" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "perPage", r.URL.Query(), &params.PerPage)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "perPage", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListPullRequests(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -531,6 +628,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		r.Delete(options.BaseURL+"/api/v1/cache/invalidate", wrapper.InvalidateCache)
 	})
 	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/api/v1/pull-requests", wrapper.ListPullRequests)
+	})
+	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/api/v1/repositories", wrapper.ListRepositories)
 	})
 	r.Group(func(r chi.Router) {
@@ -619,6 +719,59 @@ func (response InvalidateCache400JSONResponse) VisitInvalidateCacheResponse(w ht
 type InvalidateCache500JSONResponse Error
 
 func (response InvalidateCache500JSONResponse) VisitInvalidateCacheResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListPullRequestsRequestObject struct {
+	Params ListPullRequestsParams
+}
+
+type ListPullRequestsResponseObject interface {
+	VisitListPullRequestsResponse(w http.ResponseWriter) error
+}
+
+type ListPullRequests200JSONResponse PullRequestsResponse
+
+func (response ListPullRequests200JSONResponse) VisitListPullRequestsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListPullRequests400JSONResponse Error
+
+func (response ListPullRequests400JSONResponse) VisitListPullRequestsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListPullRequests401JSONResponse Error
+
+func (response ListPullRequests401JSONResponse) VisitListPullRequestsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListPullRequests404JSONResponse Error
+
+func (response ListPullRequests404JSONResponse) VisitListPullRequestsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListPullRequests500JSONResponse Error
+
+func (response ListPullRequests500JSONResponse) VisitListPullRequestsResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(500)
 
@@ -809,6 +962,9 @@ type StrictServerInterface interface {
 	// Invalidate cache for a specific endpoint
 	// (DELETE /api/v1/cache/invalidate)
 	InvalidateCache(ctx context.Context, request InvalidateCacheRequestObject) (InvalidateCacheResponseObject, error)
+	// List pull/merge requests for a repository
+	// (GET /api/v1/pull-requests)
+	ListPullRequests(ctx context.Context, request ListPullRequestsRequestObject) (ListPullRequestsResponseObject, error)
 	// List repositories
 	// (GET /api/v1/repositories)
 	ListRepositories(ctx context.Context, request ListRepositoriesRequestObject) (ListRepositoriesResponseObject, error)
@@ -897,6 +1053,32 @@ func (sh *strictHandler) InvalidateCache(w http.ResponseWriter, r *http.Request,
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(InvalidateCacheResponseObject); ok {
 		if err := validResponse.VisitInvalidateCacheResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListPullRequests operation middleware
+func (sh *strictHandler) ListPullRequests(w http.ResponseWriter, r *http.Request, params ListPullRequestsParams) {
+	var request ListPullRequestsRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListPullRequests(ctx, request.(ListPullRequestsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListPullRequests")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListPullRequestsResponseObject); ok {
+		if err := validResponse.VisitListPullRequestsResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
