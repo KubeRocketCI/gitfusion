@@ -18,7 +18,15 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-type GitHubProvider struct{}
+const (
+	stateOpen   = "open"
+	stateClosed = "closed"
+	stateMerged = "merged"
+)
+
+type GitHubProvider struct {
+	httpClient *http.Client
+}
 
 func NewGitHubProvider() *GitHubProvider {
 	return &GitHubProvider{}
@@ -291,4 +299,226 @@ func (g *GitHubProvider) ListBranches(
 	}
 
 	return branches, nil
+}
+
+// ListPullRequests returns pull requests for the given repository with filtering and pagination.
+// For "open" and "all" states, GitHub API handles filtering natively.
+// For "merged" and "closed" states, post-filtering is required because GitHub API
+// only supports state=closed (which includes both merged and truly-closed PRs).
+func (g *GitHubProvider) ListPullRequests(
+	ctx context.Context,
+	owner, repo string,
+	settings krci.GitServerSettings,
+	opts models.PullRequestListOptions,
+) (*models.PullRequestsResponse, error) {
+	client := github.NewClient(g.httpClient).WithAuthToken(settings.Token)
+
+	ghState := mapPullRequestStateToGitHub(opts.State)
+
+	if opts.State == stateMerged || opts.State == stateClosed {
+		return g.listPullRequestsWithPostFilter(ctx, client, owner, repo, opts, ghState)
+	}
+
+	return g.listPullRequestsDirect(ctx, client, owner, repo, opts, ghState)
+}
+
+// listPullRequestsDirect handles states that GitHub API supports natively (open, all).
+func (g *GitHubProvider) listPullRequestsDirect(
+	ctx context.Context,
+	client *github.Client,
+	owner, repo string,
+	opts models.PullRequestListOptions,
+	ghState string,
+) (*models.PullRequestsResponse, error) {
+	ghPRs, resp, err := client.PullRequests.List(ctx, owner, repo, &github.PullRequestListOptions{
+		State: ghState,
+		ListOptions: github.ListOptions{
+			Page:    opts.Page,
+			PerPage: opts.PerPage,
+		},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to list pull requests for %s/%s: %w", owner, repo, err)
+	}
+
+	result := make([]models.PullRequest, 0, len(ghPRs))
+	for _, pr := range ghPRs {
+		result = append(result, convertGitHubPullRequest(pr))
+	}
+
+	var total int
+
+	switch {
+	case resp.LastPage > 0:
+		total = resp.LastPage * opts.PerPage
+	case len(ghPRs) < opts.PerPage:
+		total = (opts.Page-1)*opts.PerPage + len(result)
+	default:
+		total = opts.Page * opts.PerPage
+	}
+
+	return &models.PullRequestsResponse{
+		Data: result,
+		Pagination: models.Pagination{
+			Total:   total,
+			Page:    &opts.Page,
+			PerPage: &opts.PerPage,
+		},
+	}, nil
+}
+
+// ghPostFilterPageSize is the page size used when fetching from GitHub for post-filtered states.
+// Using the maximum (100) reduces the number of API round-trips needed.
+const ghPostFilterPageSize = 100
+
+// ghPostFilterMaxPages is the maximum number of GitHub API pages to fetch
+// when post-filtering (merged/closed). This prevents unbounded API calls
+// in pathological cases (e.g., repos with many closed PRs).
+const ghPostFilterMaxPages = 50
+
+// listPullRequestsWithPostFilter fetches closed PRs from GitHub page by page,
+// applies post-filtering (merged vs truly-closed), and accumulates results
+// until PerPage items are collected or all GitHub pages are exhausted.
+func (g *GitHubProvider) listPullRequestsWithPostFilter(
+	ctx context.Context,
+	client *github.Client,
+	owner, repo string,
+	opts models.PullRequestListOptions,
+	ghState string,
+) (*models.PullRequestsResponse, error) {
+	needed := opts.PerPage
+	skip := (opts.Page - 1) * opts.PerPage
+
+	result := make([]models.PullRequest, 0, needed)
+
+	ghPage := 1
+	pagesQueried := 0
+
+	for {
+		if err := ctx.Err(); err != nil {
+			return nil, fmt.Errorf("failed to list pull requests for %s/%s: %w", owner, repo, err)
+		}
+
+		if pagesQueried >= ghPostFilterMaxPages {
+			break
+		}
+
+		ghPRs, resp, err := client.PullRequests.List(ctx, owner, repo, &github.PullRequestListOptions{
+			State: ghState,
+			ListOptions: github.ListOptions{
+				Page:    ghPage,
+				PerPage: ghPostFilterPageSize,
+			},
+		})
+
+		pagesQueried++
+
+		if err != nil {
+			return nil, fmt.Errorf("failed to list pull requests for %s/%s: %w", owner, repo, err)
+		}
+
+		for _, pr := range ghPRs {
+			if !matchesPullRequestStateFilter(pr, opts.State) {
+				continue
+			}
+
+			if skip > 0 {
+				skip--
+
+				continue
+			}
+
+			result = append(result, convertGitHubPullRequest(pr))
+
+			if len(result) >= needed {
+				// We filled the page before exhausting GitHub results.
+				// Use a lower-bound estimate: at least one more page may exist.
+				total := opts.Page*opts.PerPage + 1
+
+				return &models.PullRequestsResponse{
+					Data: result,
+					Pagination: models.Pagination{
+						Total:   total,
+						Page:    &opts.Page,
+						PerPage: &opts.PerPage,
+					},
+				}, nil
+			}
+		}
+
+		if resp.NextPage == 0 {
+			break
+		}
+
+		ghPage = resp.NextPage
+	}
+
+	return &models.PullRequestsResponse{
+		Data: result,
+		Pagination: models.Pagination{
+			Total:   (opts.Page-1)*opts.PerPage + len(result),
+			Page:    &opts.Page,
+			PerPage: &opts.PerPage,
+		},
+	}, nil
+}
+
+func mapPullRequestStateToGitHub(state string) string {
+	switch state {
+	case stateMerged, stateClosed:
+		return stateClosed
+	case stateOpen:
+		return stateOpen
+	default:
+		return "all"
+	}
+}
+
+// matchesPullRequestStateFilter returns true if the GitHub PR matches the requested state filter.
+func matchesPullRequestStateFilter(pr *github.PullRequest, state string) bool {
+	switch state {
+	case stateMerged:
+		return pr.MergedAt != nil
+	case stateClosed:
+		// "closed" in our model means closed-but-not-merged.
+		return pr.MergedAt == nil
+	default:
+		return true
+	}
+}
+
+// convertGitHubPullRequest converts a GitHub PR to the internal model.
+func convertGitHubPullRequest(pr *github.PullRequest) models.PullRequest {
+	var state models.PullRequestState
+
+	switch {
+	case pr.MergedAt != nil:
+		state = models.PullRequestStateMerged
+	case pr.GetState() == stateClosed:
+		state = models.PullRequestStateClosed
+	default:
+		state = models.PullRequestStateOpen
+	}
+
+	prModel := models.PullRequest{
+		Id:           strconv.FormatInt(pr.GetID(), 10),
+		Number:       pr.GetNumber(),
+		Title:        pr.GetTitle(),
+		State:        state,
+		SourceBranch: pr.Head.GetRef(),
+		TargetBranch: pr.Base.GetRef(),
+		Url:          pr.GetHTMLURL(),
+		CreatedAt:    pr.GetCreatedAt().Time,
+		UpdatedAt:    pr.GetUpdatedAt().Time,
+	}
+
+	if pr.User != nil {
+		prModel.Author = &models.Owner{
+			Id:        strconv.FormatInt(pr.User.GetID(), 10),
+			Name:      pr.User.GetLogin(),
+			AvatarUrl: pr.User.AvatarURL,
+		}
+	}
+
+	return prModel
 }

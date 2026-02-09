@@ -4,19 +4,34 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"net/url"
+	"strconv"
 	"strings"
+	"time"
 
 	gferrors "github.com/KubeRocketCI/gitfusion/internal/errors"
 	"github.com/KubeRocketCI/gitfusion/internal/models"
 	"github.com/KubeRocketCI/gitfusion/internal/services/krci"
 	bitbucketpkg "github.com/KubeRocketCI/gitfusion/pkg/bitbucket"
+	"github.com/go-resty/resty/v2"
 	"github.com/ktrysmt/go-bitbucket"
 )
 
-type BitbucketService struct{}
+// defaultBitbucketAPIURL is the base URL for the Bitbucket Cloud REST API.
+// NOTE: The go-bitbucket library (used by GetRepository, ListRepositories,
+// ListBranches, ListUserOrganizations) also defaults to this URL internally.
+// Supporting a configurable API URL (e.g. settings.Url for Bitbucket Data Center)
+// would require changes across all Bitbucket methods and the underlying library.
+const defaultBitbucketAPIURL = "https://api.bitbucket.org/2.0"
+
+type BitbucketService struct {
+	httpClient *resty.Client
+}
 
 func NewBitbucketProvider() *BitbucketService {
-	return &BitbucketService{}
+	return &BitbucketService{
+		httpClient: resty.New(),
+	}
 }
 
 func (b *BitbucketService) GetRepository(
@@ -148,6 +163,168 @@ func (b *BitbucketService) ListBranches(
 	}
 
 	return result, nil
+}
+
+type bitbucketPRResponse struct {
+	Size    int           `json:"size"`
+	Page    int           `json:"page"`
+	Pagelen int           `json:"pagelen"`
+	Values  []bitbucketPR `json:"values"`
+}
+
+type bitbucketPR struct {
+	ID    int    `json:"id"`
+	Title string `json:"title"`
+	State string `json:"state"`
+
+	Author struct {
+		DisplayName string `json:"display_name"`
+		UUID        string `json:"uuid"`
+		Links       struct {
+			Avatar struct {
+				Href string `json:"href"`
+			} `json:"avatar"`
+		} `json:"links"`
+	} `json:"author"`
+
+	Source struct {
+		Branch struct {
+			Name string `json:"name"`
+		} `json:"branch"`
+	} `json:"source"`
+
+	Destination struct {
+		Branch struct {
+			Name string `json:"name"`
+		} `json:"branch"`
+	} `json:"destination"`
+
+	Links struct {
+		HTML struct {
+			Href string `json:"href"`
+		} `json:"html"`
+	} `json:"links"`
+
+	CreatedOn string `json:"created_on"`
+	UpdatedOn string `json:"updated_on"`
+}
+
+// ListPullRequests returns pull requests for the given repository using the Bitbucket REST API.
+// Direct HTTP (via go-resty) is used instead of go-bitbucket's PullRequests.Gets() because
+// the library auto-paginates all pages into memory and lacks page/perPage control.
+func (b *BitbucketService) ListPullRequests(
+	ctx context.Context,
+	owner, repo string,
+	settings krci.GitServerSettings,
+	opts models.PullRequestListOptions,
+) (*models.PullRequestsResponse, error) {
+	username, password, err := decodeBitbucketToken(settings.Token)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode bitbucket token: %w", err)
+	}
+
+	apiURL := fmt.Sprintf("%s/repositories/%s/%s/pullrequests",
+		defaultBitbucketAPIURL, url.PathEscape(owner), url.PathEscape(repo))
+
+	queryParams := url.Values{}
+	queryParams.Set("page", strconv.Itoa(opts.Page))
+	queryParams.Set("pagelen", strconv.Itoa(opts.PerPage))
+
+	switch opts.State {
+	case "open":
+		queryParams.Set("state", "OPEN")
+	case "closed":
+		queryParams.Set("state", "DECLINED")
+	case "merged":
+		queryParams.Set("state", "MERGED")
+	case "all":
+		queryParams.Add("state", "OPEN")
+		queryParams.Add("state", "MERGED")
+		queryParams.Add("state", "DECLINED")
+		queryParams.Add("state", "SUPERSEDED")
+	default:
+		queryParams.Set("state", "OPEN")
+	}
+
+	var bbResp bitbucketPRResponse
+
+	resp, err := b.httpClient.R().
+		SetContext(ctx).
+		SetBasicAuth(username, password).
+		SetQueryParamsFromValues(queryParams).
+		SetResult(&bbResp).
+		Get(apiURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list pull requests for %s/%s: %w", owner, repo, err)
+	}
+
+	if resp.IsError() {
+		return nil, fmt.Errorf("failed to list pull requests for %s/%s: status %d, body: %s",
+			owner, repo, resp.StatusCode(), resp.String())
+	}
+
+	result := make([]models.PullRequest, 0, len(bbResp.Values))
+
+	for _, pr := range bbResp.Values {
+		state := convertBitbucketPRState(pr.State)
+
+		createdAt, err := time.Parse(time.RFC3339Nano, pr.CreatedOn)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse created_on time %q: %w", pr.CreatedOn, err)
+		}
+
+		updatedAt, err := time.Parse(time.RFC3339Nano, pr.UpdatedOn)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse updated_on time %q: %w", pr.UpdatedOn, err)
+		}
+
+		author := &models.Owner{
+			Id:   pr.Author.UUID,
+			Name: pr.Author.DisplayName,
+		}
+
+		if pr.Author.Links.Avatar.Href != "" {
+			avatarURL := pr.Author.Links.Avatar.Href
+			author.AvatarUrl = &avatarURL
+		}
+
+		result = append(result, models.PullRequest{
+			Id:           strconv.Itoa(pr.ID),
+			Number:       pr.ID,
+			Title:        pr.Title,
+			State:        state,
+			SourceBranch: pr.Source.Branch.Name,
+			TargetBranch: pr.Destination.Branch.Name,
+			Url:          pr.Links.HTML.Href,
+			Author:       author,
+			CreatedAt:    createdAt,
+			UpdatedAt:    updatedAt,
+		})
+	}
+
+	total := bbResp.Size
+
+	return &models.PullRequestsResponse{
+		Data: result,
+		Pagination: models.Pagination{
+			Total:   total,
+			Page:    &opts.Page,
+			PerPage: &opts.PerPage,
+		},
+	}, nil
+}
+
+func convertBitbucketPRState(state string) models.PullRequestState {
+	switch state {
+	case "OPEN":
+		return models.PullRequestStateOpen
+	case "MERGED":
+		return models.PullRequestStateMerged
+	case "DECLINED", "SUPERSEDED":
+		return models.PullRequestStateClosed
+	default:
+		return models.PullRequestStateOpen
+	}
 }
 
 func convertBitbucketRepoToRepository(repo *bitbucket.Repository) *models.Repository {

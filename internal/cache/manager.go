@@ -12,6 +12,7 @@ type Manager struct {
 	repositoryCache   *sturdyc.Client[[]models.Repository]
 	organizationCache *sturdyc.Client[[]models.Organization]
 	branchCache       *sturdyc.Client[[]models.Branch]
+	pullRequestCache  *sturdyc.Client[models.PullRequestsResponse]
 }
 
 // NewManager creates a new cache manager with all cache instances.
@@ -19,11 +20,13 @@ func NewManager(
 	repositoryCache *sturdyc.Client[[]models.Repository],
 	organizationCache *sturdyc.Client[[]models.Organization],
 	branchCache *sturdyc.Client[[]models.Branch],
+	pullRequestCache *sturdyc.Client[models.PullRequestsResponse],
 ) *Manager {
 	return &Manager{
 		repositoryCache:   repositoryCache,
 		organizationCache: organizationCache,
 		branchCache:       branchCache,
+		pullRequestCache:  pullRequestCache,
 	}
 }
 
@@ -49,7 +52,14 @@ func (m *Manager) InvalidateCache(endpoint string) error {
 		for _, key := range keys {
 			m.branchCache.Delete(key)
 		}
-		
+
+		return nil
+	case "pullrequests":
+		keys := m.pullRequestCache.ScanKeys()
+		for _, key := range keys {
+			m.pullRequestCache.Delete(key)
+		}
+
 		return nil
 	default:
 		return fmt.Errorf("unsupported endpoint: %s", endpoint)
@@ -58,5 +68,5 @@ func (m *Manager) InvalidateCache(endpoint string) error {
 
 // GetSupportedEndpoints returns a list of supported cache endpoints.
 func (m *Manager) GetSupportedEndpoints() []string {
-	return []string{"repositories", "organizations", "branches"}
+	return []string{"repositories", "organizations", "branches", "pullrequests"}
 }
