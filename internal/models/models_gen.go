@@ -137,8 +137,17 @@ type PipelineVariableVariableType string
 
 // PullRequest defines model for PullRequest.
 type PullRequest struct {
-	Author       *Owner           `json:"author,omitempty"`
-	CreatedAt    time.Time        `json:"created_at"`
+	Author *Owner `json:"author,omitempty"`
+
+	// CommitSha Head commit SHA of the source branch
+	CommitSha *string   `json:"commit_sha,omitempty"`
+	CreatedAt time.Time `json:"created_at"`
+
+	// Description Pull request body text
+	Description *string `json:"description,omitempty"`
+
+	// Draft Whether this pull request is a draft
+	Draft        *bool            `json:"draft,omitempty"`
 	Id           string           `json:"id"`
 	Number       int              `json:"number"`
 	SourceBranch string           `json:"source_branch"`

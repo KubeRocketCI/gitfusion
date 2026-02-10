@@ -173,9 +173,11 @@ type bitbucketPRResponse struct {
 }
 
 type bitbucketPR struct {
-	ID    int    `json:"id"`
-	Title string `json:"title"`
-	State string `json:"state"`
+	ID          int    `json:"id"`
+	Title       string `json:"title"`
+	State       string `json:"state"`
+	Description string `json:"description"`
+	Draft       bool   `json:"draft"`
 
 	Author struct {
 		DisplayName string `json:"display_name"`
@@ -191,6 +193,9 @@ type bitbucketPR struct {
 		Branch struct {
 			Name string `json:"name"`
 		} `json:"branch"`
+		Commit struct {
+			Hash string `json:"hash"`
+		} `json:"commit"`
 	} `json:"source"`
 
 	Destination struct {
@@ -288,7 +293,7 @@ func (b *BitbucketService) ListPullRequests(
 			author.AvatarUrl = &avatarURL
 		}
 
-		result = append(result, models.PullRequest{
+		prModel := models.PullRequest{
 			Id:           strconv.Itoa(pr.ID),
 			Number:       pr.ID,
 			Title:        pr.Title,
@@ -299,7 +304,18 @@ func (b *BitbucketService) ListPullRequests(
 			Author:       author,
 			CreatedAt:    createdAt,
 			UpdatedAt:    updatedAt,
-		})
+			Draft:        &pr.Draft,
+		}
+
+		if pr.Description != "" {
+			prModel.Description = &pr.Description
+		}
+
+		if pr.Source.Commit.Hash != "" {
+			prModel.CommitSha = &pr.Source.Commit.Hash
+		}
+
+		result = append(result, prModel)
 	}
 
 	total := bbResp.Size

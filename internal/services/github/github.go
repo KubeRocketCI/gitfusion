@@ -510,6 +510,15 @@ func convertGitHubPullRequest(pr *github.PullRequest) models.PullRequest {
 		Url:          pr.GetHTMLURL(),
 		CreatedAt:    pr.GetCreatedAt().Time,
 		UpdatedAt:    pr.GetUpdatedAt().Time,
+		Draft:        pr.Draft,
+	}
+
+	if pr.GetBody() != "" {
+		prModel.Description = pr.Body
+	}
+
+	if pr.Head != nil && pr.Head.GetSHA() != "" {
+		prModel.CommitSha = pr.Head.SHA
 	}
 
 	if pr.User != nil {

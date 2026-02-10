@@ -87,7 +87,7 @@ func varTypePtr(v models.PipelineVariableVariableType) *models.PipelineVariableV
 	return &v
 }
 
-func TestConvertToPipelineVariables_EdgeCases(t *testing.T) {
+func TestConvertToPipelineVariablesEdgeCases(t *testing.T) {
 	tests := []struct {
 		name      string
 		variables []models.PipelineVariable
