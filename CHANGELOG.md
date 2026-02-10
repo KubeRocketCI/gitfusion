@@ -1,28 +1,13 @@
 <a name="unreleased"></a>
 ## [Unreleased]
 
-### Bug Fixes
 
-- Incomplete branch list for Bitbucket ([#41](https://github.com/KubeRocketCI/gitfusion/issues/41))
-
-### Routine
-
-- Update KubeRocketAI ([#44](https://github.com/KubeRocketCI/gitfusion/issues/44))
-- Setup KubeRocketAI ([#44](https://github.com/KubeRocketCI/gitfusion/issues/44))
-- Update current development version ([#37](https://github.com/KubeRocketCI/gitfusion/issues/37))
-
-
-<a name="v0.1.1"></a>
-## [v0.1.1] - 2025-07-21
-### Bug Fixes
-
-- Incomplete branch list for Bitbucket ([#41](https://github.com/KubeRocketCI/gitfusion/issues/41))
-
-
-<a name="v0.1.0"></a>
-## v0.1.0 - 2025-07-18
+<a name="v0.2.0"></a>
+## v0.2.0 - 2026-02-10
 ### Features
 
+- extend PullRequest model with description, draft, and commit_sha fields
+- add pull/merge request listing API across GitHub, GitLab, and Bitbucket
 - Enhance GithubProvider ListUserOrganizations to include current user ([#35](https://github.com/KubeRocketCI/gitfusion/issues/35))
 - Implement cache invalidation endpoint ([#33](https://github.com/KubeRocketCI/gitfusion/issues/33))
 - Add /branches endpoint and services structure refactoring ([#27](https://github.com/KubeRocketCI/gitfusion/issues/27))
@@ -36,8 +21,16 @@
 - Adds Copilot instructions and PR generation guidelines
 - GitHub repository endpoints
 
+### Bug Fixes
+
+- Use Path instead of Name for GitLab repository ([#50](https://github.com/KubeRocketCI/gitfusion/issues/50))
+- Incomplete branch list for Bitbucket ([#41](https://github.com/KubeRocketCI/gitfusion/issues/41))
+
 ### Routine
 
+- Update KubeRocketAI ([#44](https://github.com/KubeRocketCI/gitfusion/issues/44))
+- Setup KubeRocketAI ([#44](https://github.com/KubeRocketCI/gitfusion/issues/44))
+- Update current development version ([#37](https://github.com/KubeRocketCI/gitfusion/issues/37))
 - Enable CHANGELOG.md generation([#37](https://github.com/KubeRocketCI/gitfusion/issues/37))
 - Add multi-arch build support ([#31](https://github.com/KubeRocketCI/gitfusion/issues/31))
 - Bump CodeQL version ([#26](https://github.com/KubeRocketCI/gitfusion/issues/26))
@@ -53,5 +46,4 @@
 - Add GitHub Copilot configuration and assistance tools ([#17](https://github.com/KubeRocketCI/gitfusion/issues/17))
 
 
-[Unreleased]: https://github.com/KubeRocketCI/gitfusion/compare/v0.1.1...HEAD
-[v0.1.1]: https://github.com/KubeRocketCI/gitfusion/compare/v0.1.0...v0.1.1
+[Unreleased]: https://github.com/KubeRocketCI/gitfusion/compare/v0.2.0...HEAD
