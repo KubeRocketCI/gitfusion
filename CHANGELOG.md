@@ -1,8 +1,17 @@
 <a name="unreleased"></a>
 ## [Unreleased]
 
+
+<a name="v0.2.0"></a>
+## [v0.2.0] - 2026-02-10
+### Features
+
+- extend PullRequest model with description, draft, and commit_sha fields
+- add pull/merge request listing API across GitHub, GitLab, and Bitbucket
+
 ### Bug Fixes
 
+- Use Path instead of Name for GitLab repository ([#50](https://github.com/KubeRocketCI/gitfusion/issues/50))
 - Incomplete branch list for Bitbucket ([#41](https://github.com/KubeRocketCI/gitfusion/issues/41))
 
 ### Routine
@@ -17,6 +26,10 @@
 ### Bug Fixes
 
 - Incomplete branch list for Bitbucket ([#41](https://github.com/KubeRocketCI/gitfusion/issues/41))
+
+### Routine
+
+- Enable CHANGELOG.md generation([#37](https://github.com/KubeRocketCI/gitfusion/issues/37))
 
 
 <a name="v0.1.0"></a>
@@ -38,7 +51,6 @@
 
 ### Routine
 
-- Enable CHANGELOG.md generation([#37](https://github.com/KubeRocketCI/gitfusion/issues/37))
 - Add multi-arch build support ([#31](https://github.com/KubeRocketCI/gitfusion/issues/31))
 - Bump CodeQL version ([#26](https://github.com/KubeRocketCI/gitfusion/issues/26))
 - Align github templates ([#26](https://github.com/KubeRocketCI/gitfusion/issues/26))
@@ -53,5 +65,6 @@
 - Add GitHub Copilot configuration and assistance tools ([#17](https://github.com/KubeRocketCI/gitfusion/issues/17))
 
 
-[Unreleased]: https://github.com/KubeRocketCI/gitfusion/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/KubeRocketCI/gitfusion/compare/v0.2.0...HEAD
+[v0.2.0]: https://github.com/KubeRocketCI/gitfusion/compare/v0.1.1...v0.2.0
 [v0.1.1]: https://github.com/KubeRocketCI/gitfusion/compare/v0.1.0...v0.1.1
