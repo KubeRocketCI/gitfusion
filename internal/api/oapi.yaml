@@ -513,6 +513,15 @@ components:
         updated_at:
           type: string
           format: date-time
+        description:
+          type: string
+          description: Pull request body text
+        draft:
+          type: boolean
+          description: Whether this pull request is a draft
+        commit_sha:
+          type: string
+          description: Head commit SHA of the source branch
       required:
         - id
         - number

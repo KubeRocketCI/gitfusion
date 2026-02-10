@@ -25,18 +25,18 @@ func newTimestamp(t time.Time) *github.Timestamp {
 	return &github.Timestamp{Time: t}
 }
 
-func TestGitHubProvider_ListPullRequests_StateMapping(t *testing.T) {
+func TestGitHubProviderListPullRequestsStateMapping(t *testing.T) {
 	createdAt := time.Date(2026, 1, 15, 10, 30, 0, 0, time.UTC)
 	updatedAt := time.Date(2026, 1, 16, 14, 0, 0, 0, time.UTC)
 
 	tests := []struct {
-		name           string
-		requestState   string
-		ghPRs          []*github.PullRequest
-		wantGHState    string
-		wantCount      int
-		wantStates     []models.PullRequestState
-		lastPage       int
+		name         string
+		requestState string
+		ghPRs        []*github.PullRequest
+		wantGHState  string
+		wantCount    int
+		wantStates   []models.PullRequestState
+		lastPage     int
 	}{
 		{
 			name:         "open state passes open to GitHub API",
@@ -249,7 +249,7 @@ func newTestProvider(serverURL string) *GitHubProvider {
 	}
 }
 
-func Test_mapPullRequestStateToGitHub(t *testing.T) {
+func TestMapPullRequestStateToGitHub(t *testing.T) {
 	tests := []struct {
 		name  string
 		state string
@@ -295,7 +295,7 @@ func Test_mapPullRequestStateToGitHub(t *testing.T) {
 	}
 }
 
-func Test_matchesPullRequestStateFilter(t *testing.T) {
+func TestMatchesPullRequestStateFilter(t *testing.T) {
 	mergedAt := time.Date(2026, 1, 17, 10, 0, 0, 0, time.UTC)
 
 	tests := []struct {
@@ -350,16 +350,16 @@ func Test_matchesPullRequestStateFilter(t *testing.T) {
 	}
 }
 
-func Test_convertGitHubPullRequest(t *testing.T) {
+func TestConvertGitHubPullRequest(t *testing.T) {
 	createdAt := time.Date(2026, 1, 15, 10, 0, 0, 0, time.UTC)
 	updatedAt := time.Date(2026, 1, 16, 10, 0, 0, 0, time.UTC)
 	mergedAt := time.Date(2026, 1, 17, 10, 0, 0, 0, time.UTC)
 	avatarURL := "https://github.com/avatars/1"
 
 	tests := []struct {
-		name      string
-		pr        *github.PullRequest
-		wantState models.PullRequestState
+		name       string
+		pr         *github.PullRequest
+		wantState  models.PullRequestState
 		wantAuthor bool
 	}{
 		{
@@ -429,6 +429,40 @@ func Test_convertGitHubPullRequest(t *testing.T) {
 			wantState:  models.PullRequestStateOpen,
 			wantAuthor: true,
 		},
+		{
+			name: "draft PR with description and commit SHA",
+			pr: &github.PullRequest{
+				ID:        ptr(int64(5)),
+				Number:    ptr(5),
+				Title:     ptr("Draft PR"),
+				Body:      ptr("Work in progress"),
+				Draft:     ptr(true),
+				State:     ptr("open"),
+				HTMLURL:   ptr("https://github.com/o/r/pull/5"),
+				Head:      &github.PullRequestBranch{Ref: ptr("wip"), SHA: ptr("sha256abc")},
+				Base:      &github.PullRequestBranch{Ref: ptr("main")},
+				CreatedAt: newTimestamp(createdAt),
+				UpdatedAt: newTimestamp(updatedAt),
+			},
+			wantState: models.PullRequestStateOpen,
+		},
+		{
+			name: "PR with empty optional fields",
+			pr: &github.PullRequest{
+				ID:        ptr(int64(6)),
+				Number:    ptr(6),
+				Title:     ptr("Minimal PR"),
+				Body:      ptr(""),
+				Draft:     ptr(false),
+				State:     ptr("open"),
+				HTMLURL:   ptr("https://github.com/o/r/pull/6"),
+				Head:      &github.PullRequestBranch{Ref: ptr("fix"), SHA: ptr("")},
+				Base:      &github.PullRequestBranch{Ref: ptr("main")},
+				CreatedAt: newTimestamp(createdAt),
+				UpdatedAt: newTimestamp(updatedAt),
+			},
+			wantState: models.PullRequestStateOpen,
+		},
 	}
 
 	for _, tt := range tests {
@@ -440,11 +474,28 @@ func Test_convertGitHubPullRequest(t *testing.T) {
 				require.NotNil(t, got.Author)
 				assert.Equal(t, "dev", got.Author.Name)
 			}
+
+			// Verify new fields are passed through
+			assert.Equal(t, tt.pr.Draft, got.Draft)
+
+			if tt.pr.Head != nil && tt.pr.Head.GetSHA() != "" {
+				assert.Equal(t, tt.pr.Head.SHA, got.CommitSha)
+			} else if tt.pr.Head == nil {
+				assert.Nil(t, got.CommitSha)
+			} else {
+				assert.Nil(t, got.CommitSha, "empty SHA should produce nil CommitSha")
+			}
+
+			if tt.pr.GetBody() != "" {
+				assert.Equal(t, tt.pr.Body, got.Description)
+			} else {
+				assert.Nil(t, got.Description, "nil or empty body should produce nil Description")
+			}
 		})
 	}
 }
 
-func TestGitHubProvider_ListPullRequests_FieldMapping(t *testing.T) {
+func TestGitHubProviderListPullRequestsFieldMapping(t *testing.T) {
 	createdAt := time.Date(2026, 1, 15, 10, 30, 0, 0, time.UTC)
 	updatedAt := time.Date(2026, 1, 16, 14, 0, 0, 0, time.UTC)
 	avatarURL := "https://github.com/avatars/42"
@@ -454,9 +505,11 @@ func TestGitHubProvider_ListPullRequests_FieldMapping(t *testing.T) {
 			ID:      ptr(int64(12345)),
 			Number:  ptr(42),
 			Title:   ptr("Add amazing feature"),
+			Body:    ptr("This PR adds an amazing feature"),
+			Draft:   ptr(true),
 			State:   ptr("open"),
 			HTMLURL: ptr("https://github.com/owner/repo/pull/42"),
-			Head:    &github.PullRequestBranch{Ref: ptr("feature/amazing")},
+			Head:    &github.PullRequestBranch{Ref: ptr("feature/amazing"), SHA: ptr("abc123def456")},
 			Base:    &github.PullRequestBranch{Ref: ptr("main")},
 			User: &github.User{
 				ID:        ptr(int64(999)),
@@ -505,9 +558,17 @@ func TestGitHubProvider_ListPullRequests_FieldMapping(t *testing.T) {
 	assert.Equal(t, "johndoe", pr.Author.Name)
 	require.NotNil(t, pr.Author.AvatarUrl)
 	assert.Equal(t, avatarURL, *pr.Author.AvatarUrl)
+
+	// New fields
+	require.NotNil(t, pr.Description)
+	assert.Equal(t, "This PR adds an amazing feature", *pr.Description)
+	require.NotNil(t, pr.Draft)
+	assert.True(t, *pr.Draft)
+	require.NotNil(t, pr.CommitSha)
+	assert.Equal(t, "abc123def456", *pr.CommitSha)
 }
 
-func TestGitHubProvider_ListPullRequests_NilAuthor(t *testing.T) {
+func TestGitHubProviderListPullRequestsNilAuthor(t *testing.T) {
 	createdAt := time.Date(2026, 1, 15, 10, 0, 0, 0, time.UTC)
 	updatedAt := time.Date(2026, 1, 16, 10, 0, 0, 0, time.UTC)
 
@@ -548,15 +609,15 @@ func TestGitHubProvider_ListPullRequests_NilAuthor(t *testing.T) {
 	assert.Nil(t, result.Data[0].Author, "author should be nil when User is nil")
 }
 
-func TestGitHubProvider_ListPullRequests_Pagination(t *testing.T) {
+func TestGitHubProviderListPullRequestsPagination(t *testing.T) {
 	tests := []struct {
-		name        string
-		state       string
-		ghPRCount   int
-		page        int
-		perPage     int
-		lastPage    int
-		wantTotal   int
+		name      string
+		state     string
+		ghPRCount int
+		page      int
+		perPage   int
+		lastPage  int
+		wantTotal int
 	}{
 		{
 			name:      "last page known from response",
@@ -677,7 +738,7 @@ func TestGitHubProvider_ListPullRequests_Pagination(t *testing.T) {
 	}
 }
 
-func TestGitHubProvider_ListPullRequests_PostFiltering(t *testing.T) {
+func TestGitHubProviderListPullRequestsPostFiltering(t *testing.T) {
 	createdAt := time.Date(2026, 1, 15, 10, 0, 0, 0, time.UTC)
 	updatedAt := time.Date(2026, 1, 16, 10, 0, 0, 0, time.UTC)
 	mergedAt := time.Date(2026, 1, 17, 10, 0, 0, 0, time.UTC)
@@ -759,7 +820,7 @@ func TestGitHubProvider_ListPullRequests_PostFiltering(t *testing.T) {
 	})
 }
 
-func TestGitHubProvider_ListPullRequests_EmptyResult(t *testing.T) {
+func TestGitHubProviderListPullRequestsEmptyResult(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode([]*github.PullRequest{})
@@ -782,7 +843,7 @@ func TestGitHubProvider_ListPullRequests_EmptyResult(t *testing.T) {
 	assert.Equal(t, 0, result.Pagination.Total)
 }
 
-func TestGitHubProvider_ListPullRequests_APIError(t *testing.T) {
+func TestGitHubProviderListPullRequestsAPIError(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
@@ -832,7 +893,7 @@ func newMergedPR(id int, ts time.Time) *github.PullRequest {
 	return pr
 }
 
-func TestGitHubProvider_ListPullRequests_MultiPageAccumulation(t *testing.T) {
+func TestGitHubProviderListPullRequestsMultiPageAccumulation(t *testing.T) {
 	ts := time.Date(2026, 1, 15, 10, 0, 0, 0, time.UTC)
 
 	// Page 1: 3 closed (not merged), 2 merged = 5 items
@@ -903,20 +964,20 @@ func TestGitHubProvider_ListPullRequests_MultiPageAccumulation(t *testing.T) {
 	assert.Equal(t, 2, requestCount)
 }
 
-func TestGitHubProvider_ListPullRequests_PostFilterPageSkip(t *testing.T) {
+func TestGitHubProviderListPullRequestsPostFilterPageSkip(t *testing.T) {
 	ts := time.Date(2026, 1, 15, 10, 0, 0, 0, time.UTC)
 
 	// 8 merged PRs spread across pages, requesting Page=2, PerPage=3
 	// Should skip first 3 merged and return the next 3.
 	page1 := []*github.PullRequest{
 		newClosedPR(1, ts),
-		newMergedPR(2, ts),  // merged #1 (skip)
-		newMergedPR(3, ts),  // merged #2 (skip)
+		newMergedPR(2, ts), // merged #1 (skip)
+		newMergedPR(3, ts), // merged #2 (skip)
 		newClosedPR(4, ts),
-		newMergedPR(5, ts),  // merged #3 (skip)
+		newMergedPR(5, ts), // merged #3 (skip)
 	}
 	page2 := []*github.PullRequest{
-		newMergedPR(6, ts),  // merged #4 (take)
+		newMergedPR(6, ts), // merged #4 (take)
 		newClosedPR(7, ts),
 		newMergedPR(8, ts),  // merged #5 (take)
 		newMergedPR(9, ts),  // merged #6 (take)
@@ -964,7 +1025,7 @@ func TestGitHubProvider_ListPullRequests_PostFilterPageSkip(t *testing.T) {
 	assert.Equal(t, 3, *result.Pagination.PerPage)
 }
 
-func TestGitHubProvider_ListPullRequests_EarlyReturnTotal(t *testing.T) {
+func TestGitHubProviderListPullRequestsEarlyReturnTotal(t *testing.T) {
 	ts := time.Date(2026, 1, 15, 10, 0, 0, 0, time.UTC)
 
 	// All 5 are merged. Request PerPage=3.
@@ -999,22 +1060,22 @@ func TestGitHubProvider_ListPullRequests_EarlyReturnTotal(t *testing.T) {
 	assert.Equal(t, 4, result.Pagination.Total)
 }
 
-func TestGitHubProvider_ListPullRequests_ClosedFilterWithMixedPRs(t *testing.T) {
+func TestGitHubProviderListPullRequestsClosedFilterWithMixedPRs(t *testing.T) {
 	ts := time.Date(2026, 1, 15, 10, 0, 0, 0, time.UTC)
 
 	// Mix of merged and truly-closed across two pages.
 	// state=closed should return only non-merged ones.
 	page1 := []*github.PullRequest{
-		newMergedPR(1, ts),  // filtered out
-		newClosedPR(2, ts),  // kept
-		newMergedPR(3, ts),  // filtered out
-		newClosedPR(4, ts),  // kept
-		newMergedPR(5, ts),  // filtered out
+		newMergedPR(1, ts), // filtered out
+		newClosedPR(2, ts), // kept
+		newMergedPR(3, ts), // filtered out
+		newClosedPR(4, ts), // kept
+		newMergedPR(5, ts), // filtered out
 	}
 	page2 := []*github.PullRequest{
-		newClosedPR(6, ts),  // kept
-		newClosedPR(7, ts),  // kept
-		newMergedPR(8, ts),  // filtered out
+		newClosedPR(6, ts), // kept
+		newClosedPR(7, ts), // kept
+		newMergedPR(8, ts), // filtered out
 	}
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -1060,7 +1121,7 @@ func TestGitHubProvider_ListPullRequests_ClosedFilterWithMixedPRs(t *testing.T) 
 	assert.Equal(t, 4, result.Pagination.Total)
 }
 
-func TestGitHubProvider_ListPullRequests_APIErrorOnSecondPage(t *testing.T) {
+func TestGitHubProviderListPullRequestsAPIErrorOnSecondPage(t *testing.T) {
 	ts := time.Date(2026, 1, 15, 10, 0, 0, 0, time.UTC)
 
 	page1 := []*github.PullRequest{
@@ -1096,7 +1157,7 @@ func TestGitHubProvider_ListPullRequests_APIErrorOnSecondPage(t *testing.T) {
 	assert.Contains(t, err.Error(), "failed to list pull requests")
 }
 
-func TestGitHubProvider_ListPullRequests_ContextCancellation(t *testing.T) {
+func TestGitHubProviderListPullRequestsContextCancellation(t *testing.T) {
 	ts := time.Date(2026, 1, 15, 10, 0, 0, 0, time.UTC)
 
 	page1 := []*github.PullRequest{

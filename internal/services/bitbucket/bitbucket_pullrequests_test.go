@@ -16,7 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func Test_convertBitbucketPRState(t *testing.T) {
+func TestConvertBitbucketPRState(t *testing.T) {
 	tests := []struct {
 		name  string
 		state string
@@ -62,7 +62,7 @@ func Test_convertBitbucketPRState(t *testing.T) {
 	}
 }
 
-func Test_bitbucketPRResponse_JSONDeserialization(t *testing.T) {
+func TestBitbucketPRResponseJSONDeserialization(t *testing.T) {
 	tests := []struct {
 		name    string
 		input   string
@@ -166,11 +166,13 @@ func Test_bitbucketPRResponse_JSONDeserialization(t *testing.T) {
 	}
 }
 
-func Test_bitbucketPR_FieldMapping(t *testing.T) {
+func TestBitbucketPRFieldMapping(t *testing.T) {
 	input := `{
 		"id": 99,
 		"title": "Fix bug in parser",
 		"state": "MERGED",
+		"description": "Fixes the parser edge case",
+		"draft": true,
 		"author": {
 			"display_name": "Jane Smith",
 			"uuid": "{jane-uuid}",
@@ -181,7 +183,8 @@ func Test_bitbucketPR_FieldMapping(t *testing.T) {
 			}
 		},
 		"source": {
-			"branch": {"name": "bugfix/parser"}
+			"branch": {"name": "bugfix/parser"},
+			"commit": {"hash": "abc123def"}
 		},
 		"destination": {
 			"branch": {"name": "develop"}
@@ -206,7 +209,10 @@ func Test_bitbucketPR_FieldMapping(t *testing.T) {
 	assert.Equal(t, "Jane Smith", pr.Author.DisplayName)
 	assert.Equal(t, "{jane-uuid}", pr.Author.UUID)
 	assert.Equal(t, "https://bitbucket.org/jane-avatar.png", pr.Author.Links.Avatar.Href)
+	assert.Equal(t, "Fixes the parser edge case", pr.Description)
+	assert.True(t, pr.Draft)
 	assert.Equal(t, "bugfix/parser", pr.Source.Branch.Name)
+	assert.Equal(t, "abc123def", pr.Source.Commit.Hash)
 	assert.Equal(t, "develop", pr.Destination.Branch.Name)
 	assert.Equal(t, "https://bitbucket.org/owner/repo/pull-requests/99", pr.Links.HTML.Href)
 	assert.Equal(t, "2026-02-01T08:15:30.000000+00:00", pr.CreatedOn)
@@ -229,6 +235,9 @@ func newTestBitbucketPR(id int, title, state, sourceBranch, createdOn, updatedOn
 			Branch struct {
 				Name string `json:"name"`
 			} `json:"branch"`
+			Commit struct {
+				Hash string `json:"hash"`
+			} `json:"commit"`
 		}{Branch: struct {
 			Name string `json:"name"`
 		}{Name: sourceBranch}},
@@ -258,7 +267,7 @@ func (t *redirectTransport) RoundTrip(req *http.Request) (*http.Response, error)
 	return t.wrapped.RoundTrip(req)
 }
 
-func TestBitbucketService_ListPullRequests(t *testing.T) {
+func TestBitbucketServiceListPullRequests(t *testing.T) {
 	tests := []struct {
 		name           string
 		state          string
@@ -432,9 +441,12 @@ func TestBitbucketService_ListPullRequests(t *testing.T) {
 	}
 }
 
-func TestBitbucketService_ListPullRequests_FieldMapping(t *testing.T) {
+func TestBitbucketServiceListPullRequestsFieldMapping(t *testing.T) {
 	bbPR := newTestBitbucketPR(42, "Add new feature", "OPEN", "feature/awesome",
 		"2026-01-15T10:30:00.123456+00:00", "2026-01-16T14:00:00.654321+00:00")
+	bbPR.Description = "Adds an awesome new feature"
+	bbPR.Draft = true
+	bbPR.Source.Commit.Hash = "deadbeef123"
 	bbPR.Author.DisplayName = "John Doe"
 	bbPR.Author.UUID = "{user-uuid}"
 	bbPR.Author.Links.Avatar.Href = "https://avatar.example.com/john.png"
@@ -495,6 +507,14 @@ func TestBitbucketService_ListPullRequests_FieldMapping(t *testing.T) {
 	require.NotNil(t, pr.Author.AvatarUrl)
 	assert.Equal(t, "https://avatar.example.com/john.png", *pr.Author.AvatarUrl)
 
+	// New fields
+	require.NotNil(t, pr.Description)
+	assert.Equal(t, "Adds an awesome new feature", *pr.Description)
+	require.NotNil(t, pr.Draft)
+	assert.True(t, *pr.Draft)
+	require.NotNil(t, pr.CommitSha)
+	assert.Equal(t, "deadbeef123", *pr.CommitSha)
+
 	// Timestamps parsed with RFC3339Nano (microsecond precision)
 	assert.Equal(t, 2026, pr.CreatedAt.Year())
 	assert.Equal(t, 1, int(pr.CreatedAt.Month()))
@@ -511,7 +531,7 @@ func TestBitbucketService_ListPullRequests_FieldMapping(t *testing.T) {
 	assert.Equal(t, perPage, *result.Pagination.PerPage)
 }
 
-func TestBitbucketService_ListPullRequests_EmptyAuthorAvatar(t *testing.T) {
+func TestBitbucketServiceListPullRequestsEmptyAuthorAvatar(t *testing.T) {
 	bbPR := newTestBitbucketPR(5, "PR without avatar", "OPEN", "fix",
 		"2026-01-01T00:00:00.000000+00:00", "2026-01-01T00:00:00.000000+00:00")
 	bbPR.Author.DisplayName = "No Avatar User"
@@ -560,7 +580,55 @@ func TestBitbucketService_ListPullRequests_EmptyAuthorAvatar(t *testing.T) {
 	assert.Nil(t, pr.Author.AvatarUrl, "avatar_url should be nil when empty")
 }
 
-func TestBitbucketService_ListPullRequests_InvalidToken(t *testing.T) {
+func TestBitbucketServiceListPullRequestsEmptyNewFields(t *testing.T) {
+	bbPR := newTestBitbucketPR(10, "PR with empty fields", "OPEN", "feature",
+		"2026-01-01T00:00:00.000000+00:00", "2026-01-01T00:00:00.000000+00:00")
+	// bbPR has empty Description, Draft=false, and no commit hash by default
+
+	prResponse := bitbucketPRResponse{
+		Size:    1,
+		Page:    1,
+		Pagelen: 20,
+		Values:  []bitbucketPR{bbPR},
+	}
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+
+		body, _ := json.Marshal(prResponse)
+		_, _ = w.Write(body)
+	}))
+	defer server.Close()
+
+	svc := &BitbucketService{
+		httpClient: resty.New().SetTransport(&redirectTransport{
+			target:  server.URL,
+			wrapped: http.DefaultTransport,
+		}),
+	}
+	token := testBitbucketToken()
+
+	result, err := svc.ListPullRequests(
+		context.Background(),
+		"owner",
+		"repo",
+		krci.GitServerSettings{Token: token},
+		models.PullRequestListOptions{State: "open", Page: 1, PerPage: 20},
+	)
+
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.Len(t, result.Data, 1)
+
+	pr := result.Data[0]
+	assert.Nil(t, pr.Description, "empty description should be nil")
+	require.NotNil(t, pr.Draft, "draft should not be nil even when false")
+	assert.False(t, *pr.Draft, "draft should be false")
+	assert.Nil(t, pr.CommitSha, "empty commit hash should be nil")
+}
+
+func TestBitbucketServiceListPullRequestsInvalidToken(t *testing.T) {
 	svc := NewBitbucketProvider()
 
 	_, err := svc.ListPullRequests(
@@ -575,7 +643,7 @@ func TestBitbucketService_ListPullRequests_InvalidToken(t *testing.T) {
 	assert.Contains(t, err.Error(), "failed to decode bitbucket token")
 }
 
-func TestBitbucketService_ListPullRequests_InvalidTimestamp(t *testing.T) {
+func TestBitbucketServiceListPullRequestsInvalidTimestamp(t *testing.T) {
 	prResponse := bitbucketPRResponse{
 		Size:    1,
 		Page:    1,
@@ -615,7 +683,7 @@ func TestBitbucketService_ListPullRequests_InvalidTimestamp(t *testing.T) {
 	assert.Contains(t, err.Error(), "failed to parse created_on time")
 }
 
-func TestBitbucketService_ListPullRequests_PaginationParams(t *testing.T) {
+func TestBitbucketServiceListPullRequestsPaginationParams(t *testing.T) {
 	var capturedReq *http.Request
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -653,7 +721,7 @@ func TestBitbucketService_ListPullRequests_PaginationParams(t *testing.T) {
 	assert.Equal(t, "10", capturedReq.URL.Query().Get("pagelen"))
 }
 
-func TestBitbucketService_ListPullRequests_SupersededState(t *testing.T) {
+func TestBitbucketServiceListPullRequestsSupersededState(t *testing.T) {
 	prResponse := bitbucketPRResponse{
 		Size:    2,
 		Page:    1,

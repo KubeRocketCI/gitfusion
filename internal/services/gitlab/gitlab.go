@@ -298,6 +298,15 @@ func (g *GitlabProvider) ListPullRequests(
 			Url:          mr.WebURL,
 			CreatedAt:    createdAt,
 			UpdatedAt:    updatedAt,
+			Draft:        &mr.Draft,
+		}
+
+		if mr.Description != "" {
+			pr.Description = &mr.Description
+		}
+
+		if mr.SHA != "" {
+			pr.CommitSha = &mr.SHA
 		}
 
 		if mr.Author != nil {
