@@ -260,6 +260,78 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  /api/v1/pipelines:
+    get:
+      summary: List CI/CD pipelines for a project
+      operationId: listPipelines
+      tags:
+        - Pipeline
+      parameters:
+        - $ref: '#/components/parameters/gitServerParam'
+        - name: project
+          in: query
+          required: true
+          description: Project path (e.g., "epmd-edp/temp/sk-test")
+          schema:
+            type: string
+        - name: ref
+          in: query
+          required: false
+          description: Filter by branch/tag ref
+          schema:
+            type: string
+        - name: status
+          in: query
+          required: false
+          description: Filter by pipeline status
+          schema:
+            type: string
+            enum: [pending, running, success, failed, cancelled, skipped, manual]
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 1
+        - name: perPage
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+      responses:
+        '200':
+          description: A list of pipelines
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PipelinesResponse'
+        '400':
+          description: Bad request due to invalid parameters or missing fields.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized access due to invalid credentials.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Project or git server not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
   /api/v1/cache/invalidate:
     delete:
       summary: Invalidate cache for a specific endpoint
@@ -270,10 +342,10 @@ paths:
         - name: endpoint
           in: query
           required: true
-          description: The endpoint name to invalidate cache for (repositories, organizations, branches, pullrequests)
+          description: The endpoint name to invalidate cache for (repositories, organizations, branches, pullrequests, pipelines)
           schema:
             type: string
-            enum: [repositories, organizations, branches, pullrequests]
+            enum: [repositories, organizations, branches, pullrequests, pipelines]
       responses:
         '200':
           description: Cache invalidated successfully
@@ -567,3 +639,54 @@ components:
         - web_url
         - status
         - ref
+    Pipeline:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Pipeline ID (string to accommodate different providers)
+        project_id:
+          type: string
+          description: Project/repository ID
+        status:
+          type: string
+          enum: [pending, running, success, failed, cancelled, skipped, manual]
+          description: Normalized pipeline status
+        source:
+          type: string
+          enum: [push, merge_request, schedule, manual, trigger, other]
+          description: What triggered the pipeline
+        ref:
+          type: string
+          description: Branch/tag ref
+        sha:
+          type: string
+          description: Commit SHA
+        web_url:
+          type: string
+          description: URL to view pipeline in provider UI
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - status
+        - ref
+        - sha
+        - web_url
+        - created_at
+    PipelinesResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Pipeline'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+      required:
+        - data
+        - pagination

@@ -1,8 +1,9 @@
 package github
 
 import (
-	"github.com/KubeRocketCI/gitfusion/pkg/xiter"
 	"github.com/google/go-github/v72/github"
+
+	"github.com/KubeRocketCI/gitfusion/pkg/xiter"
 )
 
 // ScanGitHubList iterates over paginated GitHub API list results, yielding each item.

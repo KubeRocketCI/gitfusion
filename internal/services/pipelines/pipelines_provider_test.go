@@ -4,8 +4,10 @@ import (
 	"context"
 	"testing"
 
-	"github.com/KubeRocketCI/gitfusion/internal/services/krci"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/KubeRocketCI/gitfusion/internal/models"
+	"github.com/KubeRocketCI/gitfusion/internal/services/krci"
 )
 
 func TestNewMultiProviderPipelineService(t *testing.T) {
@@ -14,19 +16,25 @@ func TestNewMultiProviderPipelineService(t *testing.T) {
 	assert.NotNil(t, service)
 	assert.NotNil(t, service.providers)
 
-	// Verify gitlab provider is registered
+	// Verify all providers are registered
 	_, ok := service.providers["gitlab"]
 	assert.True(t, ok, "gitlab provider should be registered")
 
+	_, ok = service.providers["github"]
+	assert.True(t, ok, "github provider should be registered")
+
+	_, ok = service.providers["bitbucket"]
+	assert.True(t, ok, "bitbucket provider should be registered")
+
 	// Verify only expected providers are registered
-	assert.Equal(t, 1, len(service.providers), "should have exactly 1 provider registered (gitlab)")
+	assert.Equal(t, 3, len(service.providers), "should have exactly 3 providers registered (gitlab, github, bitbucket)")
 }
 
 func TestMultiProviderPipelineService_UnsupportedProvider(t *testing.T) {
 	service := NewMultiProviderPipelineService()
 
 	// Test unsupported providers
-	unsupported := []string{"github", "bitbucket", "unknown", ""}
+	unsupported := []string{"unknown", ""}
 
 	for _, provider := range unsupported {
 		t.Run(provider, func(t *testing.T) {
@@ -42,16 +50,6 @@ func TestMultiProviderPipelineService_TriggerPipeline_UnsupportedProvider(t *tes
 		gitProvider    string
 		expectedErrMsg string
 	}{
-		{
-			name:           "github not supported yet",
-			gitProvider:    "github",
-			expectedErrMsg: "unsupported provider: github",
-		},
-		{
-			name:           "bitbucket not supported yet",
-			gitProvider:    "bitbucket",
-			expectedErrMsg: "unsupported provider: bitbucket",
-		},
 		{
 			name:           "unknown provider",
 			gitProvider:    "unknown",
@@ -74,6 +72,44 @@ func TestMultiProviderPipelineService_TriggerPipeline_UnsupportedProvider(t *tes
 				"main",
 				nil,
 				krci.GitServerSettings{GitProvider: tt.gitProvider},
+			)
+
+			assert.Error(t, err)
+			assert.Nil(t, result)
+			assert.Contains(t, err.Error(), tt.expectedErrMsg)
+		})
+	}
+}
+
+func TestMultiProviderPipelineService_GetCache(t *testing.T) {
+	service := NewMultiProviderPipelineService()
+
+	cache := service.GetCache()
+	assert.NotNil(t, cache, "cache should not be nil")
+}
+
+func TestMultiProviderPipelineService_ListPipelines_UnsupportedProvider(t *testing.T) {
+	tests := []struct {
+		name           string
+		gitProvider    string
+		expectedErrMsg string
+	}{
+		{
+			name:           "unknown provider",
+			gitProvider:    "unknown",
+			expectedErrMsg: "unsupported provider: unknown",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			service := NewMultiProviderPipelineService()
+
+			result, err := service.ListPipelines(
+				context.Background(),
+				"test-project",
+				krci.GitServerSettings{GitProvider: tt.gitProvider},
+				models.PipelineListOptions{Page: 1, PerPage: 20},
 			)
 
 			assert.Error(t, err)

@@ -9,11 +9,12 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/KubeRocketCI/gitfusion/internal/models"
-	"github.com/KubeRocketCI/gitfusion/internal/services/krci"
 	"github.com/go-resty/resty/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/KubeRocketCI/gitfusion/internal/models"
+	"github.com/KubeRocketCI/gitfusion/internal/services/krci"
 )
 
 func TestConvertBitbucketPRState(t *testing.T) {

@@ -43,26 +43,7 @@ func (h *PullRequestHandler) ListPullRequests(
 		state = string(*request.Params.State)
 	}
 
-	page := 1
-	if request.Params.Page != nil {
-		page = *request.Params.Page
-	}
-
-	perPage := 20
-	if request.Params.PerPage != nil {
-		perPage = *request.Params.PerPage
-		if perPage > 100 {
-			perPage = 100
-		}
-	}
-
-	if page < 1 {
-		page = 1
-	}
-
-	if perPage < 1 {
-		perPage = 20
-	}
+	page, perPage := clampPagination(request.Params.Page, request.Params.PerPage)
 
 	resp, err := h.pullRequestsService.ListPullRequests(
 		ctx,

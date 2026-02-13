@@ -3,8 +3,9 @@ package cache
 import (
 	"time"
 
-	"github.com/KubeRocketCI/gitfusion/internal/models"
 	"github.com/viccon/sturdyc"
+
+	"github.com/KubeRocketCI/gitfusion/internal/models"
 )
 
 // newRepositoryCache creates a sturdyc cache client for repository lists with early refreshes enabled.

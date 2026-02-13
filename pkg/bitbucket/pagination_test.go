@@ -5,9 +5,10 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/KubeRocketCI/gitfusion/pkg/xiter"
 	bitbucketcl "github.com/ktrysmt/go-bitbucket"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/KubeRocketCI/gitfusion/pkg/xiter"
 )
 
 // helper to create a bitbucketcl.RepositoryBranch with a given name

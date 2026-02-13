@@ -4,17 +4,20 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
 	"time"
 
-	gferrors "github.com/KubeRocketCI/gitfusion/internal/errors"
-	"github.com/KubeRocketCI/gitfusion/internal/models"
-	"github.com/KubeRocketCI/gitfusion/internal/services/krci"
-	bitbucketpkg "github.com/KubeRocketCI/gitfusion/pkg/bitbucket"
 	"github.com/go-resty/resty/v2"
 	"github.com/ktrysmt/go-bitbucket"
+
+	gferrors "github.com/KubeRocketCI/gitfusion/internal/errors"
+	"github.com/KubeRocketCI/gitfusion/internal/models"
+	"github.com/KubeRocketCI/gitfusion/internal/services/common"
+	"github.com/KubeRocketCI/gitfusion/internal/services/krci"
+	bitbucketpkg "github.com/KubeRocketCI/gitfusion/pkg/bitbucket"
 )
 
 // defaultBitbucketAPIURL is the base URL for the Bitbucket Cloud REST API.
@@ -140,7 +143,7 @@ func (b *BitbucketService) ListBranches(
 	branchOptions := &bitbucket.RepositoryBranchOptions{
 		Owner:    owner,
 		RepoSlug: repo,
-		Pagelen: 100,
+		Pagelen:  100,
 	}
 
 	scanBranches := bitbucketpkg.ScanBitbucketBranches(
@@ -356,7 +359,7 @@ func convertBitbucketRepoToRepository(repo *bitbucket.Repository) *models.Reposi
 
 	repoUrl := ""
 
-	if html, ok := repo.Links["html"].(map[string]interface{}); ok {
+	if html, ok := repo.Links["html"].(map[string]any); ok {
 		if href, ok := html["href"].(string); ok {
 			repoUrl = href
 		}
@@ -385,4 +388,253 @@ func decodeBitbucketToken(token string) (username, password string, err error) {
 	}
 
 	return basicAuth[0], basicAuth[1], nil
+}
+
+type bitbucketPipelinesResponse struct {
+	Size    int                 `json:"size"`
+	Page    int                 `json:"page"`
+	Pagelen int                 `json:"pagelen"`
+	Values  []bitbucketPipeline `json:"values"`
+}
+
+type bitbucketPipeline struct {
+	UUID        string `json:"uuid"`
+	BuildNumber int    `json:"build_number"`
+
+	State struct {
+		Name   string `json:"name"`
+		Result *struct {
+			Name string `json:"name"`
+		} `json:"result,omitempty"`
+	} `json:"state"`
+
+	Target struct {
+		RefType string `json:"ref_type"`
+		RefName string `json:"ref_name"`
+		Commit  struct {
+			Hash string `json:"hash"`
+		} `json:"commit"`
+	} `json:"target"`
+
+	Trigger struct {
+		Name string `json:"name"`
+	} `json:"trigger"`
+
+	CreatedOn   string `json:"created_on"`
+	CompletedOn string `json:"completed_on"`
+
+	Links struct {
+		HTML struct {
+			Href string `json:"href"`
+		} `json:"html"`
+	} `json:"links"`
+}
+
+// ListPipelines returns pipelines for a Bitbucket repository using the REST API.
+func (b *BitbucketService) ListPipelines(
+	ctx context.Context,
+	project string,
+	settings krci.GitServerSettings,
+	opts models.PipelineListOptions,
+) (*models.PipelinesResponse, error) {
+	username, password, err := decodeBitbucketToken(settings.Token)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode bitbucket token: %w", err)
+	}
+
+	workspace, repoSlug, err := common.SplitProject(project)
+	if err != nil {
+		return nil, err
+	}
+
+	apiURL := fmt.Sprintf("%s/repositories/%s/%s/pipelines/",
+		defaultBitbucketAPIURL, url.PathEscape(workspace), url.PathEscape(repoSlug))
+
+	queryParams := url.Values{}
+	queryParams.Set("page", strconv.Itoa(opts.Page))
+	queryParams.Set("pagelen", strconv.Itoa(opts.PerPage))
+	queryParams.Set("sort", "-created_on")
+
+	// Handle "skipped" status early — Bitbucket has no equivalent
+	if opts.Status != nil && *opts.Status == "skipped" {
+		return &models.PipelinesResponse{
+			Data: []models.Pipeline{},
+			Pagination: models.Pagination{
+				Total:   0,
+				Page:    &opts.Page,
+				PerPage: &opts.PerPage,
+			},
+		}, nil
+	}
+
+	var queryParts []string
+
+	if opts.Ref != nil && *opts.Ref != "" {
+		sanitizedRef := strings.ReplaceAll(*opts.Ref, `\`, `\\`)
+		sanitizedRef = strings.ReplaceAll(sanitizedRef, `"`, `\"`)
+		queryParts = append(queryParts, fmt.Sprintf(`target.ref_name="%s"`, sanitizedRef))
+	}
+
+	if opts.Status != nil {
+		if statusQuery := mapPipelineStatusToBitbucketQuery(*opts.Status); statusQuery != "" {
+			queryParts = append(queryParts, statusQuery)
+		}
+	}
+
+	if len(queryParts) > 0 {
+		queryParams.Set("q", strings.Join(queryParts, " AND "))
+	}
+
+	var bbResp bitbucketPipelinesResponse
+
+	resp, err := b.httpClient.R().
+		SetContext(ctx).
+		SetBasicAuth(username, password).
+		SetQueryParamsFromValues(queryParams).
+		SetResult(&bbResp).
+		Get(apiURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list pipelines for %s: %w", project, err)
+	}
+
+	if resp.StatusCode() == http.StatusNotFound {
+		return nil, fmt.Errorf("project %s: %w", project, gferrors.ErrNotFound)
+	}
+
+	if resp.StatusCode() == http.StatusUnauthorized {
+		return nil, fmt.Errorf("invalid credentials: %w", gferrors.ErrUnauthorized)
+	}
+
+	if resp.IsError() {
+		return nil, fmt.Errorf("failed to list pipelines for %s: status %d, body: %s",
+			project, resp.StatusCode(), resp.String())
+	}
+
+	result := make([]models.Pipeline, 0, len(bbResp.Values))
+
+	for _, p := range bbResp.Values {
+		var resultName string
+		if p.State.Result != nil {
+			resultName = p.State.Result.Name
+		}
+
+		createdAt, err := time.Parse(time.RFC3339Nano, p.CreatedOn)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse created_on time %q: %w", p.CreatedOn, err)
+		}
+
+		pipeline := models.Pipeline{
+			Id:        strings.Trim(p.UUID, "{}"),
+			Status:    normalizeBitbucketPipelineStatus(p.State.Name, resultName),
+			Ref:       p.Target.RefName,
+			Sha:       p.Target.Commit.Hash,
+			WebUrl:    p.Links.HTML.Href,
+			CreatedAt: createdAt,
+		}
+
+		if p.CompletedOn != "" {
+			completedAt, err := time.Parse(time.RFC3339Nano, p.CompletedOn)
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse completed_on time %q: %w", p.CompletedOn, err)
+			}
+
+			pipeline.UpdatedAt = &completedAt
+		}
+
+		if p.Trigger.Name != "" {
+			source := normalizeBitbucketPipelineTrigger(p.Trigger.Name)
+			pipeline.Source = &source
+		}
+
+		result = append(result, pipeline)
+	}
+
+	return &models.PipelinesResponse{
+		Data: result,
+		Pagination: models.Pagination{
+			Total:   bbResp.Size,
+			Page:    &opts.Page,
+			PerPage: &opts.PerPage,
+		},
+	}, nil
+}
+
+// normalizeBitbucketPipelineStatus maps Bitbucket pipeline state and result to the unified status enum.
+func normalizeBitbucketPipelineStatus(stateName, resultName string) models.PipelineStatus {
+	switch stateName {
+	case "PENDING":
+		return models.PipelineStatusPending
+	case "IN_PROGRESS":
+		return models.PipelineStatusRunning
+	case "COMPLETED":
+		switch resultName {
+		case "SUCCESSFUL":
+			return models.PipelineStatusSuccess
+		case "FAILED", "ERROR":
+			return models.PipelineStatusFailed
+		case "STOPPED", "EXPIRED":
+			return models.PipelineStatusCancelled
+		default:
+			return models.PipelineStatusFailed
+		}
+	case "HALTED", "PAUSED":
+		return models.PipelineStatusManual
+	default:
+		return models.PipelineStatusPending
+	}
+}
+
+// normalizeBitbucketPipelineTrigger maps Bitbucket trigger names to the unified source enum.
+func normalizeBitbucketPipelineTrigger(triggerName string) models.PipelineSource {
+	switch triggerName {
+	case "PUSH":
+		return models.PipelineSourcePush
+	case "PULL_REQUEST":
+		return models.PipelineSourceMergeRequest
+	case "SCHEDULE":
+		return models.PipelineSourceSchedule
+	case "MANUAL":
+		return models.PipelineSourceManual
+	case "TRIGGER", "API":
+		return models.PipelineSourceTrigger
+	default:
+		return models.PipelineSourceOther
+	}
+}
+
+// mapPipelineStatusToBitbucketQuery maps a unified status filter to a Bitbucket query expression.
+// NOTE: Some unified statuses map from multiple Bitbucket states (e.g. "failed" normalizes both
+// FAILED and ERROR), but the Bitbucket query API does not support OR expressions. The most common
+// sub-state is used as the filter value, so filtered results may not include all matching pipelines:
+//   - "failed" queries FAILED only (misses ERROR)
+//   - "cancelled" queries STOPPED only (misses EXPIRED)
+//   - "manual" queries HALTED only (misses PAUSED)
+func mapPipelineStatusToBitbucketQuery(status string) string {
+	switch status {
+	case "pending":
+		return `state.name="PENDING"`
+	case "running":
+		return `state.name="IN_PROGRESS"`
+	case "success":
+		return `state.result.name="SUCCESSFUL"`
+	case "failed":
+		return `state.result.name="FAILED"`
+	case "cancelled":
+		return `state.result.name="STOPPED"`
+	case "manual":
+		return `state.name="HALTED"`
+	default:
+		return ""
+	}
+}
+
+// TriggerPipeline is not supported for Bitbucket.
+func (b *BitbucketService) TriggerPipeline(
+	_ context.Context,
+	_ string,
+	_ string,
+	_ []models.PipelineVariable,
+	_ krci.GitServerSettings,
+) (*models.PipelineResponse, error) {
+	return nil, fmt.Errorf("trigger pipeline is not supported for Bitbucket")
 }

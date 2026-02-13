@@ -17,8 +17,8 @@ type PipelinesService struct {
 
 // NewPipelinesService creates a new PipelinesService.
 func NewPipelinesService(
-	gitServerService *krci.GitServerService,
 	pipelinesProvider *MultiProviderPipelineService,
+	gitServerService *krci.GitServerService,
 ) *PipelinesService {
 	return &PipelinesService{
 		gitServerService:  gitServerService,
@@ -43,4 +43,25 @@ func (s *PipelinesService) TriggerPipeline(
 
 	// Delegate to multi-provider service
 	return s.pipelinesProvider.TriggerPipeline(ctx, project, ref, variables, settings)
+}
+
+// ListPipelines lists CI/CD pipelines for the specified git server and project.
+// It fetches git server settings from Kubernetes and delegates to the appropriate provider.
+func (s *PipelinesService) ListPipelines(
+	ctx context.Context,
+	gitServerName string,
+	project string,
+	opts models.PipelineListOptions,
+) (*models.PipelinesResponse, error) {
+	settings, err := s.gitServerService.GetGitProviderSettings(ctx, gitServerName)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.pipelinesProvider.ListPipelines(ctx, project, settings, opts)
+}
+
+// GetProvider returns the underlying multi-provider service for direct access to its cache.
+func (s *PipelinesService) GetProvider() *MultiProviderPipelineService {
+	return s.pipelinesProvider
 }

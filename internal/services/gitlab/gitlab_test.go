@@ -3,9 +3,11 @@ package gitlab
 import (
 	"testing"
 
-	"github.com/KubeRocketCI/gitfusion/internal/models"
 	"github.com/stretchr/testify/assert"
 	gitlab "gitlab.com/gitlab-org/api/client-go"
+
+	"github.com/KubeRocketCI/gitfusion/internal/models"
+	"github.com/KubeRocketCI/gitfusion/pkg/pointer"
 )
 
 func TestConvertToPipelineVariables(t *testing.T) {
@@ -36,8 +38,8 @@ func TestConvertToPipelineVariables(t *testing.T) {
 		{
 			name: "multiple variables with types",
 			variables: []models.PipelineVariable{
-				{Key: "ENV", Value: "prod", VariableType: varTypePtr(models.EnvVar)},
-				{Key: "CONFIG", Value: "/path/to/config", VariableType: varTypePtr(models.File)},
+				{Key: "ENV", Value: "prod", VariableType: pointer.To(models.EnvVar)},
+				{Key: "CONFIG", Value: "/path/to/config", VariableType: pointer.To(models.File)},
 			},
 			wantNil: false,
 			wantLen: 2,
@@ -45,7 +47,7 @@ func TestConvertToPipelineVariables(t *testing.T) {
 		{
 			name: "mixed types and nil types",
 			variables: []models.PipelineVariable{
-				{Key: "VAR1", Value: "value1", VariableType: varTypePtr(models.EnvVar)},
+				{Key: "VAR1", Value: "value1", VariableType: pointer.To(models.EnvVar)},
 				{Key: "VAR2", Value: "value2", VariableType: nil},
 			},
 			wantNil: false,
@@ -80,11 +82,6 @@ func TestConvertToPipelineVariables(t *testing.T) {
 			}
 		})
 	}
-}
-
-// Helper function
-func varTypePtr(v models.PipelineVariableVariableType) *models.PipelineVariableVariableType {
-	return &v
 }
 
 func TestConvertToPipelineVariablesEdgeCases(t *testing.T) {

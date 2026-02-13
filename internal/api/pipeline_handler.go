@@ -9,16 +9,30 @@ import (
 
 	gferrors "github.com/KubeRocketCI/gitfusion/internal/errors"
 	"github.com/KubeRocketCI/gitfusion/internal/models"
-	"github.com/KubeRocketCI/gitfusion/internal/services/pipelines"
 )
+
+// pipelineService abstracts the pipeline capabilities
+// so the handler can be tested without a real service.
+type pipelineService interface {
+	TriggerPipeline(
+		ctx context.Context,
+		gitServerName, project, ref string,
+		variables []models.PipelineVariable,
+	) (*models.PipelineResponse, error)
+	ListPipelines(
+		ctx context.Context,
+		gitServerName, project string,
+		opts models.PipelineListOptions,
+	) (*models.PipelinesResponse, error)
+}
 
 // PipelineHandler handles requests related to CI/CD pipelines (all providers).
 type PipelineHandler struct {
-	pipelinesService *pipelines.PipelinesService
+	pipelinesService pipelineService
 }
 
 // NewPipelineHandler creates a new PipelineHandler.
-func NewPipelineHandler(pipelinesService *pipelines.PipelinesService) *PipelineHandler {
+func NewPipelineHandler(pipelinesService pipelineService) *PipelineHandler {
 	return &PipelineHandler{
 		pipelinesService: pipelinesService,
 	}
@@ -71,22 +85,52 @@ func (h *PipelineHandler) TriggerPipeline(
 		variables,
 	)
 	if err != nil {
-		return h.errResponse(err), nil
+		return h.triggerErrResponse(err), nil
 	}
 
 	return TriggerPipeline201JSONResponse(*pipeline), nil
 }
 
-// errResponse maps errors to appropriate HTTP response objects.
-// This method must only be called when err is not nil.
-func (h *PipelineHandler) errResponse(err error) TriggerPipelineResponseObject {
-	if errors.Is(err, gferrors.ErrNotFound) {
-		return TriggerPipeline404JSONResponse{
-			Code:    fmt.Sprintf("%d", http.StatusNotFound),
-			Message: err.Error(),
-		}
+// ListPipelines implements api.StrictServerInterface.
+func (h *PipelineHandler) ListPipelines(
+	ctx context.Context,
+	request ListPipelinesRequestObject,
+) (ListPipelinesResponseObject, error) {
+	page, perPage := clampPagination(request.Params.Page, request.Params.PerPage)
+
+	var ref *string
+	if request.Params.Ref != nil && *request.Params.Ref != "" {
+		ref = request.Params.Ref
 	}
 
+	var status *string
+
+	if request.Params.Status != nil {
+		s := string(*request.Params.Status)
+		status = &s
+	}
+
+	resp, err := h.pipelinesService.ListPipelines(
+		ctx,
+		request.Params.GitServer,
+		request.Params.Project,
+		models.PipelineListOptions{
+			Ref:     ref,
+			Status:  status,
+			Page:    page,
+			PerPage: perPage,
+		},
+	)
+	if err != nil {
+		return h.listErrResponse(err), nil
+	}
+
+	return ListPipelines200JSONResponse(*resp), nil
+}
+
+// triggerErrResponse maps errors to appropriate HTTP response objects for TriggerPipeline.
+// This method must only be called when err is not nil.
+func (h *PipelineHandler) triggerErrResponse(err error) TriggerPipelineResponseObject {
 	if errors.Is(err, gferrors.ErrUnauthorized) {
 		return TriggerPipeline401JSONResponse{
 			Code:    fmt.Sprintf("%d", http.StatusUnauthorized),
@@ -94,7 +138,51 @@ func (h *PipelineHandler) errResponse(err error) TriggerPipelineResponseObject {
 		}
 	}
 
+	if errors.Is(err, gferrors.ErrBadRequest) {
+		return TriggerPipeline400JSONResponse{
+			Code:    fmt.Sprintf("%d", http.StatusBadRequest),
+			Message: err.Error(),
+		}
+	}
+
+	if errors.Is(err, gferrors.ErrNotFound) {
+		return TriggerPipeline404JSONResponse{
+			Code:    fmt.Sprintf("%d", http.StatusNotFound),
+			Message: err.Error(),
+		}
+	}
+
 	return TriggerPipeline500JSONResponse{
+		Code:    fmt.Sprintf("%d", http.StatusInternalServerError),
+		Message: err.Error(),
+	}
+}
+
+// listErrResponse maps errors to appropriate HTTP response objects for ListPipelines.
+// This method must only be called when err is not nil.
+func (h *PipelineHandler) listErrResponse(err error) ListPipelinesResponseObject {
+	if errors.Is(err, gferrors.ErrUnauthorized) {
+		return ListPipelines401JSONResponse{
+			Code:    fmt.Sprintf("%d", http.StatusUnauthorized),
+			Message: err.Error(),
+		}
+	}
+
+	if errors.Is(err, gferrors.ErrBadRequest) {
+		return ListPipelines400JSONResponse{
+			Code:    fmt.Sprintf("%d", http.StatusBadRequest),
+			Message: err.Error(),
+		}
+	}
+
+	if errors.Is(err, gferrors.ErrNotFound) {
+		return ListPipelines404JSONResponse{
+			Code:    fmt.Sprintf("%d", http.StatusNotFound),
+			Message: err.Error(),
+		}
+	}
+
+	return ListPipelines500JSONResponse{
 		Code:    fmt.Sprintf("%d", http.StatusInternalServerError),
 		Message: err.Error(),
 	}

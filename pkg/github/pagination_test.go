@@ -5,9 +5,10 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/KubeRocketCI/gitfusion/pkg/xiter"
 	"github.com/google/go-github/v72/github"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/KubeRocketCI/gitfusion/pkg/xiter"
 )
 
 // helper to create a *github.Repository with a given name

@@ -3,7 +3,44 @@ package pointer
 import (
 	"reflect"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
+
+func TestTo(t *testing.T) {
+	t.Run("int", func(t *testing.T) {
+		got := To(42)
+		require.NotNil(t, got)
+		assert.Equal(t, 42, *got)
+	})
+
+	t.Run("string", func(t *testing.T) {
+		got := To("hello")
+		require.NotNil(t, got)
+		assert.Equal(t, "hello", *got)
+	})
+
+	t.Run("bool", func(t *testing.T) {
+		got := To(true)
+		require.NotNil(t, got)
+		assert.Equal(t, true, *got)
+	})
+
+	t.Run("struct", func(t *testing.T) {
+		type custom struct{ X int }
+
+		got := To(custom{X: 7})
+		require.NotNil(t, got)
+		assert.Equal(t, custom{X: 7}, *got)
+	})
+
+	t.Run("returns distinct pointer each call", func(t *testing.T) {
+		a := To(10)
+		b := To(10)
+		assert.NotSame(t, a, b)
+	})
+}
 
 func TestValueOrEmpty(t *testing.T) {
 	type testCase[T any] struct {

@@ -4,8 +4,9 @@ import (
 	"context"
 	"testing"
 
-	"github.com/KubeRocketCI/gitfusion/internal/services/krci"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/KubeRocketCI/gitfusion/internal/services/krci"
 )
 
 func TestNewMultiProviderPullRequestsService(t *testing.T) {

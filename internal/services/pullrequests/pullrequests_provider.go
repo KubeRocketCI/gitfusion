@@ -4,13 +4,14 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/viccon/sturdyc"
+
 	"github.com/KubeRocketCI/gitfusion/internal/cache"
 	"github.com/KubeRocketCI/gitfusion/internal/models"
 	"github.com/KubeRocketCI/gitfusion/internal/services/bitbucket"
 	"github.com/KubeRocketCI/gitfusion/internal/services/github"
 	"github.com/KubeRocketCI/gitfusion/internal/services/gitlab"
 	"github.com/KubeRocketCI/gitfusion/internal/services/krci"
-	"github.com/viccon/sturdyc"
 )
 
 type PullRequestsProvider interface {
