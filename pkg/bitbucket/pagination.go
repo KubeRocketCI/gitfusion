@@ -1,8 +1,9 @@
 package bitbucket
 
 import (
-	"github.com/KubeRocketCI/gitfusion/pkg/xiter"
 	bitbucketcl "github.com/ktrysmt/go-bitbucket"
+
+	"github.com/KubeRocketCI/gitfusion/pkg/xiter"
 )
 
 // ScanBitbucketBranches scans all branches for a given repository.

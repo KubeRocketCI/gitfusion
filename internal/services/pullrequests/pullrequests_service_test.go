@@ -3,8 +3,9 @@ package pullrequests
 import (
 	"testing"
 
-	"github.com/KubeRocketCI/gitfusion/internal/models"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/KubeRocketCI/gitfusion/internal/models"
 )
 
 func defaultOpts() models.PullRequestListOptions {
@@ -34,4 +35,3 @@ func TestPullRequestsService_GetProvider(t *testing.T) {
 	assert.NotNil(t, provider)
 	assert.Equal(t, multiProvider, provider)
 }
-

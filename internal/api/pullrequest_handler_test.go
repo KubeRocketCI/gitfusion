@@ -9,10 +9,12 @@ import (
 	"testing"
 	"time"
 
-	gferrors "github.com/KubeRocketCI/gitfusion/internal/errors"
-	"github.com/KubeRocketCI/gitfusion/internal/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	gferrors "github.com/KubeRocketCI/gitfusion/internal/errors"
+	"github.com/KubeRocketCI/gitfusion/internal/models"
+	"github.com/KubeRocketCI/gitfusion/pkg/pointer"
 )
 
 // stubPullRequestLister captures the arguments passed to ListPullRequests
@@ -65,7 +67,7 @@ func TestPullRequestHandlerListPullRequestsParameterDefaults(t *testing.T) {
 				GitServer: "my-server",
 				Owner:     "my-owner",
 				RepoName:  "my-repo",
-				State:     statePtr(models.ListPullRequestsParamsStateMerged),
+				State:     pointer.To(models.ListPullRequestsParamsStateMerged),
 			},
 			wantState:   "merged",
 			wantPage:    1,
@@ -77,8 +79,8 @@ func TestPullRequestHandlerListPullRequestsParameterDefaults(t *testing.T) {
 				GitServer: "my-server",
 				Owner:     "my-owner",
 				RepoName:  "my-repo",
-				Page:      intPtr(3),
-				PerPage:   intPtr(50),
+				Page:      pointer.To(3),
+				PerPage:   pointer.To(50),
 			},
 			wantState:   "open",
 			wantPage:    3,
@@ -90,7 +92,7 @@ func TestPullRequestHandlerListPullRequestsParameterDefaults(t *testing.T) {
 				GitServer: "my-server",
 				Owner:     "my-owner",
 				RepoName:  "my-repo",
-				PerPage:   intPtr(200),
+				PerPage:   pointer.To(200),
 			},
 			wantState:   "open",
 			wantPage:    1,
@@ -102,7 +104,7 @@ func TestPullRequestHandlerListPullRequestsParameterDefaults(t *testing.T) {
 				GitServer: "my-server",
 				Owner:     "my-owner",
 				RepoName:  "my-repo",
-				PerPage:   intPtr(100),
+				PerPage:   pointer.To(100),
 			},
 			wantState:   "open",
 			wantPage:    1,
@@ -114,7 +116,7 @@ func TestPullRequestHandlerListPullRequestsParameterDefaults(t *testing.T) {
 				GitServer: "my-server",
 				Owner:     "my-owner",
 				RepoName:  "my-repo",
-				State:     statePtr(models.ListPullRequestsParamsStateAll),
+				State:     pointer.To(models.ListPullRequestsParamsStateAll),
 			},
 			wantState:   "all",
 			wantPage:    1,
@@ -126,7 +128,7 @@ func TestPullRequestHandlerListPullRequestsParameterDefaults(t *testing.T) {
 				GitServer: "my-server",
 				Owner:     "my-owner",
 				RepoName:  "my-repo",
-				Page:      intPtr(0),
+				Page:      pointer.To(0),
 			},
 			wantState:   "open",
 			wantPage:    1,
@@ -138,7 +140,7 @@ func TestPullRequestHandlerListPullRequestsParameterDefaults(t *testing.T) {
 				GitServer: "my-server",
 				Owner:     "my-owner",
 				RepoName:  "my-repo",
-				Page:      intPtr(-5),
+				Page:      pointer.To(-5),
 			},
 			wantState:   "open",
 			wantPage:    1,
@@ -150,7 +152,7 @@ func TestPullRequestHandlerListPullRequestsParameterDefaults(t *testing.T) {
 				GitServer: "my-server",
 				Owner:     "my-owner",
 				RepoName:  "my-repo",
-				PerPage:   intPtr(0),
+				PerPage:   pointer.To(0),
 			},
 			wantState:   "open",
 			wantPage:    1,
@@ -162,7 +164,7 @@ func TestPullRequestHandlerListPullRequestsParameterDefaults(t *testing.T) {
 				GitServer: "my-server",
 				Owner:     "my-owner",
 				RepoName:  "my-repo",
-				PerPage:   intPtr(-10),
+				PerPage:   pointer.To(-10),
 			},
 			wantState:   "open",
 			wantPage:    1,
@@ -174,8 +176,8 @@ func TestPullRequestHandlerListPullRequestsParameterDefaults(t *testing.T) {
 				GitServer: "my-server",
 				Owner:     "my-owner",
 				RepoName:  "my-repo",
-				Page:      intPtr(0),
-				PerPage:   intPtr(0),
+				Page:      pointer.To(0),
+				PerPage:   pointer.To(0),
 			},
 			wantState:   "open",
 			wantPage:    1,
@@ -322,15 +324,6 @@ func TestServerListPullRequestsDelegatesToHandler(t *testing.T) {
 	}
 
 	assert.NotNil(t, server.pullRequestHandler)
-}
-
-// Helper functions
-func statePtr(s models.ListPullRequestsParamsState) *models.ListPullRequestsParamsState {
-	return &s
-}
-
-func intPtr(i int) *int {
-	return &i
 }
 
 // Verify that Server implements StrictServerInterface for ListPullRequests.

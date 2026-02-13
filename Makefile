@@ -52,7 +52,7 @@ else
 endif
 
 # Run tests
-test:
+test: lint
 	go test ./... -coverprofile=coverage.out
 
 .PHONY: helm-docs

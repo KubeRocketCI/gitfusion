@@ -8,14 +8,15 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/google/go-github/v72/github"
+	"golang.org/x/sync/errgroup"
+
 	gferrors "github.com/KubeRocketCI/gitfusion/internal/errors"
 	"github.com/KubeRocketCI/gitfusion/internal/models"
 	"github.com/KubeRocketCI/gitfusion/internal/services/krci"
 	gfgithub "github.com/KubeRocketCI/gitfusion/pkg/github"
 	"github.com/KubeRocketCI/gitfusion/pkg/pointer"
 	"github.com/KubeRocketCI/gitfusion/pkg/xiter"
-	"github.com/google/go-github/v72/github"
-	"golang.org/x/sync/errgroup"
 )
 
 const (

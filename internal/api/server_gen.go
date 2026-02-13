@@ -23,6 +23,9 @@ type ServerInterface interface {
 	// Invalidate cache for a specific endpoint
 	// (DELETE /api/v1/cache/invalidate)
 	InvalidateCache(w http.ResponseWriter, r *http.Request, params InvalidateCacheParams)
+	// List CI/CD pipelines for a project
+	// (GET /api/v1/pipelines)
+	ListPipelines(w http.ResponseWriter, r *http.Request, params ListPipelinesParams)
 	// List pull/merge requests for a repository
 	// (GET /api/v1/pull-requests)
 	ListPullRequests(w http.ResponseWriter, r *http.Request, params ListPullRequestsParams)
@@ -53,6 +56,12 @@ func (_ Unimplemented) ListBranches(w http.ResponseWriter, r *http.Request, para
 // Invalidate cache for a specific endpoint
 // (DELETE /api/v1/cache/invalidate)
 func (_ Unimplemented) InvalidateCache(w http.ResponseWriter, r *http.Request, params InvalidateCacheParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// List CI/CD pipelines for a project
+// (GET /api/v1/pipelines)
+func (_ Unimplemented) ListPipelines(w http.ResponseWriter, r *http.Request, params ListPipelinesParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -184,6 +193,87 @@ func (siw *ServerInterfaceWrapper) InvalidateCache(w http.ResponseWriter, r *htt
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.InvalidateCache(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListPipelines operation middleware
+func (siw *ServerInterfaceWrapper) ListPipelines(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListPipelinesParams
+
+	// ------------- Required query parameter "gitServer" -------------
+
+	if paramValue := r.URL.Query().Get("gitServer"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "gitServer"})
+		return
+	}
+
+	err = runtime.BindQueryParameter("form", true, true, "gitServer", r.URL.Query(), &params.GitServer)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "gitServer", Err: err})
+		return
+	}
+
+	// ------------- Required query parameter "project" -------------
+
+	if paramValue := r.URL.Query().Get("project"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "project"})
+		return
+	}
+
+	err = runtime.BindQueryParameter("form", true, true, "project", r.URL.Query(), &params.Project)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "project", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "ref" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "ref", r.URL.Query(), &params.Ref)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "ref", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "status" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "status", r.URL.Query(), &params.Status)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "status", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "page" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "page", r.URL.Query(), &params.Page)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "page", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "perPage" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "perPage", r.URL.Query(), &params.PerPage)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "perPage", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListPipelines(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -628,6 +718,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		r.Delete(options.BaseURL+"/api/v1/cache/invalidate", wrapper.InvalidateCache)
 	})
 	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/api/v1/pipelines", wrapper.ListPipelines)
+	})
+	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/api/v1/pull-requests", wrapper.ListPullRequests)
 	})
 	r.Group(func(r chi.Router) {
@@ -719,6 +812,59 @@ func (response InvalidateCache400JSONResponse) VisitInvalidateCacheResponse(w ht
 type InvalidateCache500JSONResponse Error
 
 func (response InvalidateCache500JSONResponse) VisitInvalidateCacheResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListPipelinesRequestObject struct {
+	Params ListPipelinesParams
+}
+
+type ListPipelinesResponseObject interface {
+	VisitListPipelinesResponse(w http.ResponseWriter) error
+}
+
+type ListPipelines200JSONResponse PipelinesResponse
+
+func (response ListPipelines200JSONResponse) VisitListPipelinesResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListPipelines400JSONResponse Error
+
+func (response ListPipelines400JSONResponse) VisitListPipelinesResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListPipelines401JSONResponse Error
+
+func (response ListPipelines401JSONResponse) VisitListPipelinesResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListPipelines404JSONResponse Error
+
+func (response ListPipelines404JSONResponse) VisitListPipelinesResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListPipelines500JSONResponse Error
+
+func (response ListPipelines500JSONResponse) VisitListPipelinesResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(500)
 
@@ -962,6 +1108,9 @@ type StrictServerInterface interface {
 	// Invalidate cache for a specific endpoint
 	// (DELETE /api/v1/cache/invalidate)
 	InvalidateCache(ctx context.Context, request InvalidateCacheRequestObject) (InvalidateCacheResponseObject, error)
+	// List CI/CD pipelines for a project
+	// (GET /api/v1/pipelines)
+	ListPipelines(ctx context.Context, request ListPipelinesRequestObject) (ListPipelinesResponseObject, error)
 	// List pull/merge requests for a repository
 	// (GET /api/v1/pull-requests)
 	ListPullRequests(ctx context.Context, request ListPullRequestsRequestObject) (ListPullRequestsResponseObject, error)
@@ -1053,6 +1202,32 @@ func (sh *strictHandler) InvalidateCache(w http.ResponseWriter, r *http.Request,
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(InvalidateCacheResponseObject); ok {
 		if err := validResponse.VisitInvalidateCacheResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListPipelines operation middleware
+func (sh *strictHandler) ListPipelines(w http.ResponseWriter, r *http.Request, params ListPipelinesParams) {
+	var request ListPipelinesRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListPipelines(ctx, request.(ListPipelinesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListPipelines")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListPipelinesResponseObject); ok {
+		if err := validResponse.VisitListPipelinesResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

@@ -3,8 +3,9 @@ package cache
 import (
 	"fmt"
 
-	"github.com/KubeRocketCI/gitfusion/internal/models"
 	"github.com/viccon/sturdyc"
+
+	"github.com/KubeRocketCI/gitfusion/internal/models"
 )
 
 // Manager provides centralized cache management for all cache instances.
@@ -13,6 +14,7 @@ type Manager struct {
 	organizationCache *sturdyc.Client[[]models.Organization]
 	branchCache       *sturdyc.Client[[]models.Branch]
 	pullRequestCache  *sturdyc.Client[models.PullRequestsResponse]
+	pipelineCache     *sturdyc.Client[models.PipelinesResponse]
 }
 
 // NewManager creates a new cache manager with all cache instances.
@@ -21,12 +23,14 @@ func NewManager(
 	organizationCache *sturdyc.Client[[]models.Organization],
 	branchCache *sturdyc.Client[[]models.Branch],
 	pullRequestCache *sturdyc.Client[models.PullRequestsResponse],
+	pipelineCache *sturdyc.Client[models.PipelinesResponse],
 ) *Manager {
 	return &Manager{
 		repositoryCache:   repositoryCache,
 		organizationCache: organizationCache,
 		branchCache:       branchCache,
 		pullRequestCache:  pullRequestCache,
+		pipelineCache:     pipelineCache,
 	}
 }
 
@@ -61,6 +65,13 @@ func (m *Manager) InvalidateCache(endpoint string) error {
 		}
 
 		return nil
+	case "pipelines":
+		keys := m.pipelineCache.ScanKeys()
+		for _, key := range keys {
+			m.pipelineCache.Delete(key)
+		}
+
+		return nil
 	default:
 		return fmt.Errorf("unsupported endpoint: %s", endpoint)
 	}
@@ -68,5 +79,5 @@ func (m *Manager) InvalidateCache(endpoint string) error {
 
 // GetSupportedEndpoints returns a list of supported cache endpoints.
 func (m *Manager) GetSupportedEndpoints() []string {
-	return []string{"repositories", "organizations", "branches", "pullrequests"}
+	return []string{"repositories", "organizations", "branches", "pullrequests", "pipelines"}
 }

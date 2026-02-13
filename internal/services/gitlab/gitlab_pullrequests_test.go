@@ -8,10 +8,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/KubeRocketCI/gitfusion/internal/models"
-	"github.com/KubeRocketCI/gitfusion/internal/services/krci"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/KubeRocketCI/gitfusion/internal/models"
+	"github.com/KubeRocketCI/gitfusion/internal/services/krci"
 )
 
 func TestMapPullRequestStateToGitLab(t *testing.T) {

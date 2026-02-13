@@ -7,6 +7,27 @@ import (
 	"time"
 )
 
+// Defines values for PipelineSource.
+const (
+	PipelineSourceManual       PipelineSource = "manual"
+	PipelineSourceMergeRequest PipelineSource = "merge_request"
+	PipelineSourceOther        PipelineSource = "other"
+	PipelineSourcePush         PipelineSource = "push"
+	PipelineSourceSchedule     PipelineSource = "schedule"
+	PipelineSourceTrigger      PipelineSource = "trigger"
+)
+
+// Defines values for PipelineStatus.
+const (
+	PipelineStatusCancelled PipelineStatus = "cancelled"
+	PipelineStatusFailed    PipelineStatus = "failed"
+	PipelineStatusManual    PipelineStatus = "manual"
+	PipelineStatusPending   PipelineStatus = "pending"
+	PipelineStatusRunning   PipelineStatus = "running"
+	PipelineStatusSkipped   PipelineStatus = "skipped"
+	PipelineStatusSuccess   PipelineStatus = "success"
+)
+
 // Defines values for PipelineVariableVariableType.
 const (
 	EnvVar PipelineVariableVariableType = "env_var"
@@ -36,8 +57,20 @@ const (
 const (
 	Branches      InvalidateCacheParamsEndpoint = "branches"
 	Organizations InvalidateCacheParamsEndpoint = "organizations"
+	Pipelines     InvalidateCacheParamsEndpoint = "pipelines"
 	Pullrequests  InvalidateCacheParamsEndpoint = "pullrequests"
 	Repositories  InvalidateCacheParamsEndpoint = "repositories"
+)
+
+// Defines values for ListPipelinesParamsStatus.
+const (
+	Cancelled ListPipelinesParamsStatus = "cancelled"
+	Failed    ListPipelinesParamsStatus = "failed"
+	Manual    ListPipelinesParamsStatus = "manual"
+	Pending   ListPipelinesParamsStatus = "pending"
+	Running   ListPipelinesParamsStatus = "running"
+	Skipped   ListPipelinesParamsStatus = "skipped"
+	Success   ListPipelinesParamsStatus = "success"
 )
 
 // Defines values for ListPullRequestsParamsState.
@@ -102,6 +135,39 @@ type Pagination struct {
 	Total   int  `json:"total"`
 }
 
+// Pipeline defines model for Pipeline.
+type Pipeline struct {
+	CreatedAt time.Time `json:"created_at"`
+
+	// Id Pipeline ID (string to accommodate different providers)
+	Id string `json:"id"`
+
+	// ProjectId Project/repository ID
+	ProjectId *string `json:"project_id,omitempty"`
+
+	// Ref Branch/tag ref
+	Ref string `json:"ref"`
+
+	// Sha Commit SHA
+	Sha string `json:"sha"`
+
+	// Source What triggered the pipeline
+	Source *PipelineSource `json:"source,omitempty"`
+
+	// Status Normalized pipeline status
+	Status    PipelineStatus `json:"status"`
+	UpdatedAt *time.Time     `json:"updated_at,omitempty"`
+
+	// WebUrl URL to view pipeline in provider UI
+	WebUrl string `json:"web_url"`
+}
+
+// PipelineSource What triggered the pipeline
+type PipelineSource string
+
+// PipelineStatus Normalized pipeline status
+type PipelineStatus string
+
 // PipelineResponse defines model for PipelineResponse.
 type PipelineResponse struct {
 	// Id Pipeline ID
@@ -134,6 +200,12 @@ type PipelineVariable struct {
 
 // PipelineVariableVariableType Type of variable
 type PipelineVariableVariableType string
+
+// PipelinesResponse defines model for PipelinesResponse.
+type PipelinesResponse struct {
+	Data       []Pipeline `json:"data"`
+	Pagination Pagination `json:"pagination"`
+}
 
 // PullRequest defines model for PullRequest.
 type PullRequest struct {
@@ -231,12 +303,32 @@ type ListBranchesParams struct {
 
 // InvalidateCacheParams defines parameters for InvalidateCache.
 type InvalidateCacheParams struct {
-	// Endpoint The endpoint name to invalidate cache for (repositories, organizations, branches, pullrequests)
+	// Endpoint The endpoint name to invalidate cache for (repositories, organizations, branches, pullrequests, pipelines)
 	Endpoint InvalidateCacheParamsEndpoint `form:"endpoint" json:"endpoint"`
 }
 
 // InvalidateCacheParamsEndpoint defines parameters for InvalidateCache.
 type InvalidateCacheParamsEndpoint string
+
+// ListPipelinesParams defines parameters for ListPipelines.
+type ListPipelinesParams struct {
+	// GitServer The Git server name.
+	GitServer GitServerParam `form:"gitServer" json:"gitServer"`
+
+	// Project Project path (e.g., "epmd-edp/temp/sk-test")
+	Project string `form:"project" json:"project"`
+
+	// Ref Filter by branch/tag ref
+	Ref *string `form:"ref,omitempty" json:"ref,omitempty"`
+
+	// Status Filter by pipeline status
+	Status  *ListPipelinesParamsStatus `form:"status,omitempty" json:"status,omitempty"`
+	Page    *int                       `form:"page,omitempty" json:"page,omitempty"`
+	PerPage *int                       `form:"perPage,omitempty" json:"perPage,omitempty"`
+}
+
+// ListPipelinesParamsStatus defines parameters for ListPipelines.
+type ListPipelinesParamsStatus string
 
 // ListPullRequestsParams defines parameters for ListPullRequests.
 type ListPullRequestsParams struct {

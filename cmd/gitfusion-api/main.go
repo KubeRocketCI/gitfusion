@@ -10,11 +10,12 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/KubeRocketCI/gitfusion/internal/api"
 	buildInfo "github.com/epam/edp-common/pkg/config"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/httplog/v2"
+
+	"github.com/KubeRocketCI/gitfusion/internal/api"
 )
 
 func main() {

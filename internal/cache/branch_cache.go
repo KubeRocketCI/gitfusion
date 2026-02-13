@@ -3,8 +3,9 @@ package cache
 import (
 	"time"
 
-	"github.com/KubeRocketCI/gitfusion/internal/models"
 	"github.com/viccon/sturdyc"
+
+	"github.com/KubeRocketCI/gitfusion/internal/models"
 )
 
 // NewBranchCache creates a sturdyc cache client for branch lists with early refreshes enabled.

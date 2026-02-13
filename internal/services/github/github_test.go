@@ -4,10 +4,11 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/KubeRocketCI/gitfusion/internal/models"
-	"github.com/KubeRocketCI/gitfusion/pkg/xiter"
 	"github.com/google/go-github/v72/github"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/KubeRocketCI/gitfusion/internal/models"
+	"github.com/KubeRocketCI/gitfusion/pkg/xiter"
 )
 
 func Test_filterProjectsByName(t *testing.T) {

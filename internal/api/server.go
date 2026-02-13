@@ -3,6 +3,14 @@ package api
 import (
 	"context"
 
+	_ "k8s.io/client-go/plugin/pkg/client/auth"
+
+	codebaseApi "github.com/epam/edp-codebase-operator/v2/api/v1"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/config"
+
 	"github.com/KubeRocketCI/gitfusion/internal/cache"
 	"github.com/KubeRocketCI/gitfusion/internal/services/branches"
 	"github.com/KubeRocketCI/gitfusion/internal/services/krci"
@@ -10,12 +18,6 @@ import (
 	"github.com/KubeRocketCI/gitfusion/internal/services/pipelines"
 	"github.com/KubeRocketCI/gitfusion/internal/services/pullrequests"
 	"github.com/KubeRocketCI/gitfusion/internal/services/repositories"
-	codebaseApi "github.com/epam/edp-codebase-operator/v2/api/v1"
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	_ "k8s.io/client-go/plugin/pkg/client/auth"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/client/config"
 )
 
 var _ StrictServerInterface = (*Server)(nil)
@@ -105,6 +107,14 @@ func (s *Server) TriggerPipeline(
 	return s.pipelineHandler.TriggerPipeline(ctx, request)
 }
 
+// ListPipelines implements StrictServerInterface.
+func (s *Server) ListPipelines(
+	ctx context.Context,
+	request ListPipelinesRequestObject,
+) (ListPipelinesResponseObject, error) {
+	return s.pipelineHandler.ListPipelines(ctx, request)
+}
+
 func BuildHandler(conf Config) (ServerInterface, error) {
 	k8sCl, err := initk8sClient()
 	if err != nil {
@@ -124,7 +134,7 @@ func BuildHandler(conf Config) (ServerInterface, error) {
 	repoSvc := repositories.NewRepositoriesService(repoMultiProvider, gitServerService)
 	orgSvc := organizations.NewOrganizationsService(orgMultiProvider, gitServerService)
 	branchesSvc := branches.NewBranchesService(branchesMultiProvider, gitServerService)
-	pipelinesSvc := pipelines.NewPipelinesService(gitServerService, pipelinesMultiProvider)
+	pipelinesSvc := pipelines.NewPipelinesService(pipelinesMultiProvider, gitServerService)
 	pullRequestsSvc := pullrequests.NewPullRequestsService(pullRequestsMultiProvider, gitServerService)
 
 	// Create cache manager with access to all cache instances
@@ -133,6 +143,7 @@ func BuildHandler(conf Config) (ServerInterface, error) {
 		orgSvc.GetProvider().GetCache(),
 		branchesSvc.GetProvider().GetCache(),
 		pullRequestsSvc.GetProvider().GetCache(),
+		pipelinesSvc.GetProvider().GetCache(),
 	)
 
 	// Create handlers

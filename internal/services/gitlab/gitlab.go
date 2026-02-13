@@ -4,19 +4,29 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"strconv"
 	"time"
+
+	gitlab "gitlab.com/gitlab-org/api/client-go"
 
 	gferrors "github.com/KubeRocketCI/gitfusion/internal/errors"
 	"github.com/KubeRocketCI/gitfusion/internal/models"
 	"github.com/KubeRocketCI/gitfusion/internal/services/krci"
-	gitlab "gitlab.com/gitlab-org/api/client-go"
 )
 
 const (
 	glStateOpened = "opened"
 	glStateClosed = "closed"
 	glStateMerged = "merged"
+
+	glStatusPending  = "pending"
+	glStatusRunning  = "running"
+	glStatusSuccess  = "success"
+	glStatusFailed   = "failed"
+	glStatusCanceled = "canceled"
+	glStatusSkipped  = "skipped"
+	glStatusManual   = "manual"
 )
 
 type GitlabProvider struct{}
@@ -184,11 +194,11 @@ func (g *GitlabProvider) TriggerPipeline(
 	)
 
 	if err != nil {
-		if errors.Is(err, gitlab.ErrNotFound) || (resp != nil && resp.StatusCode == 404) {
+		if errors.Is(err, gitlab.ErrNotFound) || (resp != nil && resp.StatusCode == http.StatusNotFound) {
 			return nil, fmt.Errorf("project %s or ref %s: %w", project, ref, gferrors.ErrNotFound)
 		}
 
-		if resp != nil && resp.StatusCode == 401 {
+		if resp != nil && resp.StatusCode == http.StatusUnauthorized {
 			return nil, fmt.Errorf("invalid credentials: %w", gferrors.ErrUnauthorized)
 		}
 
@@ -206,6 +216,165 @@ func (g *GitlabProvider) TriggerPipeline(
 	}
 
 	return result, nil
+}
+
+// ListPipelines lists CI/CD pipelines for a GitLab project.
+func (g *GitlabProvider) ListPipelines(
+	ctx context.Context,
+	project string,
+	settings krci.GitServerSettings,
+	opts models.PipelineListOptions,
+) (*models.PipelinesResponse, error) {
+	client, err := gitlab.NewClient(settings.Token, gitlab.WithBaseURL(settings.Url))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create gitlab client: %w", err)
+	}
+
+	glOpts := &gitlab.ListProjectPipelinesOptions{
+		ListOptions: gitlab.ListOptions{
+			Page:    opts.Page,
+			PerPage: opts.PerPage,
+		},
+	}
+
+	if opts.Ref != nil {
+		glOpts.Ref = opts.Ref
+	}
+
+	if opts.Status != nil {
+		glStatus := mapPipelineStatusToGitLab(*opts.Status)
+		if glStatus != nil {
+			glOpts.Status = glStatus
+		}
+	}
+
+	pipelines, resp, err := client.Pipelines.ListProjectPipelines(
+		project,
+		glOpts,
+		gitlab.WithContext(ctx),
+	)
+	if err != nil {
+		if errors.Is(err, gitlab.ErrNotFound) || (resp != nil && resp.StatusCode == http.StatusNotFound) {
+			return nil, fmt.Errorf("project %s: %w", project, gferrors.ErrNotFound)
+		}
+
+		if resp != nil && resp.StatusCode == http.StatusUnauthorized {
+			return nil, fmt.Errorf("invalid credentials: %w", gferrors.ErrUnauthorized)
+		}
+
+		return nil, fmt.Errorf("failed to list pipelines for %s: %w", project, err)
+	}
+
+	total := resp.TotalItems
+
+	result := make([]models.Pipeline, 0, len(pipelines))
+
+	for _, p := range pipelines {
+		var createdAt time.Time
+		if p.CreatedAt != nil {
+			createdAt = *p.CreatedAt
+		}
+
+		pipeline := models.Pipeline{
+			Id:        strconv.Itoa(p.ID),
+			Status:    normalizeGitLabPipelineStatus(p.Status),
+			Ref:       p.Ref,
+			Sha:       p.SHA,
+			WebUrl:    p.WebURL,
+			CreatedAt: createdAt,
+		}
+
+		if p.ProjectID != 0 {
+			projectID := strconv.Itoa(p.ProjectID)
+			pipeline.ProjectId = &projectID
+		}
+
+		if p.Source != "" {
+			source := normalizeGitLabPipelineSource(p.Source)
+			pipeline.Source = &source
+		}
+
+		if p.UpdatedAt != nil {
+			pipeline.UpdatedAt = p.UpdatedAt
+		}
+
+		result = append(result, pipeline)
+	}
+
+	return &models.PipelinesResponse{
+		Data: result,
+		Pagination: models.Pagination{
+			Total:   total,
+			Page:    &opts.Page,
+			PerPage: &opts.PerPage,
+		},
+	}, nil
+}
+
+// normalizeGitLabPipelineStatus maps GitLab pipeline status strings to the unified status enum.
+func normalizeGitLabPipelineStatus(status string) models.PipelineStatus {
+	switch status {
+	case glStatusPending, "created", "waiting_for_resource", "preparing":
+		return models.PipelineStatusPending
+	case glStatusRunning:
+		return models.PipelineStatusRunning
+	case glStatusSuccess:
+		return models.PipelineStatusSuccess
+	case glStatusFailed:
+		return models.PipelineStatusFailed
+	case glStatusCanceled:
+		return models.PipelineStatusCancelled
+	case glStatusSkipped:
+		return models.PipelineStatusSkipped
+	case glStatusManual, "scheduled":
+		return models.PipelineStatusManual
+	default:
+		return models.PipelineStatusPending
+	}
+}
+
+// normalizeGitLabPipelineSource maps GitLab pipeline source strings to the unified source enum.
+func normalizeGitLabPipelineSource(source string) models.PipelineSource {
+	switch source {
+	case "push":
+		return models.PipelineSourcePush
+	case "merge_request_event":
+		return models.PipelineSourceMergeRequest
+	case "schedule":
+		return models.PipelineSourceSchedule
+	case "web", "chat":
+		return models.PipelineSourceManual
+	case "trigger", "pipeline", "api":
+		return models.PipelineSourceTrigger
+	default:
+		return models.PipelineSourceOther
+	}
+}
+
+// mapPipelineStatusToGitLab maps the unified status filter to a GitLab BuildStateValue.
+func mapPipelineStatusToGitLab(status string) *gitlab.BuildStateValue {
+	var v gitlab.BuildStateValue
+
+	switch status {
+	case glStatusPending:
+		v = gitlab.Pending
+	case glStatusRunning:
+		v = gitlab.Running
+	case glStatusSuccess:
+		v = gitlab.Success
+	case glStatusFailed:
+		v = gitlab.Failed
+	case "cancelled":
+		v = gitlab.Canceled
+	case glStatusSkipped:
+		v = gitlab.Skipped
+	case glStatusManual:
+		v = gitlab.Manual
+	default:
+		return nil
+	}
+
+	return &v
 }
 
 func convertGitlabRepoToRepository(repo *gitlab.Project) *models.Repository {
