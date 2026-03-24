@@ -1,0 +1,45 @@
+name: Commit Message Validation
+
+on:
+  pull_request:
+    branches:
+      - main
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  check-commit-message:
+    name: Validate commit messages
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check commit format
+        uses: gsactions/commit-message-checker@v2
+        with:
+          pattern: '^(EPMDEDP-\d+: (fix|feat|docs|style|refactor|test|chore)(!)?: .+|(chore|build)\(deps\): Bump .+)$'
+          error: 'Commit title must match "EPMDEDP-<ID>: <type>: <description>". Example: "EPMDEDP-16058: feat: add feature".'
+          excludeDescription: 'true'
+          excludeTitle: 'true'
+          checkAllCommitMessages: 'true'
+          accessToken: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check commit title length
+        uses: gsactions/commit-message-checker@v2
+        with:
+          pattern: '^.{10,72}$'
+          error: 'Commit title must be between 10 and 72 characters long.'
+          excludeDescription: 'true'
+          excludeTitle: 'false'
+          checkAllCommitMessages: 'true'
+          accessToken: ${{ secrets.GITHUB_TOKEN }}
