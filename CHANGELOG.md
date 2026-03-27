@@ -2,6 +2,17 @@
 ## [Unreleased]
 
 
+<a name="v0.3.0"></a>
+## [v0.3.0] - 2026-03-27
+### Features
+
+- implement pipeline listing API across multiple git providers
+
+### Routine
+
+- Update current development version ([#54](https://github.com/KubeRocketCI/gitfusion/issues/54))
+
+
 <a name="v0.2.0"></a>
 ## [v0.2.0] - 2026-02-10
 ### Features
@@ -65,6 +76,7 @@
 - Add GitHub Copilot configuration and assistance tools ([#17](https://github.com/KubeRocketCI/gitfusion/issues/17))
 
 
-[Unreleased]: https://github.com/KubeRocketCI/gitfusion/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/KubeRocketCI/gitfusion/compare/v0.3.0...HEAD
+[v0.3.0]: https://github.com/KubeRocketCI/gitfusion/compare/v0.2.0...v0.3.0
 [v0.2.0]: https://github.com/KubeRocketCI/gitfusion/compare/v0.1.1...v0.2.0
 [v0.1.1]: https://github.com/KubeRocketCI/gitfusion/compare/v0.1.0...v0.1.1
