@@ -1,29 +1,32 @@
 apiVersion: v2
+description: A Helm chart for GitFusion
+home: https://docs.kuberocketci.io/
 name: gitfusion
-description: A Helm chart for Kubernetes
-
-# A chart can be either an 'application' or a 'library' chart.
-#
-# Application charts are a collection of templates that can be packaged into versioned archives
-# to be deployed.
-#
-# Library charts provide useful utilities or functions for the chart developer. They're included as
-# a dependency of application charts to inject those utilities and functions into the rendering
-# pipeline. Library charts do not define any templates and therefore cannot be deployed.
 type: application
-
-# This is the chart version. This version number should be incremented each time you make changes
-# to the chart and its templates, including the app version.
-# Versions are expected to follow Semantic Versioning (https://semver.org/)
 version: 0.4.0-SNAPSHOT
-
-# This is the version number of the application being deployed. This version number should be
-# incremented each time you make changes to the application. Versions are not expected to
-# follow Semantic Versioning. They should reflect the version the application is using.
 appVersion: 0.4.0-SNAPSHOT
-
-home: https://github.com/KubeRocketCI/gitfusion
+icon: https://docs.kuberocketci.io/img/logo.svg
+keywords:
+  - edp
+  - kubernetes
+  - kuberocketci
+maintainers:
+  - name: epmd-edp
+    email: SupportEPMD-EDP@epam.com
+    url: https://solutionshub.epam.com/solution/kuberocketci
+  - name: sergk
+    url: https://github.com/SergK
 sources:
   - https://github.com/KubeRocketCI/gitfusion
-maintainers:
-  - name: DEV Team
+annotations:
+  artifacthub.io/license: Apache-2.0
+  artifacthub.io/operator: "true"
+  artifacthub.io/images: |
+    - name: epamedp/gitfusion:0.3.0
+      image: epamedp/gitfusion:0.3.0
+  artifacthub.io/operatorCapabilities: Full Lifecycle
+  artifacthub.io/links: |
+    - name: KubeRocketCI Documentation
+      url: https://docs.kuberocketci.io
+    - name: EPAM SolutionHub
+      url: https://solutionshub.epam.com/solution/kuberocketci
