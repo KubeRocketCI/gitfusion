@@ -2,15 +2,12 @@ package github
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/google/go-github/v72/github"
 
-	gferrors "github.com/KubeRocketCI/gitfusion/internal/errors"
 	"github.com/KubeRocketCI/gitfusion/internal/models"
 	"github.com/KubeRocketCI/gitfusion/internal/services/common"
 	"github.com/KubeRocketCI/gitfusion/internal/services/krci"
@@ -56,15 +53,8 @@ func (g *GitHubProvider) ListPipelines(
 
 	workflowRuns, _, err := client.Actions.ListRepositoryWorkflowRuns(ctx, owner, repo, ghOpts)
 	if err != nil {
-		ghErr := &github.ErrorResponse{}
-		if errors.As(err, &ghErr) {
-			if ghErr.Response.StatusCode == http.StatusNotFound {
-				return nil, fmt.Errorf("project %s: %w", project, gferrors.ErrNotFound)
-			}
-
-			if ghErr.Response.StatusCode == http.StatusUnauthorized {
-				return nil, fmt.Errorf("invalid credentials: %w", gferrors.ErrUnauthorized)
-			}
+		if sentinel := classifyGitHubError(err); sentinel != nil {
+			return nil, fmt.Errorf("project %s: %w", project, sentinel)
 		}
 
 		return nil, fmt.Errorf("failed to list pipelines for %s: %w", project, err)

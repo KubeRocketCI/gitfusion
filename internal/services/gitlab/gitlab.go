@@ -157,6 +157,10 @@ func (g *GitlabProvider) ListBranches(
 
 	for b, err := range it {
 		if err != nil {
+			if errors.Is(err, gitlab.ErrNotFound) {
+				return nil, fmt.Errorf("project %s/%s: %w", owner, repo, gferrors.ErrNotFound)
+			}
+
 			return nil, fmt.Errorf("failed to list branches for %s/%s: %w", owner, repo, err)
 		}
 
@@ -198,7 +202,7 @@ func (g *GitlabProvider) TriggerPipeline(
 			return nil, fmt.Errorf("project %s or ref %s: %w", project, ref, gferrors.ErrNotFound)
 		}
 
-		if resp != nil && resp.StatusCode == http.StatusUnauthorized {
+		if resp != nil && (resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden) {
 			return nil, fmt.Errorf("invalid credentials: %w", gferrors.ErrUnauthorized)
 		}
 
@@ -258,7 +262,7 @@ func (g *GitlabProvider) ListPipelines(
 			return nil, fmt.Errorf("project %s: %w", project, gferrors.ErrNotFound)
 		}
 
-		if resp != nil && resp.StatusCode == http.StatusUnauthorized {
+		if resp != nil && (resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden) {
 			return nil, fmt.Errorf("invalid credentials: %w", gferrors.ErrUnauthorized)
 		}
 
@@ -440,6 +444,14 @@ func (g *GitlabProvider) ListPullRequests(
 		gitlab.WithContext(ctx),
 	)
 	if err != nil {
+		if errors.Is(err, gitlab.ErrNotFound) || (resp != nil && resp.StatusCode == http.StatusNotFound) {
+			return nil, fmt.Errorf("project %s/%s: %w", owner, repo, gferrors.ErrNotFound)
+		}
+
+		if resp != nil && (resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden) {
+			return nil, fmt.Errorf("invalid credentials: %w", gferrors.ErrUnauthorized)
+		}
+
 		return nil, fmt.Errorf("failed to list merge requests for %s/%s: %w", owner, repo, err)
 	}
 

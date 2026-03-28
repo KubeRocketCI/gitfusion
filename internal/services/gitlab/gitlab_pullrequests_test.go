@@ -3,6 +3,7 @@ package gitlab
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -11,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	gferrors "github.com/KubeRocketCI/gitfusion/internal/errors"
 	"github.com/KubeRocketCI/gitfusion/internal/models"
 	"github.com/KubeRocketCI/gitfusion/internal/services/krci"
 )
@@ -306,4 +308,59 @@ func TestGitLabProviderListPullRequestsNilAuthor(t *testing.T) {
 	require.NotNil(t, result)
 	require.Len(t, result.Data, 1)
 	assert.Nil(t, result.Data[0].Author, "author should be nil when JSON author is null")
+}
+
+func TestGitLabProviderListPullRequestsNotFound(t *testing.T) {
+	mux := http.NewServeMux()
+	mrPath := "/api/v4/projects/deleted-group%2Fdeleted-repo/merge_requests"
+	mux.HandleFunc(mrPath, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = w.Write([]byte(`{"message":"404 Project Not Found"}`))
+	})
+
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	provider := NewGitlabProvider()
+
+	result, err := provider.ListPullRequests(
+		context.Background(),
+		"deleted-group",
+		"deleted-repo",
+		krci.GitServerSettings{Token: "test-token", Url: server.URL},
+		models.PullRequestListOptions{State: "open", Page: 1, PerPage: 20},
+	)
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.True(t, errors.Is(err, gferrors.ErrNotFound), "error should wrap gferrors.ErrNotFound")
+	assert.Contains(t, err.Error(), "not found")
+}
+
+func TestGitLabProviderListPullRequestsUnauthorized(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/v4/projects/owner%2Frepo/merge_requests", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnauthorized)
+		_, _ = w.Write([]byte(`{"message":"401 Unauthorized"}`))
+	})
+
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	provider := NewGitlabProvider()
+
+	result, err := provider.ListPullRequests(
+		context.Background(),
+		"owner",
+		"repo",
+		krci.GitServerSettings{Token: "bad-token", Url: server.URL},
+		models.PullRequestListOptions{State: "open", Page: 1, PerPage: 20},
+	)
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.True(t, errors.Is(err, gferrors.ErrUnauthorized), "error should wrap gferrors.ErrUnauthorized")
+	assert.Contains(t, err.Error(), "unauthorized")
 }

@@ -19,6 +19,24 @@ import (
 	"github.com/KubeRocketCI/gitfusion/pkg/xiter"
 )
 
+// classifyGitHubError maps a GitHub API error to a domain sentinel error.
+// Returns nil if the error is not a recognized GitHub error response.
+func classifyGitHubError(err error) error {
+	ghErr := &github.ErrorResponse{}
+	if !errors.As(err, &ghErr) {
+		return nil
+	}
+
+	switch ghErr.Response.StatusCode {
+	case http.StatusNotFound:
+		return gferrors.ErrNotFound
+	case http.StatusUnauthorized:
+		return gferrors.ErrUnauthorized
+	default:
+		return nil
+	}
+}
+
 const (
 	stateOpen   = "open"
 	stateClosed = "closed"
@@ -42,11 +60,8 @@ func (g *GitHubProvider) GetRepository(
 
 	repository, _, err := client.Repositories.Get(ctx, owner, repo)
 	if err != nil {
-		ghErr := &github.ErrorResponse{}
-		if errors.As(err, &ghErr) {
-			if ghErr.Response.StatusCode == http.StatusNotFound {
-				return nil, fmt.Errorf("repository %s/%s: %w", owner, repo, gferrors.ErrNotFound)
-			}
+		if sentinel := classifyGitHubError(err); sentinel != nil {
+			return nil, fmt.Errorf("repository %s/%s: %w", owner, repo, sentinel)
 		}
 
 		return nil, fmt.Errorf("failed to get repository %s/%s: %w", owner, repo, err)
@@ -72,11 +87,8 @@ func (g *GitHubProvider) ListRepositories(
 
 	for repo, err := range it {
 		if err != nil {
-			ghErr := &github.ErrorResponse{}
-			if errors.As(err, &ghErr) {
-				if ghErr.Response.StatusCode == http.StatusNotFound {
-					return nil, fmt.Errorf("organization or user %s: %w", owner, gferrors.ErrNotFound)
-				}
+			if sentinel := classifyGitHubError(err); sentinel != nil {
+				return nil, fmt.Errorf("organization or user %s: %w", owner, sentinel)
 			}
 
 			return nil, fmt.Errorf("failed to list repositories for org %s: %w", owner, err)
@@ -291,6 +303,10 @@ func (g *GitHubProvider) ListBranches(
 
 	for b, err := range it {
 		if err != nil {
+			if sentinel := classifyGitHubError(err); sentinel != nil {
+				return nil, fmt.Errorf("repository %s/%s: %w", owner, repo, sentinel)
+			}
+
 			return nil, fmt.Errorf("failed to list branches: %w", err)
 		}
 
@@ -339,6 +355,10 @@ func (g *GitHubProvider) listPullRequestsDirect(
 		},
 	})
 	if err != nil {
+		if sentinel := classifyGitHubError(err); sentinel != nil {
+			return nil, fmt.Errorf("repository %s/%s: %w", owner, repo, sentinel)
+		}
+
 		return nil, fmt.Errorf("failed to list pull requests for %s/%s: %w", owner, repo, err)
 	}
 
@@ -415,6 +435,10 @@ func (g *GitHubProvider) listPullRequestsWithPostFilter(
 		pagesQueried++
 
 		if err != nil {
+			if sentinel := classifyGitHubError(err); sentinel != nil {
+				return nil, fmt.Errorf("repository %s/%s: %w", owner, repo, sentinel)
+			}
+
 			return nil, fmt.Errorf("failed to list pull requests for %s/%s: %w", owner, repo, err)
 		}
 
