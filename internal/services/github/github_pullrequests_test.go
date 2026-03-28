@@ -3,6 +3,7 @@ package github
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -14,6 +15,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	gferrors "github.com/KubeRocketCI/gitfusion/internal/errors"
 	"github.com/KubeRocketCI/gitfusion/internal/models"
 	"github.com/KubeRocketCI/gitfusion/internal/services/krci"
 )
@@ -1185,4 +1187,92 @@ func TestGitHubProviderListPullRequestsContextCancellation(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.Nil(t, result)
+}
+
+func TestGitHubProviderListPullRequestsNotFound(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/repos/deleted-owner/deleted-repo/pulls", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		_ = json.NewEncoder(w).Encode(map[string]string{
+			"message": "Not Found",
+		})
+	})
+
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	provider := newTestProvider(server.URL)
+
+	result, err := provider.ListPullRequests(
+		context.Background(),
+		"deleted-owner",
+		"deleted-repo",
+		krci.GitServerSettings{Token: "test-token"},
+		models.PullRequestListOptions{State: "open", Page: 1, PerPage: 20},
+	)
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.True(t, errors.Is(err, gferrors.ErrNotFound), "error should wrap gferrors.ErrNotFound")
+	assert.Contains(t, err.Error(), "not found")
+}
+
+func TestGitHubProviderListPullRequestsNotFoundPostFilter(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/repos/deleted-owner/deleted-repo/pulls", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		_ = json.NewEncoder(w).Encode(map[string]string{
+			"message": "Not Found",
+		})
+	})
+
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	provider := newTestProvider(server.URL)
+
+	// Use "merged" state which triggers the post-filter code path
+	result, err := provider.ListPullRequests(
+		context.Background(),
+		"deleted-owner",
+		"deleted-repo",
+		krci.GitServerSettings{Token: "test-token"},
+		models.PullRequestListOptions{State: "merged", Page: 1, PerPage: 20},
+	)
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.True(t, errors.Is(err, gferrors.ErrNotFound), "error should wrap gferrors.ErrNotFound for post-filter path")
+	assert.Contains(t, err.Error(), "not found")
+}
+
+func TestGitHubProviderListPullRequestsUnauthorized(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/repos/owner/repo/pulls", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnauthorized)
+		_ = json.NewEncoder(w).Encode(map[string]string{
+			"message": "Bad credentials",
+		})
+	})
+
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	provider := newTestProvider(server.URL)
+
+	result, err := provider.ListPullRequests(
+		context.Background(),
+		"owner",
+		"repo",
+		krci.GitServerSettings{Token: "bad-token"},
+		models.PullRequestListOptions{State: "open", Page: 1, PerPage: 20},
+	)
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.True(t, errors.Is(err, gferrors.ErrUnauthorized), "error should wrap gferrors.ErrUnauthorized")
+	assert.Contains(t, err.Error(), "unauthorized")
 }

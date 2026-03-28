@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -13,6 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	gferrors "github.com/KubeRocketCI/gitfusion/internal/errors"
 	"github.com/KubeRocketCI/gitfusion/internal/models"
 	"github.com/KubeRocketCI/gitfusion/internal/services/krci"
 )
@@ -276,6 +278,7 @@ func TestBitbucketServiceListPullRequests(t *testing.T) {
 		statusCode     int
 		wantErr        bool
 		wantErrContain string
+		wantSentinel   error
 		wantCount      int
 		wantState      models.PullRequestState
 		validateQuery  func(t *testing.T, r *http.Request)
@@ -378,7 +381,8 @@ func TestBitbucketServiceListPullRequests(t *testing.T) {
 			responseBody:   bitbucketPRResponse{},
 			statusCode:     http.StatusUnauthorized,
 			wantErr:        true,
-			wantErrContain: "status 401",
+			wantErrContain: "unauthorized",
+			wantSentinel:   gferrors.ErrUnauthorized,
 		},
 	}
 
@@ -422,6 +426,10 @@ func TestBitbucketServiceListPullRequests(t *testing.T) {
 
 				if tt.wantErrContain != "" {
 					assert.Contains(t, err.Error(), tt.wantErrContain)
+				}
+
+				if tt.wantSentinel != nil {
+					assert.True(t, errors.Is(err, tt.wantSentinel), "error should wrap %v", tt.wantSentinel)
 				}
 
 				return
@@ -767,4 +775,64 @@ func TestBitbucketServiceListPullRequestsSupersededState(t *testing.T) {
 	// Both SUPERSEDED and DECLINED should map to closed
 	assert.Equal(t, models.PullRequestStateClosed, result.Data[0].State)
 	assert.Equal(t, models.PullRequestStateClosed, result.Data[1].State)
+}
+
+func TestBitbucketServiceListPullRequestsNotFound(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = w.Write([]byte(`{"type":"error","error":{"message":"Repository not found"}}`))
+	}))
+	defer server.Close()
+
+	svc := &BitbucketService{
+		httpClient: resty.New().SetTransport(&redirectTransport{
+			target:  server.URL,
+			wrapped: http.DefaultTransport,
+		}),
+	}
+	token := testBitbucketToken()
+
+	result, err := svc.ListPullRequests(
+		context.Background(),
+		"deleted-owner",
+		"deleted-repo",
+		krci.GitServerSettings{Token: token},
+		models.PullRequestListOptions{State: "open", Page: 1, PerPage: 20},
+	)
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.True(t, errors.Is(err, gferrors.ErrNotFound), "error should wrap gferrors.ErrNotFound")
+	assert.Contains(t, err.Error(), "not found")
+}
+
+func TestBitbucketServiceListPullRequestsUnauthorized(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnauthorized)
+		_, _ = w.Write([]byte(`{"type":"error","error":{"message":"Unauthorized"}}`))
+	}))
+	defer server.Close()
+
+	svc := &BitbucketService{
+		httpClient: resty.New().SetTransport(&redirectTransport{
+			target:  server.URL,
+			wrapped: http.DefaultTransport,
+		}),
+	}
+	token := testBitbucketToken()
+
+	result, err := svc.ListPullRequests(
+		context.Background(),
+		"owner",
+		"repo",
+		krci.GitServerSettings{Token: token},
+		models.PullRequestListOptions{State: "open", Page: 1, PerPage: 20},
+	)
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.True(t, errors.Is(err, gferrors.ErrUnauthorized), "error should wrap gferrors.ErrUnauthorized")
+	assert.Contains(t, err.Error(), "unauthorized")
 }

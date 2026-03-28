@@ -222,6 +222,17 @@ func TestPullRequestHandlerErrResponse(t *testing.T) {
 		assert.Contains(t, errResp.Message, "unauthorized")
 	})
 
+	t.Run("not found error returns 404", func(t *testing.T) {
+		err := fmt.Errorf("project deleted-group/deleted-repo: %w", gferrors.ErrNotFound)
+
+		resp := handler.errResponse(err)
+
+		errResp, ok := resp.(ListPullRequests404JSONResponse)
+		require.True(t, ok, "expected ListPullRequests404JSONResponse")
+		assert.Equal(t, fmt.Sprintf("%d", http.StatusNotFound), errResp.Code)
+		assert.Contains(t, errResp.Message, "not found")
+	})
+
 	t.Run("generic error returns 500", func(t *testing.T) {
 		resp := handler.errResponse(errors.New("something went wrong"))
 

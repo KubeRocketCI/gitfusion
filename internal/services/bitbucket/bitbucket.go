@@ -3,6 +3,7 @@ package bitbucket
 import (
 	"context"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -26,6 +27,18 @@ import (
 // Supporting a configurable API URL (e.g. settings.Url for Bitbucket Data Center)
 // would require changes across all Bitbucket methods and the underlying library.
 const defaultBitbucketAPIURL = "https://api.bitbucket.org/2.0"
+
+// isBitbucketNotFound checks whether the error from the go-bitbucket library
+// indicates a 404 response. The library returns *UnexpectedResponseStatusError
+// with Status set to the HTTP status text (e.g. "404 Not Found").
+func isBitbucketNotFound(err error) bool {
+	var statusErr *bitbucket.UnexpectedResponseStatusError
+	if errors.As(err, &statusErr) {
+		return strings.HasPrefix(statusErr.Status, "404")
+	}
+
+	return false
+}
 
 type BitbucketService struct {
 	httpClient *resty.Client
@@ -56,7 +69,7 @@ func (b *BitbucketService) GetRepository(
 
 	repository, err := client.Repositories.Repository.Get(repoOptions)
 	if err != nil {
-		if err.Error() == "404 Not Found" {
+		if isBitbucketNotFound(err) {
 			return nil, fmt.Errorf("repository %s/%s %w", owner, repo, gferrors.ErrNotFound)
 		}
 
@@ -85,6 +98,10 @@ func (b *BitbucketService) ListRepositories(
 
 	repositories, err := client.Repositories.ListForAccount(repoOptions)
 	if err != nil {
+		if isBitbucketNotFound(err) {
+			return nil, fmt.Errorf("account %s: %w", account, gferrors.ErrNotFound)
+		}
+
 		return nil, fmt.Errorf("failed to list repositories for account %s: %w", account, err)
 	}
 
@@ -157,6 +174,10 @@ func (b *BitbucketService) ListBranches(
 
 	for b, err := range scanBranches {
 		if err != nil {
+			if isBitbucketNotFound(err) {
+				return nil, fmt.Errorf("repository %s/%s: %w", owner, repo, gferrors.ErrNotFound)
+			}
+
 			return nil, fmt.Errorf("failed to list branches: %w", err)
 		}
 
@@ -264,6 +285,14 @@ func (b *BitbucketService) ListPullRequests(
 		Get(apiURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list pull requests for %s/%s: %w", owner, repo, err)
+	}
+
+	if resp.StatusCode() == http.StatusNotFound {
+		return nil, fmt.Errorf("repository %s/%s: %w", owner, repo, gferrors.ErrNotFound)
+	}
+
+	if resp.StatusCode() == http.StatusUnauthorized || resp.StatusCode() == http.StatusForbidden {
+		return nil, fmt.Errorf("invalid credentials: %w", gferrors.ErrUnauthorized)
 	}
 
 	if resp.IsError() {
