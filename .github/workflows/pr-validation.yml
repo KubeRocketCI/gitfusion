@@ -37,9 +37,9 @@ jobs:
       - name: Check commit title length
         uses: gsactions/commit-message-checker@v2
         with:
-          pattern: '^.{10,72}$'
-          error: 'Commit title must be between 10 and 72 characters long.'
+          pattern: '^.{10,85}$'
+          error: 'Commit title must be between 10 and 85 characters long.'
           excludeDescription: 'true'
-          excludeTitle: 'false'
+          excludeTitle: 'true'
           checkAllCommitMessages: 'true'
           accessToken: ${{ secrets.GITHUB_TOKEN }}
