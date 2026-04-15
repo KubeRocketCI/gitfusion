@@ -60,7 +60,10 @@ func (b *BitbucketService) GetRepository(
 		return nil, err
 	}
 
-	client := bitbucket.NewBasicAuth(username, password)
+	client, err := bitbucket.NewBasicAuth(username, password)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create bitbucket client: %w", err)
+	}
 
 	repoOptions := &bitbucket.RepositoryOptions{
 		Owner:    owner,
@@ -90,7 +93,11 @@ func (b *BitbucketService) ListRepositories(
 		return nil, err
 	}
 
-	client := bitbucket.NewBasicAuth(username, password)
+	client, err := bitbucket.NewBasicAuth(username, password)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create bitbucket client: %w", err)
+	}
+
 	repoOptions := &bitbucket.RepositoriesOptions{
 		Owner:   account,
 		Keyword: listOptions.Name,
@@ -113,9 +120,39 @@ func (b *BitbucketService) ListRepositories(
 	return result, nil
 }
 
-// ListUserOrganizations returns workspaces for the authenticated user using go-bitbucket client
+type bitbucketWorkspacesResponse struct {
+	Size    int                        `json:"size"`
+	Page    int                        `json:"page"`
+	Pagelen int                        `json:"pagelen"`
+	Values  []bitbucketWorkspaceAccess `json:"values"`
+}
+
+// bitbucketWorkspaceAccess represents an item in the /user/workspaces response.
+// The API returns workspace_access objects where the workspace data is nested
+// under the "workspace" key.
+type bitbucketWorkspaceAccess struct {
+	Workspace bitbucketWorkspace `json:"workspace"`
+}
+
+type bitbucketWorkspace struct {
+	UUID string `json:"uuid"`
+	Slug string `json:"slug"`
+}
+
+// ListUserOrganizations returns workspaces for the authenticated user using a direct HTTP call
+// to the Bitbucket REST API.
+//
+// Why direct HTTP instead of go-bitbucket client.Workspaces.List():
+//   - The go-bitbucket library (v0.9.95) calls the deprecated /2.0/workspaces endpoint, which
+//     Bitbucket removed as announced in:
+//     https://developer.atlassian.com/cloud/bitbucket/changelog/#CHANGE-2770
+//     https://developer.atlassian.com/cloud/bitbucket/changelog/#CHANGE-3022
+//   - The correct endpoint is now /2.0/user/workspaces (requires authentication):
+//     https://developer.atlassian.com/cloud/bitbucket/rest/api-group-workspaces/#api-user-workspaces-get
+//   - The library has not been updated to support the new endpoint, so we call it directly
+//     using the same go-resty HTTP client used by ListPullRequests and ListPipelines.
 func (b *BitbucketService) ListUserOrganizations(
-	_ context.Context,
+	ctx context.Context,
 	settings krci.GitServerSettings,
 ) ([]models.Organization, error) {
 	username, password, err := decodeBitbucketToken(settings.Token)
@@ -123,22 +160,36 @@ func (b *BitbucketService) ListUserOrganizations(
 		return nil, err
 	}
 
-	client := bitbucket.NewBasicAuth(username, password)
+	apiURL := defaultBitbucketAPIURL + "/user/workspaces"
 
-	workspaces, err := client.Workspaces.List()
+	var bbResp bitbucketWorkspacesResponse
+
+	resp, err := b.httpClient.R().
+		SetContext(ctx).
+		SetBasicAuth(username, password).
+		SetResult(&bbResp).
+		Get(apiURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list workspaces: %w", err)
 	}
 
-	result := make([]models.Organization, 0, len(workspaces.Workspaces))
+	if resp.StatusCode() == http.StatusUnauthorized || resp.StatusCode() == http.StatusForbidden {
+		return nil, fmt.Errorf("invalid credentials: %w", gferrors.ErrUnauthorized)
+	}
 
-	for _, ws := range workspaces.Workspaces {
-		org := models.Organization{
+	if resp.IsError() {
+		return nil, fmt.Errorf("failed to list workspaces: status %d, body: %s", resp.StatusCode(), resp.String())
+	}
+
+	result := make([]models.Organization, 0, len(bbResp.Values))
+
+	for _, wa := range bbResp.Values {
+		ws := wa.Workspace
+
+		result = append(result, models.Organization{
 			Id:   ws.UUID,
-			Name: ws.Name,
-		}
-
-		result = append(result, org)
+			Name: ws.Slug,
+		})
 	}
 
 	return result, nil
@@ -156,7 +207,11 @@ func (b *BitbucketService) ListBranches(
 		return nil, fmt.Errorf("failed to decode bitbucket token: %w", err)
 	}
 
-	client := bitbucket.NewBasicAuth(username, password)
+	client, err := bitbucket.NewBasicAuth(username, password)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create bitbucket client: %w", err)
+	}
+
 	branchOptions := &bitbucket.RepositoryBranchOptions{
 		Owner:    owner,
 		RepoSlug: repo,
