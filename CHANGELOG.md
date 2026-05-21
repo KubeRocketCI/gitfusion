@@ -2,8 +2,31 @@
 ## [Unreleased]
 
 
+<a name="v0.5.0"></a>
+## [v0.5.0] - 2026-05-21
+### Bug Fixes
+
+- Replace deprecated Bitbucket workspaces endpoint with direct HTTP call
+
+### Routine
+
+- support Jira-prefixed CHANGELOG format
+- remove PR title length validation
+- Update current development version
+
+
 <a name="v0.4.0"></a>
 ## [v0.4.0] - 2026-04-04
+### Bug Fixes
+
+- Add proper 404/401 error handling
+
+### Routine
+
+- Align Chart.yaml ([#58](https://github.com/KubeRocketCI/gitfusion/issues/58))
+- Disable regcred usage by default ([#58](https://github.com/KubeRocketCI/gitfusion/issues/58))
+- Update current development version ([#58](https://github.com/KubeRocketCI/gitfusion/issues/58))
+
 
 <a name="v0.3.0"></a>
 ## [v0.3.0] - 2026-03-27
@@ -13,6 +36,7 @@
 
 ### Routine
 
+- validate commit title length and format
 - Update current development version ([#54](https://github.com/KubeRocketCI/gitfusion/issues/54))
 
 
@@ -79,7 +103,8 @@
 - Add GitHub Copilot configuration and assistance tools ([#17](https://github.com/KubeRocketCI/gitfusion/issues/17))
 
 
-[Unreleased]: https://github.com/KubeRocketCI/gitfusion/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/KubeRocketCI/gitfusion/compare/v0.5.0...HEAD
+[v0.5.0]: https://github.com/KubeRocketCI/gitfusion/compare/v0.4.0...v0.5.0
 [v0.4.0]: https://github.com/KubeRocketCI/gitfusion/compare/v0.3.0...v0.4.0
 [v0.3.0]: https://github.com/KubeRocketCI/gitfusion/compare/v0.2.0...v0.3.0
 [v0.2.0]: https://github.com/KubeRocketCI/gitfusion/compare/v0.1.1...v0.2.0
