@@ -2,54 +2,13 @@
 ## [Unreleased]
 
 
-<a name="v0.4.0"></a>
-## [v0.4.0] - 2026-04-04
-
-<a name="v0.3.0"></a>
-## [v0.3.0] - 2026-03-27
+<a name="v0.5.0"></a>
+## v0.5.0 - 2026-04-15
 ### Features
 
 - implement pipeline listing API across multiple git providers
-
-### Routine
-
-- Update current development version ([#54](https://github.com/KubeRocketCI/gitfusion/issues/54))
-
-
-<a name="v0.2.0"></a>
-## [v0.2.0] - 2026-02-10
-### Features
-
 - extend PullRequest model with description, draft, and commit_sha fields
 - add pull/merge request listing API across GitHub, GitLab, and Bitbucket
-
-### Bug Fixes
-
-- Use Path instead of Name for GitLab repository ([#50](https://github.com/KubeRocketCI/gitfusion/issues/50))
-- Incomplete branch list for Bitbucket ([#41](https://github.com/KubeRocketCI/gitfusion/issues/41))
-
-### Routine
-
-- Update KubeRocketAI ([#44](https://github.com/KubeRocketCI/gitfusion/issues/44))
-- Setup KubeRocketAI ([#44](https://github.com/KubeRocketCI/gitfusion/issues/44))
-- Update current development version ([#37](https://github.com/KubeRocketCI/gitfusion/issues/37))
-
-
-<a name="v0.1.1"></a>
-## [v0.1.1] - 2025-07-21
-### Bug Fixes
-
-- Incomplete branch list for Bitbucket ([#41](https://github.com/KubeRocketCI/gitfusion/issues/41))
-
-### Routine
-
-- Enable CHANGELOG.md generation([#37](https://github.com/KubeRocketCI/gitfusion/issues/37))
-
-
-<a name="v0.1.0"></a>
-## v0.1.0 - 2025-07-18
-### Features
-
 - Enhance GithubProvider ListUserOrganizations to include current user ([#35](https://github.com/KubeRocketCI/gitfusion/issues/35))
 - Implement cache invalidation endpoint ([#33](https://github.com/KubeRocketCI/gitfusion/issues/33))
 - Add /branches endpoint and services structure refactoring ([#27](https://github.com/KubeRocketCI/gitfusion/issues/27))
@@ -63,8 +22,27 @@
 - Adds Copilot instructions and PR generation guidelines
 - GitHub repository endpoints
 
+### Bug Fixes
+
+- Replace deprecated Bitbucket workspaces endpoint with direct HTTP call
+- Add proper 404/401 error handling
+- Use Path instead of Name for GitLab repository ([#50](https://github.com/KubeRocketCI/gitfusion/issues/50))
+- Incomplete branch list for Bitbucket ([#41](https://github.com/KubeRocketCI/gitfusion/issues/41))
+
 ### Routine
 
+- support Jira-prefixed CHANGELOG format
+- remove PR title length validation
+- Update current development version
+- Align Chart.yaml ([#58](https://github.com/KubeRocketCI/gitfusion/issues/58))
+- Disable regcred usage by default ([#58](https://github.com/KubeRocketCI/gitfusion/issues/58))
+- Update current development version ([#58](https://github.com/KubeRocketCI/gitfusion/issues/58))
+- validate commit title length and format
+- Update current development version ([#54](https://github.com/KubeRocketCI/gitfusion/issues/54))
+- Update KubeRocketAI ([#44](https://github.com/KubeRocketCI/gitfusion/issues/44))
+- Setup KubeRocketAI ([#44](https://github.com/KubeRocketCI/gitfusion/issues/44))
+- Update current development version ([#37](https://github.com/KubeRocketCI/gitfusion/issues/37))
+- Enable CHANGELOG.md generation([#37](https://github.com/KubeRocketCI/gitfusion/issues/37))
 - Add multi-arch build support ([#31](https://github.com/KubeRocketCI/gitfusion/issues/31))
 - Bump CodeQL version ([#26](https://github.com/KubeRocketCI/gitfusion/issues/26))
 - Align github templates ([#26](https://github.com/KubeRocketCI/gitfusion/issues/26))
@@ -79,8 +57,4 @@
 - Add GitHub Copilot configuration and assistance tools ([#17](https://github.com/KubeRocketCI/gitfusion/issues/17))
 
 
-[Unreleased]: https://github.com/KubeRocketCI/gitfusion/compare/v0.4.0...HEAD
-[v0.4.0]: https://github.com/KubeRocketCI/gitfusion/compare/v0.3.0...v0.4.0
-[v0.3.0]: https://github.com/KubeRocketCI/gitfusion/compare/v0.2.0...v0.3.0
-[v0.2.0]: https://github.com/KubeRocketCI/gitfusion/compare/v0.1.1...v0.2.0
-[v0.1.1]: https://github.com/KubeRocketCI/gitfusion/compare/v0.1.0...v0.1.1
+[Unreleased]: https://github.com/KubeRocketCI/gitfusion/compare/v0.5.0...HEAD
