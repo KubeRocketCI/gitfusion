@@ -3,7 +3,7 @@
 
 
 <a name="v0.5.0"></a>
-## v0.5.0 - 2026-04-15
+## v0.5.0 - 2026-05-21
 ### Features
 
 - implement pipeline listing API across multiple git providers
