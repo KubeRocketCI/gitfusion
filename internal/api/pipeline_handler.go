@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 
 	gferrors "github.com/KubeRocketCI/gitfusion/internal/errors"
 	"github.com/KubeRocketCI/gitfusion/internal/models"
@@ -24,6 +25,16 @@ type pipelineService interface {
 		gitServerName, project string,
 		opts models.PipelineListOptions,
 	) (*models.PipelinesResponse, error)
+	ListPipelineJobs(
+		ctx context.Context,
+		gitServerName, project string,
+		pipelineID int,
+	) ([]models.PipelineJob, error)
+	GetJobTrace(
+		ctx context.Context,
+		gitServerName, project string,
+		jobID int,
+	) (content string, truncated bool, err error)
 }
 
 // PipelineHandler handles requests related to CI/CD pipelines (all providers).
@@ -126,6 +137,112 @@ func (h *PipelineHandler) ListPipelines(
 	}
 
 	return ListPipelines200JSONResponse(*resp), nil
+}
+
+// ListPipelineJobs implements api.StrictServerInterface.
+func (h *PipelineHandler) ListPipelineJobs(
+	ctx context.Context,
+	request ListPipelineJobsRequestObject,
+) (ListPipelineJobsResponseObject, error) {
+	pipelineID, err := strconv.Atoi(request.Params.PipelineId)
+	if err != nil {
+		return ListPipelineJobs400JSONResponse{
+			Code:    fmt.Sprintf("%d", http.StatusBadRequest),
+			Message: "pipelineId must be a numeric value",
+		}, nil
+	}
+
+	jobs, err := h.pipelinesService.ListPipelineJobs(ctx, request.Params.GitServer, request.Params.Project, pipelineID)
+	if err != nil {
+		return h.jobsErrResponse(err), nil
+	}
+
+	return ListPipelineJobs200JSONResponse(models.PipelineJobsResponse{Data: jobs}), nil
+}
+
+// GetPipelineJobTrace implements api.StrictServerInterface.
+func (h *PipelineHandler) GetPipelineJobTrace(
+	ctx context.Context,
+	request GetPipelineJobTraceRequestObject,
+) (GetPipelineJobTraceResponseObject, error) {
+	jobID, err := strconv.Atoi(request.Params.JobId)
+	if err != nil {
+		return GetPipelineJobTrace400JSONResponse{
+			Code:    fmt.Sprintf("%d", http.StatusBadRequest),
+			Message: "jobId must be a numeric value",
+		}, nil
+	}
+
+	trace, truncated, err := h.pipelinesService.GetJobTrace(ctx, request.Params.GitServer, request.Params.Project, jobID)
+	if err != nil {
+		return h.traceErrResponse(err), nil
+	}
+
+	resp := models.PipelineJobTraceResponse{
+		JobId:     request.Params.JobId,
+		Content:   trace,
+		Truncated: &truncated,
+	}
+
+	return GetPipelineJobTrace200JSONResponse(resp), nil
+}
+
+// jobsErrResponse maps errors to response objects for ListPipelineJobs.
+func (h *PipelineHandler) jobsErrResponse(err error) ListPipelineJobsResponseObject {
+	if errors.Is(err, gferrors.ErrUnauthorized) {
+		return ListPipelineJobs401JSONResponse{
+			Code:    fmt.Sprintf("%d", http.StatusUnauthorized),
+			Message: err.Error(),
+		}
+	}
+
+	if errors.Is(err, gferrors.ErrBadRequest) {
+		return ListPipelineJobs400JSONResponse{
+			Code:    fmt.Sprintf("%d", http.StatusBadRequest),
+			Message: err.Error(),
+		}
+	}
+
+	if errors.Is(err, gferrors.ErrNotFound) {
+		return ListPipelineJobs404JSONResponse{
+			Code:    fmt.Sprintf("%d", http.StatusNotFound),
+			Message: err.Error(),
+		}
+	}
+
+	return ListPipelineJobs500JSONResponse{
+		Code:    fmt.Sprintf("%d", http.StatusInternalServerError),
+		Message: err.Error(),
+	}
+}
+
+// traceErrResponse maps errors to response objects for GetPipelineJobTrace.
+func (h *PipelineHandler) traceErrResponse(err error) GetPipelineJobTraceResponseObject {
+	if errors.Is(err, gferrors.ErrUnauthorized) {
+		return GetPipelineJobTrace401JSONResponse{
+			Code:    fmt.Sprintf("%d", http.StatusUnauthorized),
+			Message: err.Error(),
+		}
+	}
+
+	if errors.Is(err, gferrors.ErrBadRequest) {
+		return GetPipelineJobTrace400JSONResponse{
+			Code:    fmt.Sprintf("%d", http.StatusBadRequest),
+			Message: err.Error(),
+		}
+	}
+
+	if errors.Is(err, gferrors.ErrNotFound) {
+		return GetPipelineJobTrace404JSONResponse{
+			Code:    fmt.Sprintf("%d", http.StatusNotFound),
+			Message: err.Error(),
+		}
+	}
+
+	return GetPipelineJobTrace500JSONResponse{
+		Code:    fmt.Sprintf("%d", http.StatusInternalServerError),
+		Message: err.Error(),
+	}
 }
 
 // triggerErrResponse maps errors to appropriate HTTP response objects for TriggerPipeline.

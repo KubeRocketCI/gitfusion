@@ -5,7 +5,7 @@ go 1.25.0
 require (
 	github.com/epam/edp-codebase-operator/v2 v2.27.2
 	github.com/epam/edp-common v0.0.0-20230710145648-344bbce4120e
-	github.com/go-chi/chi/v5 v5.2.2
+	github.com/go-chi/chi/v5 v5.2.4
 	github.com/go-chi/httplog/v2 v2.1.1
 	github.com/go-resty/resty/v2 v2.17.1
 	github.com/google/go-github/v72 v72.0.0

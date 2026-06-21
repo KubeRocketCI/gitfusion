@@ -1,6 +1,10 @@
 <a name="unreleased"></a>
 ## [Unreleased]
 
+### Routine
+
+- Update current development version
+
 
 <a name="v0.5.0"></a>
 ## [v0.5.0] - 2026-05-21
@@ -65,10 +69,6 @@
 
 - Incomplete branch list for Bitbucket ([#41](https://github.com/KubeRocketCI/gitfusion/issues/41))
 
-### Routine
-
-- Enable CHANGELOG.md generation([#37](https://github.com/KubeRocketCI/gitfusion/issues/37))
-
 
 <a name="v0.1.0"></a>
 ## v0.1.0 - 2025-07-18
@@ -89,6 +89,7 @@
 
 ### Routine
 
+- Enable CHANGELOG.md generation([#37](https://github.com/KubeRocketCI/gitfusion/issues/37))
 - Add multi-arch build support ([#31](https://github.com/KubeRocketCI/gitfusion/issues/31))
 - Bump CodeQL version ([#26](https://github.com/KubeRocketCI/gitfusion/issues/26))
 - Align github templates ([#26](https://github.com/KubeRocketCI/gitfusion/issues/26))

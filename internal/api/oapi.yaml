@@ -332,6 +332,112 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  /api/v1/pipeline-jobs:
+    get:
+      summary: List jobs for a CI/CD pipeline
+      operationId: listPipelineJobs
+      tags:
+        - Pipeline
+      parameters:
+        - $ref: '#/components/parameters/gitServerParam'
+        - name: project
+          in: query
+          required: true
+          description: Project path (e.g., "krci/my-app")
+          schema:
+            type: string
+        - name: pipelineId
+          in: query
+          required: true
+          description: Pipeline ID
+          schema:
+            type: string
+            pattern: '^[0-9]+$'
+      responses:
+        '200':
+          description: A list of pipeline jobs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PipelineJobsResponse'
+        '400':
+          description: Bad request due to invalid parameters or missing fields.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized access due to invalid credentials.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Project, pipeline or git server not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/pipeline-job-trace:
+    get:
+      summary: Get the trace (log) of a CI/CD pipeline job
+      operationId: getPipelineJobTrace
+      tags:
+        - Pipeline
+      parameters:
+        - $ref: '#/components/parameters/gitServerParam'
+        - name: project
+          in: query
+          required: true
+          description: Project path (e.g., "krci/my-app")
+          schema:
+            type: string
+        - name: jobId
+          in: query
+          required: true
+          description: Job ID
+          schema:
+            type: string
+            pattern: '^[0-9]+$'
+      responses:
+        '200':
+          description: The job trace (log)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PipelineJobTraceResponse'
+        '400':
+          description: Bad request due to invalid parameters or missing fields.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized access due to invalid credentials.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Project, job or git server not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
   /api/v1/cache/invalidate:
     delete:
       summary: Invalidate cache for a specific endpoint
@@ -690,3 +796,71 @@ components:
       required:
         - data
         - pagination
+    PipelineJob:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Job ID (string to accommodate different providers)
+        name:
+          type: string
+          description: Job name
+        stage:
+          type: string
+          description: Pipeline stage the job belongs to
+        status:
+          type: string
+          description: Job status (provider-native, e.g. success, failed, running, manual)
+        ref:
+          type: string
+          description: Branch/tag ref
+        web_url:
+          type: string
+          description: URL to view the job in the provider UI
+        allow_failure:
+          type: boolean
+          description: Whether the job is allowed to fail without failing the pipeline
+        duration:
+          type: number
+          description: Job duration in seconds
+        created_at:
+          type: string
+          format: date-time
+        started_at:
+          type: string
+          format: date-time
+        finished_at:
+          type: string
+          format: date-time
+        failure_reason:
+          type: string
+          description: Reason the job failed, when applicable
+      required:
+        - id
+        - name
+        - stage
+        - status
+    PipelineJobsResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/PipelineJob'
+      required:
+        - data
+    PipelineJobTraceResponse:
+      type: object
+      properties:
+        job_id:
+          type: string
+          description: Job ID the trace belongs to
+        content:
+          type: string
+          description: Raw job trace (log) text
+        truncated:
+          type: boolean
+          description: Whether the trace was truncated due to size limit
+      required:
+        - job_id
+        - content

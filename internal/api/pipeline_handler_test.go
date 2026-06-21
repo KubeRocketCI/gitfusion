@@ -34,6 +34,21 @@ type stubPipelineService struct {
 	gotListOpts      models.PipelineListOptions
 	listResp         *models.PipelinesResponse
 	listErr          error
+
+	// ListPipelineJobs captures
+	gotJobsGitServer  string
+	gotJobsProject    string
+	gotJobsPipelineID int
+	jobsResp          []models.PipelineJob
+	jobsErr           error
+
+	// GetJobTrace captures
+	gotTraceGitServer string
+	gotTraceProject   string
+	gotTraceJobID     int
+	traceResp         string
+	traceTruncated    bool
+	traceErr          error
 }
 
 func (s *stubPipelineService) TriggerPipeline(
@@ -59,6 +74,30 @@ func (s *stubPipelineService) ListPipelines(
 	s.gotListOpts = opts
 
 	return s.listResp, s.listErr
+}
+
+func (s *stubPipelineService) ListPipelineJobs(
+	_ context.Context,
+	gitServerName, project string,
+	pipelineID int,
+) ([]models.PipelineJob, error) {
+	s.gotJobsGitServer = gitServerName
+	s.gotJobsProject = project
+	s.gotJobsPipelineID = pipelineID
+
+	return s.jobsResp, s.jobsErr
+}
+
+func (s *stubPipelineService) GetJobTrace(
+	_ context.Context,
+	gitServerName, project string,
+	jobID int,
+) (string, bool, error) {
+	s.gotTraceGitServer = gitServerName
+	s.gotTraceProject = project
+	s.gotTraceJobID = jobID
+
+	return s.traceResp, s.traceTruncated, s.traceErr
 }
 
 // --- TriggerPipeline tests ---
@@ -431,4 +470,91 @@ func TestPipelineHandlerImplementsExpectedSignature(t *testing.T) {
 
 	listFn := handler.ListPipelines
 	assert.NotNil(t, listFn)
+}
+
+// --- ListPipelineJobs tests ---
+
+func TestPipelineHandlerListPipelineJobsValidation(t *testing.T) {
+	handler := NewPipelineHandler(&stubPipelineService{})
+
+	t.Run("non-numeric pipelineId returns 400", func(t *testing.T) {
+		resp, err := handler.ListPipelineJobs(context.Background(), ListPipelineJobsRequestObject{
+			Params: models.ListPipelineJobsParams{GitServer: "gl", Project: "p", PipelineId: "abc"},
+		})
+		require.NoError(t, err)
+		assert.IsType(t, ListPipelineJobs400JSONResponse{}, resp)
+	})
+}
+
+func TestPipelineHandlerListPipelineJobsSuccess(t *testing.T) {
+	stub := &stubPipelineService{
+		jobsResp: []models.PipelineJob{{Id: "16", Name: "build", Stage: "build", Status: "success"}},
+	}
+	handler := NewPipelineHandler(stub)
+
+	resp, err := handler.ListPipelineJobs(context.Background(), ListPipelineJobsRequestObject{
+		Params: models.ListPipelineJobsParams{GitServer: "gl", Project: "krci/app", PipelineId: "5"},
+	})
+
+	require.NoError(t, err)
+
+	jobsResp, ok := resp.(ListPipelineJobs200JSONResponse)
+	require.True(t, ok, "expected ListPipelineJobs200JSONResponse")
+	assert.Equal(t, "gl", stub.gotJobsGitServer)
+	assert.Equal(t, "krci/app", stub.gotJobsProject)
+	assert.Equal(t, 5, stub.gotJobsPipelineID)
+	require.Len(t, jobsResp.Data, 1)
+	assert.Equal(t, "build", jobsResp.Data[0].Name)
+}
+
+func TestPipelineHandlerJobsErrResponse(t *testing.T) {
+	handler := &PipelineHandler{}
+
+	t.Run("not found returns 404", func(t *testing.T) {
+		resp := handler.jobsErrResponse(fmt.Errorf("missing: %w", gferrors.ErrNotFound))
+		assert.IsType(t, ListPipelineJobs404JSONResponse{}, resp)
+	})
+
+	t.Run("unauthorized returns 401", func(t *testing.T) {
+		resp := handler.jobsErrResponse(fmt.Errorf("bad token: %w", gferrors.ErrUnauthorized))
+		assert.IsType(t, ListPipelineJobs401JSONResponse{}, resp)
+	})
+}
+
+// --- GetPipelineJobTrace tests ---
+
+func TestPipelineHandlerGetPipelineJobTraceValidation(t *testing.T) {
+	handler := NewPipelineHandler(&stubPipelineService{})
+
+	t.Run("non-numeric jobId returns 400", func(t *testing.T) {
+		resp, err := handler.GetPipelineJobTrace(context.Background(), GetPipelineJobTraceRequestObject{
+			Params: models.GetPipelineJobTraceParams{GitServer: "gl", Project: "p", JobId: "nope"},
+		})
+		require.NoError(t, err)
+		assert.IsType(t, GetPipelineJobTrace400JSONResponse{}, resp)
+	})
+}
+
+func TestPipelineHandlerGetPipelineJobTraceSuccess(t *testing.T) {
+	stub := &stubPipelineService{traceResp: "hello log"}
+	handler := NewPipelineHandler(stub)
+
+	resp, err := handler.GetPipelineJobTrace(context.Background(), GetPipelineJobTraceRequestObject{
+		Params: models.GetPipelineJobTraceParams{GitServer: "gl", Project: "krci/app", JobId: "23"},
+	})
+
+	require.NoError(t, err)
+
+	traceResp, ok := resp.(GetPipelineJobTrace200JSONResponse)
+	require.True(t, ok, "expected GetPipelineJobTrace200JSONResponse")
+	assert.Equal(t, 23, stub.gotTraceJobID)
+	assert.Equal(t, "23", traceResp.JobId)
+	assert.Equal(t, "hello log", traceResp.Content)
+}
+
+func TestPipelineHandlerTraceErrResponse(t *testing.T) {
+	handler := &PipelineHandler{}
+
+	resp := handler.traceErrResponse(fmt.Errorf("boom: %w", gferrors.ErrNotFound))
+	assert.IsType(t, GetPipelineJobTrace404JSONResponse{}, resp)
 }

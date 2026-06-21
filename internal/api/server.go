@@ -115,6 +115,22 @@ func (s *Server) ListPipelines(
 	return s.pipelineHandler.ListPipelines(ctx, request)
 }
 
+// ListPipelineJobs implements StrictServerInterface.
+func (s *Server) ListPipelineJobs(
+	ctx context.Context,
+	request ListPipelineJobsRequestObject,
+) (ListPipelineJobsResponseObject, error) {
+	return s.pipelineHandler.ListPipelineJobs(ctx, request)
+}
+
+// GetPipelineJobTrace implements StrictServerInterface.
+func (s *Server) GetPipelineJobTrace(
+	ctx context.Context,
+	request GetPipelineJobTraceRequestObject,
+) (GetPipelineJobTraceResponseObject, error) {
+	return s.pipelineHandler.GetPipelineJobTrace(ctx, request)
+}
+
 func BuildHandler(conf Config) (ServerInterface, error) {
 	k8sCl, err := initk8sClient()
 	if err != nil {

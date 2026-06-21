@@ -2,10 +2,13 @@ package pipelines
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
+	gferrors "github.com/KubeRocketCI/gitfusion/internal/errors"
 	"github.com/KubeRocketCI/gitfusion/internal/models"
 	"github.com/KubeRocketCI/gitfusion/internal/services/krci"
 )
@@ -117,4 +120,49 @@ func TestMultiProviderPipelineService_ListPipelines_UnsupportedProvider(t *testi
 			assert.Contains(t, err.Error(), tt.expectedErrMsg)
 		})
 	}
+}
+
+func TestMultiProviderPipelineService_ListPipelineJobs_UnsupportedProviderReturnsBadRequest(t *testing.T) {
+	tests := []struct {
+		name        string
+		gitProvider string
+	}{
+		{name: "unknown provider returns ErrBadRequest", gitProvider: "unknown"},
+		{name: "empty provider returns ErrBadRequest", gitProvider: ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			service := NewMultiProviderPipelineService()
+
+			result, err := service.ListPipelineJobs(
+				context.Background(),
+				"test-project",
+				42,
+				krci.GitServerSettings{GitProvider: tt.gitProvider},
+			)
+
+			require.Error(t, err)
+			assert.Nil(t, result)
+			assert.True(t, errors.Is(err, gferrors.ErrBadRequest),
+				"expected ErrBadRequest for unsupported provider %q, got: %v", tt.gitProvider, err)
+		})
+	}
+}
+
+func TestMultiProviderPipelineService_ListPipelineJobs_GitHubReturnsBadRequest(t *testing.T) {
+	// GitHub is a registered provider but does not implement PipelineJobsProvider.
+	service := NewMultiProviderPipelineService()
+
+	result, err := service.ListPipelineJobs(
+		context.Background(),
+		"test-project",
+		1,
+		krci.GitServerSettings{GitProvider: "github"},
+	)
+
+	require.Error(t, err)
+	assert.Nil(t, result)
+	assert.True(t, errors.Is(err, gferrors.ErrBadRequest),
+		"expected ErrBadRequest for github provider (no jobs support), got: %v", err)
 }
