@@ -4,17 +4,29 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	codebaseApi "github.com/epam/edp-codebase-operator/v2/api/v1"
 	gitprovider "github.com/epam/edp-codebase-operator/v2/pkg/gitprovider"
 	codebaseUtil "github.com/epam/edp-codebase-operator/v2/pkg/util"
+	"github.com/viccon/sturdyc"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+)
+
+// settingsCacheTTL is short because the cached value holds the provider token, bounding how long a
+// rotated token stays usable.
+const (
+	settingsCacheTTL      = 60 * time.Second
+	settingsCacheCapacity = 200
 )
 
 type GitServerService struct {
 	k8sClinet client.Client
 	namespace string
+
+	// settingsCache caches resolved settings per git server name; fetch errors are not cached.
+	settingsCache *sturdyc.Client[GitServerSettings]
 }
 
 type GitServerSettings struct {
@@ -26,28 +38,39 @@ type GitServerSettings struct {
 
 func NewGitServerService(k8sClinet client.Client, namespace string) *GitServerService {
 	return &GitServerService{
-		k8sClinet: k8sClinet,
-		namespace: namespace,
+		k8sClinet:     k8sClinet,
+		namespace:     namespace,
+		settingsCache: newGitServerSettingsCache(),
 	}
+}
+
+func newGitServerSettingsCache() *sturdyc.Client[GitServerSettings] {
+	numShards := 8
+	evictionPercentage := 10
+
+	return sturdyc.New[GitServerSettings](
+		settingsCacheCapacity, numShards, settingsCacheTTL, evictionPercentage,
+	)
 }
 
 func (g *GitServerService) GetGitProviderSettings(
 	ctx context.Context,
 	gitServerName string,
 ) (GitServerSettings, error) {
-	gitServer := &codebaseApi.GitServer{}
-	if err := g.k8sClinet.Get(
-		ctx,
-		client.ObjectKey{Name: gitServerName, Namespace: g.namespace},
-		gitServer,
-	); err != nil {
-		return GitServerSettings{}, err
-	}
+	return g.settingsCache.GetOrFetch(ctx, gitServerName, func(ctx context.Context) (GitServerSettings, error) {
+		gitServer := &codebaseApi.GitServer{}
+		if err := g.k8sClinet.Get(
+			ctx,
+			client.ObjectKey{Name: gitServerName, Namespace: g.namespace},
+			gitServer,
+		); err != nil {
+			return GitServerSettings{}, err
+		}
 
-	return g.getGitProviderSettingsForServer(ctx, gitServer)
+		return g.getGitProviderSettingsForServer(ctx, gitServer)
+	})
 }
 
-// GetGitProviderSettingsList returns a list of GitProviderSettings for all GitServers in the namespace.
 func (g *GitServerService) GetGitProviderSettingsList(ctx context.Context) ([]GitServerSettings, error) {
 	gitServerList := &codebaseApi.GitServerList{}
 	if err := g.k8sClinet.List(ctx, gitServerList, client.InNamespace(g.namespace)); err != nil {
