@@ -15,6 +15,8 @@ type Manager struct {
 	branchCache       *sturdyc.Client[[]models.Branch]
 	pullRequestCache  *sturdyc.Client[models.PullRequestsResponse]
 	pipelineCache     *sturdyc.Client[models.PipelinesResponse]
+	pipelineJobsCache *sturdyc.Client[[]models.PipelineJob]
+	pipelineJobTrace  *TerminalAwareCache[JobTrace]
 }
 
 // NewManager creates a new cache manager with all cache instances.
@@ -24,6 +26,8 @@ func NewManager(
 	branchCache *sturdyc.Client[[]models.Branch],
 	pullRequestCache *sturdyc.Client[models.PullRequestsResponse],
 	pipelineCache *sturdyc.Client[models.PipelinesResponse],
+	pipelineJobsCache *sturdyc.Client[[]models.PipelineJob],
+	pipelineJobTrace *TerminalAwareCache[JobTrace],
 ) *Manager {
 	return &Manager{
 		repositoryCache:   repositoryCache,
@@ -31,6 +35,8 @@ func NewManager(
 		branchCache:       branchCache,
 		pullRequestCache:  pullRequestCache,
 		pipelineCache:     pipelineCache,
+		pipelineJobsCache: pipelineJobsCache,
+		pipelineJobTrace:  pipelineJobTrace,
 	}
 }
 
@@ -70,6 +76,12 @@ func (m *Manager) InvalidateCache(endpoint string) error {
 		for _, key := range keys {
 			m.pipelineCache.Delete(key)
 		}
+
+		for _, key := range m.pipelineJobsCache.ScanKeys() {
+			m.pipelineJobsCache.Delete(key)
+		}
+
+		m.pipelineJobTrace.Invalidate()
 
 		return nil
 	default:

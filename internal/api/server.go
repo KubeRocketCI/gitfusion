@@ -160,6 +160,8 @@ func BuildHandler(conf Config) (ServerInterface, error) {
 		branchesSvc.GetProvider().GetCache(),
 		pullRequestsSvc.GetProvider().GetCache(),
 		pipelinesSvc.GetProvider().GetCache(),
+		pipelinesSvc.GetProvider().GetJobsCache(),
+		pipelinesSvc.GetProvider().GetTraceCache(),
 	)
 
 	// Create handlers
