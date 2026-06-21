@@ -56,12 +56,12 @@ func TestMultiProviderPipelineService_TriggerPipeline_UnsupportedProvider(t *tes
 		{
 			name:           "unknown provider",
 			gitProvider:    "unknown",
-			expectedErrMsg: "unsupported provider: unknown",
+			expectedErrMsg: "unsupported provider unknown",
 		},
 		{
 			name:           "empty provider",
 			gitProvider:    "",
-			expectedErrMsg: "unsupported provider: ",
+			expectedErrMsg: "unsupported provider ",
 		},
 	}
 
@@ -80,6 +80,8 @@ func TestMultiProviderPipelineService_TriggerPipeline_UnsupportedProvider(t *tes
 			assert.Error(t, err)
 			assert.Nil(t, result)
 			assert.Contains(t, err.Error(), tt.expectedErrMsg)
+			assert.True(t, errors.Is(err, gferrors.ErrBadRequest),
+				"unsupported provider should map to ErrBadRequest, got: %v", err)
 		})
 	}
 }
@@ -100,7 +102,7 @@ func TestMultiProviderPipelineService_ListPipelines_UnsupportedProvider(t *testi
 		{
 			name:           "unknown provider",
 			gitProvider:    "unknown",
-			expectedErrMsg: "unsupported provider: unknown",
+			expectedErrMsg: "unsupported provider unknown",
 		},
 	}
 
@@ -118,6 +120,8 @@ func TestMultiProviderPipelineService_ListPipelines_UnsupportedProvider(t *testi
 			assert.Error(t, err)
 			assert.Nil(t, result)
 			assert.Contains(t, err.Error(), tt.expectedErrMsg)
+			assert.True(t, errors.Is(err, gferrors.ErrBadRequest),
+				"unsupported provider should map to ErrBadRequest, got: %v", err)
 		})
 	}
 }

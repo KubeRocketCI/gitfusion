@@ -84,7 +84,7 @@ func (m *MultiProviderPipelineService) TriggerPipeline(
 ) (*models.PipelineResponse, error) {
 	provider, ok := m.providers[settings.GitProvider]
 	if !ok {
-		return nil, fmt.Errorf("unsupported provider: %s", settings.GitProvider)
+		return nil, fmt.Errorf("unsupported provider %s: %w", settings.GitProvider, gferrors.ErrBadRequest)
 	}
 
 	return provider.TriggerPipeline(ctx, project, ref, variables, settings)
@@ -100,7 +100,7 @@ func (m *MultiProviderPipelineService) ListPipelines(
 ) (*models.PipelinesResponse, error) {
 	provider, ok := m.providers[settings.GitProvider]
 	if !ok {
-		return nil, fmt.Errorf("unsupported provider: %s", settings.GitProvider)
+		return nil, fmt.Errorf("unsupported provider %s: %w", settings.GitProvider, gferrors.ErrBadRequest)
 	}
 
 	refKey := ""
