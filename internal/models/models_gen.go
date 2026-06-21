@@ -168,6 +168,56 @@ type PipelineSource string
 // PipelineStatus Normalized pipeline status
 type PipelineStatus string
 
+// PipelineJob defines model for PipelineJob.
+type PipelineJob struct {
+	// AllowFailure Whether the job is allowed to fail without failing the pipeline
+	AllowFailure *bool      `json:"allow_failure,omitempty"`
+	CreatedAt    *time.Time `json:"created_at,omitempty"`
+
+	// Duration Job duration in seconds
+	Duration *float32 `json:"duration,omitempty"`
+
+	// FailureReason Reason the job failed, when applicable
+	FailureReason *string    `json:"failure_reason,omitempty"`
+	FinishedAt    *time.Time `json:"finished_at,omitempty"`
+
+	// Id Job ID (string to accommodate different providers)
+	Id string `json:"id"`
+
+	// Name Job name
+	Name string `json:"name"`
+
+	// Ref Branch/tag ref
+	Ref *string `json:"ref,omitempty"`
+
+	// Stage Pipeline stage the job belongs to
+	Stage     string     `json:"stage"`
+	StartedAt *time.Time `json:"started_at,omitempty"`
+
+	// Status Job status (provider-native, e.g. success, failed, running, manual)
+	Status string `json:"status"`
+
+	// WebUrl URL to view the job in the provider UI
+	WebUrl *string `json:"web_url,omitempty"`
+}
+
+// PipelineJobTraceResponse defines model for PipelineJobTraceResponse.
+type PipelineJobTraceResponse struct {
+	// Content Raw job trace (log) text
+	Content string `json:"content"`
+
+	// JobId Job ID the trace belongs to
+	JobId string `json:"job_id"`
+
+	// Truncated Whether the trace was truncated due to size limit
+	Truncated *bool `json:"truncated,omitempty"`
+}
+
+// PipelineJobsResponse defines model for PipelineJobsResponse.
+type PipelineJobsResponse struct {
+	Data []PipelineJob `json:"data"`
+}
+
 // PipelineResponse defines model for PipelineResponse.
 type PipelineResponse struct {
 	// Id Pipeline ID
@@ -309,6 +359,30 @@ type InvalidateCacheParams struct {
 
 // InvalidateCacheParamsEndpoint defines parameters for InvalidateCache.
 type InvalidateCacheParamsEndpoint string
+
+// GetPipelineJobTraceParams defines parameters for GetPipelineJobTrace.
+type GetPipelineJobTraceParams struct {
+	// GitServer The Git server name.
+	GitServer GitServerParam `form:"gitServer" json:"gitServer"`
+
+	// Project Project path (e.g., "krci/my-app")
+	Project string `form:"project" json:"project"`
+
+	// JobId Job ID
+	JobId string `form:"jobId" json:"jobId"`
+}
+
+// ListPipelineJobsParams defines parameters for ListPipelineJobs.
+type ListPipelineJobsParams struct {
+	// GitServer The Git server name.
+	GitServer GitServerParam `form:"gitServer" json:"gitServer"`
+
+	// Project Project path (e.g., "krci/my-app")
+	Project string `form:"project" json:"project"`
+
+	// PipelineId Pipeline ID
+	PipelineId string `form:"pipelineId" json:"pipelineId"`
+}
 
 // ListPipelinesParams defines parameters for ListPipelines.
 type ListPipelinesParams struct {

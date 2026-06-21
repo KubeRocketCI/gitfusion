@@ -23,6 +23,12 @@ type ServerInterface interface {
 	// Invalidate cache for a specific endpoint
 	// (DELETE /api/v1/cache/invalidate)
 	InvalidateCache(w http.ResponseWriter, r *http.Request, params InvalidateCacheParams)
+	// Get the trace (log) of a CI/CD pipeline job
+	// (GET /api/v1/pipeline-job-trace)
+	GetPipelineJobTrace(w http.ResponseWriter, r *http.Request, params GetPipelineJobTraceParams)
+	// List jobs for a CI/CD pipeline
+	// (GET /api/v1/pipeline-jobs)
+	ListPipelineJobs(w http.ResponseWriter, r *http.Request, params ListPipelineJobsParams)
 	// List CI/CD pipelines for a project
 	// (GET /api/v1/pipelines)
 	ListPipelines(w http.ResponseWriter, r *http.Request, params ListPipelinesParams)
@@ -56,6 +62,18 @@ func (_ Unimplemented) ListBranches(w http.ResponseWriter, r *http.Request, para
 // Invalidate cache for a specific endpoint
 // (DELETE /api/v1/cache/invalidate)
 func (_ Unimplemented) InvalidateCache(w http.ResponseWriter, r *http.Request, params InvalidateCacheParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Get the trace (log) of a CI/CD pipeline job
+// (GET /api/v1/pipeline-job-trace)
+func (_ Unimplemented) GetPipelineJobTrace(w http.ResponseWriter, r *http.Request, params GetPipelineJobTraceParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// List jobs for a CI/CD pipeline
+// (GET /api/v1/pipeline-jobs)
+func (_ Unimplemented) ListPipelineJobs(w http.ResponseWriter, r *http.Request, params ListPipelineJobsParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -193,6 +211,134 @@ func (siw *ServerInterfaceWrapper) InvalidateCache(w http.ResponseWriter, r *htt
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.InvalidateCache(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetPipelineJobTrace operation middleware
+func (siw *ServerInterfaceWrapper) GetPipelineJobTrace(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetPipelineJobTraceParams
+
+	// ------------- Required query parameter "gitServer" -------------
+
+	if paramValue := r.URL.Query().Get("gitServer"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "gitServer"})
+		return
+	}
+
+	err = runtime.BindQueryParameter("form", true, true, "gitServer", r.URL.Query(), &params.GitServer)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "gitServer", Err: err})
+		return
+	}
+
+	// ------------- Required query parameter "project" -------------
+
+	if paramValue := r.URL.Query().Get("project"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "project"})
+		return
+	}
+
+	err = runtime.BindQueryParameter("form", true, true, "project", r.URL.Query(), &params.Project)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "project", Err: err})
+		return
+	}
+
+	// ------------- Required query parameter "jobId" -------------
+
+	if paramValue := r.URL.Query().Get("jobId"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "jobId"})
+		return
+	}
+
+	err = runtime.BindQueryParameter("form", true, true, "jobId", r.URL.Query(), &params.JobId)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "jobId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetPipelineJobTrace(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListPipelineJobs operation middleware
+func (siw *ServerInterfaceWrapper) ListPipelineJobs(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListPipelineJobsParams
+
+	// ------------- Required query parameter "gitServer" -------------
+
+	if paramValue := r.URL.Query().Get("gitServer"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "gitServer"})
+		return
+	}
+
+	err = runtime.BindQueryParameter("form", true, true, "gitServer", r.URL.Query(), &params.GitServer)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "gitServer", Err: err})
+		return
+	}
+
+	// ------------- Required query parameter "project" -------------
+
+	if paramValue := r.URL.Query().Get("project"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "project"})
+		return
+	}
+
+	err = runtime.BindQueryParameter("form", true, true, "project", r.URL.Query(), &params.Project)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "project", Err: err})
+		return
+	}
+
+	// ------------- Required query parameter "pipelineId" -------------
+
+	if paramValue := r.URL.Query().Get("pipelineId"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "pipelineId"})
+		return
+	}
+
+	err = runtime.BindQueryParameter("form", true, true, "pipelineId", r.URL.Query(), &params.PipelineId)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "pipelineId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListPipelineJobs(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -718,6 +864,12 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		r.Delete(options.BaseURL+"/api/v1/cache/invalidate", wrapper.InvalidateCache)
 	})
 	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/api/v1/pipeline-job-trace", wrapper.GetPipelineJobTrace)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/api/v1/pipeline-jobs", wrapper.ListPipelineJobs)
+	})
+	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/api/v1/pipelines", wrapper.ListPipelines)
 	})
 	r.Group(func(r chi.Router) {
@@ -812,6 +964,112 @@ func (response InvalidateCache400JSONResponse) VisitInvalidateCacheResponse(w ht
 type InvalidateCache500JSONResponse Error
 
 func (response InvalidateCache500JSONResponse) VisitInvalidateCacheResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetPipelineJobTraceRequestObject struct {
+	Params GetPipelineJobTraceParams
+}
+
+type GetPipelineJobTraceResponseObject interface {
+	VisitGetPipelineJobTraceResponse(w http.ResponseWriter) error
+}
+
+type GetPipelineJobTrace200JSONResponse PipelineJobTraceResponse
+
+func (response GetPipelineJobTrace200JSONResponse) VisitGetPipelineJobTraceResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetPipelineJobTrace400JSONResponse Error
+
+func (response GetPipelineJobTrace400JSONResponse) VisitGetPipelineJobTraceResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetPipelineJobTrace401JSONResponse Error
+
+func (response GetPipelineJobTrace401JSONResponse) VisitGetPipelineJobTraceResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetPipelineJobTrace404JSONResponse Error
+
+func (response GetPipelineJobTrace404JSONResponse) VisitGetPipelineJobTraceResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetPipelineJobTrace500JSONResponse Error
+
+func (response GetPipelineJobTrace500JSONResponse) VisitGetPipelineJobTraceResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListPipelineJobsRequestObject struct {
+	Params ListPipelineJobsParams
+}
+
+type ListPipelineJobsResponseObject interface {
+	VisitListPipelineJobsResponse(w http.ResponseWriter) error
+}
+
+type ListPipelineJobs200JSONResponse PipelineJobsResponse
+
+func (response ListPipelineJobs200JSONResponse) VisitListPipelineJobsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListPipelineJobs400JSONResponse Error
+
+func (response ListPipelineJobs400JSONResponse) VisitListPipelineJobsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListPipelineJobs401JSONResponse Error
+
+func (response ListPipelineJobs401JSONResponse) VisitListPipelineJobsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListPipelineJobs404JSONResponse Error
+
+func (response ListPipelineJobs404JSONResponse) VisitListPipelineJobsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListPipelineJobs500JSONResponse Error
+
+func (response ListPipelineJobs500JSONResponse) VisitListPipelineJobsResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(500)
 
@@ -1108,6 +1366,12 @@ type StrictServerInterface interface {
 	// Invalidate cache for a specific endpoint
 	// (DELETE /api/v1/cache/invalidate)
 	InvalidateCache(ctx context.Context, request InvalidateCacheRequestObject) (InvalidateCacheResponseObject, error)
+	// Get the trace (log) of a CI/CD pipeline job
+	// (GET /api/v1/pipeline-job-trace)
+	GetPipelineJobTrace(ctx context.Context, request GetPipelineJobTraceRequestObject) (GetPipelineJobTraceResponseObject, error)
+	// List jobs for a CI/CD pipeline
+	// (GET /api/v1/pipeline-jobs)
+	ListPipelineJobs(ctx context.Context, request ListPipelineJobsRequestObject) (ListPipelineJobsResponseObject, error)
 	// List CI/CD pipelines for a project
 	// (GET /api/v1/pipelines)
 	ListPipelines(ctx context.Context, request ListPipelinesRequestObject) (ListPipelinesResponseObject, error)
@@ -1202,6 +1466,58 @@ func (sh *strictHandler) InvalidateCache(w http.ResponseWriter, r *http.Request,
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(InvalidateCacheResponseObject); ok {
 		if err := validResponse.VisitInvalidateCacheResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetPipelineJobTrace operation middleware
+func (sh *strictHandler) GetPipelineJobTrace(w http.ResponseWriter, r *http.Request, params GetPipelineJobTraceParams) {
+	var request GetPipelineJobTraceRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetPipelineJobTrace(ctx, request.(GetPipelineJobTraceRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetPipelineJobTrace")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetPipelineJobTraceResponseObject); ok {
+		if err := validResponse.VisitGetPipelineJobTraceResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListPipelineJobs operation middleware
+func (sh *strictHandler) ListPipelineJobs(w http.ResponseWriter, r *http.Request, params ListPipelineJobsParams) {
+	var request ListPipelineJobsRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListPipelineJobs(ctx, request.(ListPipelineJobsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListPipelineJobs")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListPipelineJobsResponseObject); ok {
+		if err := validResponse.VisitListPipelineJobsResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

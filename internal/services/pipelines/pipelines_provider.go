@@ -7,6 +7,7 @@ import (
 	"github.com/viccon/sturdyc"
 
 	"github.com/KubeRocketCI/gitfusion/internal/cache"
+	gferrors "github.com/KubeRocketCI/gitfusion/internal/errors"
 	"github.com/KubeRocketCI/gitfusion/internal/models"
 	"github.com/KubeRocketCI/gitfusion/internal/services/bitbucket"
 	"github.com/KubeRocketCI/gitfusion/internal/services/github"
@@ -31,6 +32,26 @@ type PipelineProvider interface {
 		settings krci.GitServerSettings,
 		opts models.PipelineListOptions,
 	) (*models.PipelinesResponse, error)
+}
+
+// PipelineJobsProvider is an optional capability for providers that expose per-pipeline
+// jobs and their logs (GitLab today). Providers that don't implement it return a
+// bad-request error via the multi-provider dispatch below.
+type PipelineJobsProvider interface {
+	ListPipelineJobs(
+		ctx context.Context,
+		project string,
+		pipelineID int,
+		settings krci.GitServerSettings,
+	) ([]models.PipelineJob, error)
+
+	// GetJobTrace returns the job's trace and whether it was truncated to the size cap.
+	GetJobTrace(
+		ctx context.Context,
+		project string,
+		jobID int,
+		settings krci.GitServerSettings,
+	) (content string, truncated bool, err error)
 }
 
 // MultiProviderPipelineService dynamically dispatches pipeline operations
@@ -109,6 +130,52 @@ func (m *MultiProviderPipelineService) ListPipelines(
 	}
 
 	return &result, nil
+}
+
+// ListPipelineJobs dispatches a pipeline-jobs request to a provider that supports jobs.
+func (m *MultiProviderPipelineService) ListPipelineJobs(
+	ctx context.Context,
+	project string,
+	pipelineID int,
+	settings krci.GitServerSettings,
+) ([]models.PipelineJob, error) {
+	jobsProvider, err := m.jobsProvider(settings.GitProvider)
+	if err != nil {
+		return nil, err
+	}
+
+	return jobsProvider.ListPipelineJobs(ctx, project, pipelineID, settings)
+}
+
+// GetJobTrace dispatches a job-trace request to a provider that supports jobs.
+func (m *MultiProviderPipelineService) GetJobTrace(
+	ctx context.Context,
+	project string,
+	jobID int,
+	settings krci.GitServerSettings,
+) (string, bool, error) {
+	jobsProvider, err := m.jobsProvider(settings.GitProvider)
+	if err != nil {
+		return "", false, err
+	}
+
+	return jobsProvider.GetJobTrace(ctx, project, jobID, settings)
+}
+
+// jobsProvider resolves a provider that supports per-pipeline jobs/logs, or a
+// bad-request error if the configured provider doesn't (e.g. GitHub/Bitbucket).
+func (m *MultiProviderPipelineService) jobsProvider(gitProvider string) (PipelineJobsProvider, error) {
+	provider, ok := m.providers[gitProvider]
+	if !ok {
+		return nil, fmt.Errorf("unsupported provider %s: %w", gitProvider, gferrors.ErrBadRequest)
+	}
+
+	jobsProvider, ok := provider.(PipelineJobsProvider)
+	if !ok {
+		return nil, fmt.Errorf("provider %s does not support pipeline jobs: %w", gitProvider, gferrors.ErrBadRequest)
+	}
+
+	return jobsProvider, nil
 }
 
 // GetCache returns the pipeline cache instance for cache management.

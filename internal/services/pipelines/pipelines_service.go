@@ -61,6 +61,36 @@ func (s *PipelinesService) ListPipelines(
 	return s.pipelinesProvider.ListPipelines(ctx, project, settings, opts)
 }
 
+// ListPipelineJobs lists the jobs of a CI/CD pipeline for the specified git server and project.
+func (s *PipelinesService) ListPipelineJobs(
+	ctx context.Context,
+	gitServerName string,
+	project string,
+	pipelineID int,
+) ([]models.PipelineJob, error) {
+	settings, err := s.gitServerService.GetGitProviderSettings(ctx, gitServerName)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.pipelinesProvider.ListPipelineJobs(ctx, project, pipelineID, settings)
+}
+
+// GetJobTrace returns the raw trace (log) of a CI/CD job for the specified git server and project.
+func (s *PipelinesService) GetJobTrace(
+	ctx context.Context,
+	gitServerName string,
+	project string,
+	jobID int,
+) (string, bool, error) {
+	settings, err := s.gitServerService.GetGitProviderSettings(ctx, gitServerName)
+	if err != nil {
+		return "", false, err
+	}
+
+	return s.pipelinesProvider.GetJobTrace(ctx, project, jobID, settings)
+}
+
 // GetProvider returns the underlying multi-provider service for direct access to its cache.
 func (s *PipelinesService) GetProvider() *MultiProviderPipelineService {
 	return s.pipelinesProvider
