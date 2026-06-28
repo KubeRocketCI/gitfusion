@@ -62,6 +62,39 @@ GitFusion can be deployed using the provided Helm chart:
 helm install gitfusion ./deploy-templates -n my-namespace
 ```
 
+### Connecting to a git server with a private or self-signed certificate
+
+GitFusion talks to git providers over HTTPS and **always verifies the server certificate**
+against the host's trust store (Go's default).
+
+To reach a provider served with a private or self-signed certificate (e.g. an internal
+GitLab), add its CA to the container's trust store — do **not** disable verification. On Linux,
+`/etc/ssl/certs` is the system trust-store directory that Go reads, so mounting the CA file
+there makes Go trust it alongside the public roots. Use the chart's `volumes`/`volumeMounts`,
+mounting the CA as a **single file via `subPath`** so the existing `ca-certificates.crt` bundle
+is preserved. For example, with the CA in a ConfigMap `gitlab-ca` (key `gitlab-ca.crt`):
+
+```yaml
+# values.yaml
+volumes:
+  - name: gitlab-ca
+    configMap:
+      name: gitlab-ca
+volumeMounts:
+  - name: gitlab-ca
+    mountPath: /etc/ssl/certs/gitlab-ca.crt   # subPath: do NOT mount over the whole dir
+    subPath: gitlab-ca.crt
+    readOnly: true
+```
+
+> Do not mount a volume over the whole `/etc/ssl/certs` directory — that shadows the bundled
+> public roots and breaks TLS to public providers (GitHub, Bitbucket). Always use `subPath`.
+
+Alternatively, on **Linux** set `SSL_CERT_FILE` (a single PEM bundle) or `SSL_CERT_DIR` to a
+mounted CA path. These apply to every provider and keep verification enabled. (Go does not
+honour `SSL_CERT_FILE`/`SSL_CERT_DIR` on macOS — relevant only for local runs, not the
+container.)
+
 ## API Documentation
 
 GitFusion exposes a RESTful API defined using OpenAPI specification. The API includes endpoints for:
