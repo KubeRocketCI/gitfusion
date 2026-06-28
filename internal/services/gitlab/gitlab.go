@@ -2,17 +2,14 @@ package gitlab
 
 import (
 	"context"
-	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
-	"os"
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	gitlab "gitlab.com/gitlab-org/api/client-go"
@@ -22,44 +19,9 @@ import (
 	"github.com/KubeRocketCI/gitfusion/internal/services/krci"
 )
 
-// insecureSkipVerify reports whether TLS certificate verification is disabled for GitLab
-// requests. It is controlled by GITFUSION_GITLAB_INSECURE_SKIP_VERIFY and defaults to false,
-// keeping certificate verification on. Set it to "true" to connect to a GitLab instance that
-// serves a self-signed certificate.
-var insecureSkipVerify = os.Getenv("GITFUSION_GITLAB_INSECURE_SKIP_VERIFY") == "true"
-
-var insecureWarnOnce sync.Once
-
 // newGitlabClient builds a go-gitlab client for the given git server settings.
 func newGitlabClient(settings krci.GitServerSettings) (*gitlab.Client, error) {
-	opts := []gitlab.ClientOptionFunc{gitlab.WithBaseURL(settings.Url)}
-
-	if insecureSkipVerify {
-		opts = append(opts, gitlab.WithHTTPClient(newGitlabHTTPClient(0)))
-	}
-
-	return gitlab.NewClient(settings.Token, opts...)
-}
-
-// newGitlabHTTPClient builds an http.Client for GitLab requests. A timeout of 0 leaves the
-// client without a deadline (used for the go-gitlab client, which makes long paginated
-// calls); a non-zero timeout bounds one-shot calls such as the job-trace fetch.
-func newGitlabHTTPClient(timeout time.Duration) *http.Client {
-	c := &http.Client{Timeout: timeout}
-
-	if insecureSkipVerify {
-		insecureWarnOnce.Do(func() {
-			slog.Warn("GITFUSION_GITLAB_INSECURE_SKIP_VERIFY is enabled — TLS certificate verification disabled")
-		})
-
-		// InsecureSkipVerify is enabled only on explicit opt-in via
-		// GITFUSION_GITLAB_INSECURE_SKIP_VERIFY=true (self-signed GitLab certificates).
-		c.Transport = &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec
-		}
-	}
-
-	return c
+	return gitlab.NewClient(settings.Token, gitlab.WithBaseURL(settings.Url))
 }
 
 // maxTraceBytes caps the job trace read to prevent OOM on runaway logs (4 MiB).
@@ -459,7 +421,9 @@ func (g *GitlabProvider) GetJobTrace(
 
 	req.Header.Set("PRIVATE-TOKEN", settings.Token)
 
-	resp, err := newGitlabHTTPClient(traceRequestTimeout).Do(req)
+	httpClient := &http.Client{Timeout: traceRequestTimeout}
+
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return "", false, fmt.Errorf("failed to fetch job trace for %s job %d: %w", project, jobID, err)
 	}

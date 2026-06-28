@@ -90,16 +90,17 @@ autoscaling:
   # targetMemoryUtilizationPercentage: 80
 
 # Additional volumes on the output Deployment definition.
+# Trust a private/self-signed git CA (see README): mount the CA as a single file via subPath.
 volumes: []
-# - name: foo
-#   secret:
-#     secretName: mysecret
-#     optional: false
+# - name: gitlab-ca
+#   configMap:
+#     name: gitlab-ca
 
 # Additional volumeMounts on the output Deployment definition.
 volumeMounts: []
-# - name: foo
-#   mountPath: "/etc/foo"
+# - name: gitlab-ca
+#   mountPath: /etc/ssl/certs/gitlab-ca.crt
+#   subPath: gitlab-ca.crt
 #   readOnly: true
 
 # -- https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#nodeselector
