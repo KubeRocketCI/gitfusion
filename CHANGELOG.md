@@ -1,9 +1,26 @@
 <a name="unreleased"></a>
 ## [Unreleased]
 
+
+<a name="v0.6.0"></a>
+## [v0.6.0] - 2026-07-13
+### Features
+
+- Add GitLab pipeline jobs and job trace endpoints
+
+### Bug Fixes
+
+- remove unused GitLab InsecureSkipVerify
+- Return 400 for unsupported provider in pipeline dispatch
+
 ### Routine
 
+- Add caching for pipeline jobs/traces and git-server settings
 - Update current development version
+
+### Documentation
+
+- add CLAUDE.md with repository guidance
 
 
 <a name="v0.5.0"></a>
@@ -69,6 +86,10 @@
 
 - Incomplete branch list for Bitbucket ([#41](https://github.com/KubeRocketCI/gitfusion/issues/41))
 
+### Routine
+
+- Enable CHANGELOG.md generation([#37](https://github.com/KubeRocketCI/gitfusion/issues/37))
+
 
 <a name="v0.1.0"></a>
 ## v0.1.0 - 2025-07-18
@@ -89,7 +110,6 @@
 
 ### Routine
 
-- Enable CHANGELOG.md generation([#37](https://github.com/KubeRocketCI/gitfusion/issues/37))
 - Add multi-arch build support ([#31](https://github.com/KubeRocketCI/gitfusion/issues/31))
 - Bump CodeQL version ([#26](https://github.com/KubeRocketCI/gitfusion/issues/26))
 - Align github templates ([#26](https://github.com/KubeRocketCI/gitfusion/issues/26))
@@ -104,7 +124,8 @@
 - Add GitHub Copilot configuration and assistance tools ([#17](https://github.com/KubeRocketCI/gitfusion/issues/17))
 
 
-[Unreleased]: https://github.com/KubeRocketCI/gitfusion/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/KubeRocketCI/gitfusion/compare/v0.6.0...HEAD
+[v0.6.0]: https://github.com/KubeRocketCI/gitfusion/compare/v0.5.0...v0.6.0
 [v0.5.0]: https://github.com/KubeRocketCI/gitfusion/compare/v0.4.0...v0.5.0
 [v0.4.0]: https://github.com/KubeRocketCI/gitfusion/compare/v0.3.0...v0.4.0
 [v0.3.0]: https://github.com/KubeRocketCI/gitfusion/compare/v0.2.0...v0.3.0
