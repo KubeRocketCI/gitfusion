@@ -1,6 +1,13 @@
 <a name="unreleased"></a>
 ## [Unreleased]
 
+### Routine
+
+- Update current development version
+
+
+<a name="v0.6.1"></a>
+## [v0.6.1] - 2026-08-10
 
 <a name="v0.6.0"></a>
 ## [v0.6.0] - 2026-07-13
@@ -124,7 +131,8 @@
 - Add GitHub Copilot configuration and assistance tools ([#17](https://github.com/KubeRocketCI/gitfusion/issues/17))
 
 
-[Unreleased]: https://github.com/KubeRocketCI/gitfusion/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/KubeRocketCI/gitfusion/compare/v0.6.1...HEAD
+[v0.6.1]: https://github.com/KubeRocketCI/gitfusion/compare/v0.6.0...v0.6.1
 [v0.6.0]: https://github.com/KubeRocketCI/gitfusion/compare/v0.5.0...v0.6.0
 [v0.5.0]: https://github.com/KubeRocketCI/gitfusion/compare/v0.4.0...v0.5.0
 [v0.4.0]: https://github.com/KubeRocketCI/gitfusion/compare/v0.3.0...v0.4.0
