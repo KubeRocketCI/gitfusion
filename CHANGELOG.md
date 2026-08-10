@@ -2,8 +2,8 @@
 ## [Unreleased]
 
 
-<a name="v0.6.0"></a>
-## v0.6.0 - 2026-06-28
+<a name="v0.6.1"></a>
+## v0.6.1 - 2026-07-25
 ### Features
 
 - Add GitLab pipeline jobs and job trace endpoints
@@ -63,4 +63,4 @@
 - Add GitHub Copilot configuration and assistance tools ([#17](https://github.com/KubeRocketCI/gitfusion/issues/17))
 
 
-[Unreleased]: https://github.com/KubeRocketCI/gitfusion/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/KubeRocketCI/gitfusion/compare/v0.6.1...HEAD
