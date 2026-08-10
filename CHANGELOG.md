@@ -3,7 +3,7 @@
 
 
 <a name="v0.6.1"></a>
-## v0.6.1 - 2026-07-25
+## v0.6.1 - 2026-08-10
 ### Features
 
 - Add GitLab pipeline jobs and job trace endpoints
