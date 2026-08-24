@@ -9,15 +9,12 @@ rules:
       - ""
     verbs:
       - get
-      - watch
-      - list
     resources:
       - secrets
   - apiGroups:
       - v2.edp.epam.com
     verbs:
       - get
-      - watch
       - list
     resources:
       - gitservers
