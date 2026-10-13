@@ -51,12 +51,17 @@ func NewGitHubProvider() *GitHubProvider {
 	return &GitHubProvider{}
 }
 
+// newClient builds every GitHub API client of the provider. A nil httpClient selects the go-github default.
+func (g *GitHubProvider) newClient(settings krci.GitServerSettings) *github.Client {
+	return github.NewClient(g.httpClient).WithAuthToken(settings.Token)
+}
+
 func (g *GitHubProvider) GetRepository(
 	ctx context.Context,
 	owner, repo string,
 	settings krci.GitServerSettings,
 ) (*models.Repository, error) {
-	client := github.NewClient(nil).WithAuthToken(settings.Token)
+	client := g.newClient(settings)
 
 	repository, _, err := client.Repositories.Get(ctx, owner, repo)
 	if err != nil {
@@ -76,7 +81,7 @@ func (g *GitHubProvider) ListRepositories(
 	settings krci.GitServerSettings,
 	listOptions models.ListOptions,
 ) ([]models.Repository, error) {
-	client := github.NewClient(nil).WithAuthToken(settings.Token)
+	client := g.newClient(settings)
 
 	it := filterRepositoriesByName(
 		g.listRepositories(ctx, owner, client),
@@ -210,7 +215,7 @@ func (g *GitHubProvider) ListUserOrganizations(
 	ctx context.Context,
 	settings krci.GitServerSettings,
 ) ([]models.Organization, error) {
-	client := github.NewClient(nil).WithAuthToken(settings.Token)
+	client := g.newClient(settings)
 	eg, ctx := errgroup.WithContext(ctx)
 
 	var userOrg *models.Organization
@@ -287,7 +292,7 @@ func (g *GitHubProvider) ListBranches(
 	settings krci.GitServerSettings,
 	_ models.ListOptions,
 ) ([]models.Branch, error) {
-	client := github.NewClient(nil).WithAuthToken(settings.Token)
+	client := g.newClient(settings)
 
 	it := gfgithub.ScanGitHubList(
 		func(opt github.ListOptions) ([]*github.Branch, *github.Response, error) {
@@ -328,7 +333,7 @@ func (g *GitHubProvider) ListPullRequests(
 	settings krci.GitServerSettings,
 	opts models.PullRequestListOptions,
 ) (*models.PullRequestsResponse, error) {
-	client := github.NewClient(g.httpClient).WithAuthToken(settings.Token)
+	client := g.newClient(settings)
 
 	ghState := mapPullRequestStateToGitHub(opts.State)
 
