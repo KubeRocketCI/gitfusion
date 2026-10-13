@@ -1137,10 +1137,10 @@
       "function": "*MultiProviderPipelineService.ListPipelineJobs"
     },
     {
-      "coverage": 15.4,
-      "crap": 27.8,
+      "coverage": 100,
+      "crap": 6,
       "cyclomatic": 6,
-      "effective_crap": 27.8,
+      "effective_crap": 6,
       "file": "internal/services/pipelines/pipelines_provider.go",
       "function": "*MultiProviderPipelineService.ListPipelines"
     },
