@@ -1017,18 +1017,18 @@
       "function": "*GitServerService.GetGitProviderSettings"
     },
     {
-      "coverage": 0,
-      "crap": 20,
+      "coverage": 100,
+      "crap": 4,
       "cyclomatic": 4,
-      "effective_crap": 20,
+      "effective_crap": 4,
       "file": "internal/services/krci/gitserver.go",
       "function": "*GitServerService.GetGitProviderSettingsList"
     },
     {
-      "coverage": 80,
-      "crap": 3.1,
+      "coverage": 100,
+      "crap": 3,
       "cyclomatic": 3,
-      "effective_crap": 3.1,
+      "effective_crap": 3,
       "file": "internal/services/krci/gitserver.go",
       "function": "*GitServerService.getGitProviderSettingsForServer"
     },
