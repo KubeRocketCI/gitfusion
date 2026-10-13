@@ -21,11 +21,10 @@ import (
 	bitbucketpkg "github.com/KubeRocketCI/gitfusion/pkg/bitbucket"
 )
 
-// defaultBitbucketAPIURL is the base URL for the Bitbucket Cloud REST API.
-// NOTE: The go-bitbucket library (used by GetRepository, ListRepositories,
-// ListBranches, ListUserOrganizations) also defaults to this URL internally.
-// Supporting a configurable API URL (e.g. settings.Url for Bitbucket Data Center)
-// would require changes across all Bitbucket methods and the underlying library.
+// defaultBitbucketAPIURL is the Bitbucket Cloud REST API base URL for requests sent without go-bitbucket.
+// go-bitbucket clients from newClient default to the same URL; BITBUCKET_API_BASE_URL overrides it for them only.
+// A configurable API URL (e.g. settings.Url for Bitbucket Data Center): change this constant and newClient
+// (bitbucket.NewBasicAuthWithBaseUrlStr) together.
 const defaultBitbucketAPIURL = "https://api.bitbucket.org/2.0"
 
 // isBitbucketNotFound checks whether the error from the go-bitbucket library
@@ -52,19 +51,32 @@ func NewBitbucketProvider() *BitbucketService {
 	}
 }
 
-func (b *BitbucketService) GetRepository(
-	ctx context.Context,
-	owner, repo string,
-	settings krci.GitServerSettings,
-) (*models.Repository, error) {
+// newClient returns a go-bitbucket client for the credentials in settings.Token.
+// Create every go-bitbucket client here: it sends requests through the service HTTP client.
+func (b *BitbucketService) newClient(settings krci.GitServerSettings) (*bitbucket.Client, error) {
 	username, password, err := decodeBitbucketToken(settings.Token)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to decode bitbucket token: %w", err)
 	}
 
 	client, err := bitbucket.NewBasicAuth(username, password)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create bitbucket client: %w", err)
+	}
+
+	client.HttpClient = b.httpClient.GetClient()
+
+	return client, nil
+}
+
+func (b *BitbucketService) GetRepository(
+	ctx context.Context,
+	owner, repo string,
+	settings krci.GitServerSettings,
+) (*models.Repository, error) {
+	client, err := b.newClient(settings)
+	if err != nil {
+		return nil, err
 	}
 
 	repoOptions := &bitbucket.RepositoryOptions{
@@ -90,14 +102,9 @@ func (b *BitbucketService) ListRepositories(
 	settings krci.GitServerSettings,
 	listOptions models.ListOptions,
 ) ([]models.Repository, error) {
-	username, password, err := decodeBitbucketToken(settings.Token)
+	client, err := b.newClient(settings)
 	if err != nil {
 		return nil, err
-	}
-
-	client, err := bitbucket.NewBasicAuth(username, password)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create bitbucket client: %w", err)
 	}
 
 	repoOptions := &bitbucket.RepositoriesOptions{
@@ -204,14 +211,9 @@ func (b *BitbucketService) ListBranches(
 	settings krci.GitServerSettings,
 	_ models.ListOptions,
 ) ([]models.Branch, error) {
-	username, password, err := decodeBitbucketToken(settings.Token)
+	client, err := b.newClient(settings)
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode bitbucket token: %w", err)
-	}
-
-	client, err := bitbucket.NewBasicAuth(username, password)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create bitbucket client: %w", err)
+		return nil, err
 	}
 
 	branchOptions := &bitbucket.RepositoryBranchOptions{
@@ -433,10 +435,6 @@ func convertBitbucketPRState(state string) models.PullRequestState {
 }
 
 func convertBitbucketRepoToRepository(repo *bitbucket.Repository) *models.Repository {
-	if repo == nil {
-		return nil
-	}
-
 	// Extract owner username and URL from the generic map fields
 	ownerUsername := ""
 	if owner, ok := repo.Owner["username"].(string); ok {

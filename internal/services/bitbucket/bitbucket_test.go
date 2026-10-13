@@ -2,31 +2,25 @@ package bitbucket
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/KubeRocketCI/gitfusion/internal/services/krci"
 )
 
 func TestBitbucketProviderDoesNotShareCookiesAcrossCalls(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /2.0/user/workspaces", func(w http.ResponseWriter, r *http.Request) {
 		assert.Empty(t, r.Cookies())
 		http.SetCookie(w, &http.Cookie{Name: "session", Value: "first-caller", Path: "/"})
-		w.Header().Set("Content-Type", "application/json")
-		assert.NoError(t, json.NewEncoder(w).Encode(bitbucketWorkspacesResponse{}))
-	}))
-	t.Cleanup(server.Close)
+		writeBitbucketJSON(t, w, http.StatusOK, bitbucketWorkspacesResponse{})
+	})
 
-	svc := NewBitbucketProvider()
-	svc.httpClient.SetTransport(&redirectTransport{target: server.URL, wrapped: http.DefaultTransport})
+	svc := newBitbucketTestService(t, mux)
 
 	for range 2 {
-		_, err := svc.ListUserOrganizations(context.Background(), krci.GitServerSettings{Token: testBitbucketToken()})
+		_, err := svc.ListUserOrganizations(context.Background(), bitbucketTestSettings())
 		require.NoError(t, err)
 	}
 }

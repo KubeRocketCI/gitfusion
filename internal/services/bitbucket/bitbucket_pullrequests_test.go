@@ -222,8 +222,13 @@ func TestBitbucketPRFieldMapping(t *testing.T) {
 	assert.Equal(t, "2026-02-02T12:45:00.000000+00:00", pr.UpdatedOn)
 }
 
+const (
+	testBitbucketUser = "user"
+	testBitbucketPass = "pass"
+)
+
 func testBitbucketToken() string {
-	return base64.StdEncoding.EncodeToString([]byte("user:pass"))
+	return base64.StdEncoding.EncodeToString([]byte(testBitbucketUser + ":" + testBitbucketPass))
 }
 
 // newTestBitbucketPR creates a bitbucketPR with the given fields populated.
