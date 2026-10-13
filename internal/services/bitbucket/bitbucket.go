@@ -44,9 +44,11 @@ type BitbucketService struct {
 	httpClient *resty.Client
 }
 
+// NewBitbucketProvider returns a service shared by all git servers.
+// Keep the HTTP client without a cookie jar: cookies must not cross credentials.
 func NewBitbucketProvider() *BitbucketService {
 	return &BitbucketService{
-		httpClient: resty.New(),
+		httpClient: resty.New().SetCookieJar(nil),
 	}
 }
 
