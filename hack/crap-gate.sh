@@ -9,7 +9,7 @@
 #   CRAP_PROFILE             coverage profile written by go test [coverage.out]
 #   CRAP_BASELINE            committed baseline [.crap-baseline.json]
 #   CRAP_REPORT              JSON report of the last check [crap.json]
-#   CRAP_THRESHOLD           score above which a new function fails [30]
+#   CRAP_THRESHOLD           score above which a new function fails [29.9]; crap4j flags 30 and above
 #   CRAP_REGRESSION_DELTA    score increase above which an existing function fails [1.0]
 #   CRAP_EXCLUDES            space-separated regexes of files to skip [_gen\.go$]
 # A "$" in a value passed as a make argument is written "$$".
@@ -21,7 +21,7 @@ set -euo pipefail
 : "${CRAP_PROFILE:=coverage.out}"
 : "${CRAP_BASELINE:=.crap-baseline.json}"
 : "${CRAP_REPORT:=crap.json}"
-: "${CRAP_THRESHOLD:=30}"
+: "${CRAP_THRESHOLD:=29.9}"
 : "${CRAP_REGRESSION_DELTA:=1.0}"
 : "${CRAP_EXCLUDES=_gen\.go\$}"
 
