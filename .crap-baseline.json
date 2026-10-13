@@ -1,0 +1,1388 @@
+{
+  "entries": [
+    {
+      "coverage": 0,
+      "crap": 2,
+      "cyclomatic": 1,
+      "effective_crap": 2,
+      "file": "cmd/gitfusion-api/main.go",
+      "function": "initLogger"
+    },
+    {
+      "coverage": 0,
+      "crap": 42,
+      "cyclomatic": 6,
+      "effective_crap": 42,
+      "file": "cmd/gitfusion-api/main.go",
+      "function": "main"
+    },
+    {
+      "coverage": 0,
+      "crap": 6,
+      "cyclomatic": 2,
+      "effective_crap": 6,
+      "file": "internal/api/branch_handler.go",
+      "function": "*BranchHandler.ListBranches"
+    },
+    {
+      "coverage": 0,
+      "crap": 2,
+      "cyclomatic": 1,
+      "effective_crap": 2,
+      "file": "internal/api/branch_handler.go",
+      "function": "*BranchHandler.errResponse"
+    },
+    {
+      "coverage": 0,
+      "crap": 2,
+      "cyclomatic": 1,
+      "effective_crap": 2,
+      "file": "internal/api/branch_handler.go",
+      "function": "NewBranchHandler"
+    },
+    {
+      "coverage": 0,
+      "crap": 6,
+      "cyclomatic": 2,
+      "effective_crap": 6,
+      "file": "internal/api/cache_handler.go",
+      "function": "*CacheHandler.InvalidateCache"
+    },
+    {
+      "coverage": 0,
+      "crap": 12,
+      "cyclomatic": 3,
+      "effective_crap": 12,
+      "file": "internal/api/cache_handler.go",
+      "function": "*CacheHandler.errResponse"
+    },
+    {
+      "coverage": 0,
+      "crap": 2,
+      "cyclomatic": 1,
+      "effective_crap": 2,
+      "file": "internal/api/cache_handler.go",
+      "function": "NewCacheHandler"
+    },
+    {
+      "coverage": 0,
+      "crap": 12,
+      "cyclomatic": 3,
+      "effective_crap": 12,
+      "file": "internal/api/config.go",
+      "function": "GetConfigOrDie"
+    },
+    {
+      "coverage": 0,
+      "crap": 6,
+      "cyclomatic": 2,
+      "effective_crap": 6,
+      "file": "internal/api/organization_handler.go",
+      "function": "*OrganizationHandler.ListUserOrganizations"
+    },
+    {
+      "coverage": 0,
+      "crap": 2,
+      "cyclomatic": 1,
+      "effective_crap": 2,
+      "file": "internal/api/organization_handler.go",
+      "function": "NewOrganizationHandler"
+    },
+    {
+      "coverage": 100,
+      "crap": 6,
+      "cyclomatic": 6,
+      "effective_crap": 6,
+      "file": "internal/api/pagination.go",
+      "function": "clampPagination"
+    },
+    {
+      "coverage": 80,
+      "crap": 3.1,
+      "cyclomatic": 3,
+      "effective_crap": 3.1,
+      "file": "internal/api/pipeline_handler.go",
+      "function": "*PipelineHandler.GetPipelineJobTrace"
+    },
+    {
+      "coverage": 80,
+      "crap": 3.1,
+      "cyclomatic": 3,
+      "effective_crap": 3.1,
+      "file": "internal/api/pipeline_handler.go",
+      "function": "*PipelineHandler.ListPipelineJobs"
+    },
+    {
+      "coverage": 85.7,
+      "crap": 5.1,
+      "cyclomatic": 5,
+      "effective_crap": 5.1,
+      "file": "internal/api/pipeline_handler.go",
+      "function": "*PipelineHandler.ListPipelines"
+    },
+    {
+      "coverage": 75,
+      "crap": 9,
+      "cyclomatic": 8,
+      "effective_crap": 9,
+      "file": "internal/api/pipeline_handler.go",
+      "function": "*PipelineHandler.TriggerPipeline"
+    },
+    {
+      "coverage": 71.4,
+      "crap": 4.4,
+      "cyclomatic": 4,
+      "effective_crap": 4.4,
+      "file": "internal/api/pipeline_handler.go",
+      "function": "*PipelineHandler.jobsErrResponse"
+    },
+    {
+      "coverage": 100,
+      "crap": 4,
+      "cyclomatic": 4,
+      "effective_crap": 4,
+      "file": "internal/api/pipeline_handler.go",
+      "function": "*PipelineHandler.listErrResponse"
+    },
+    {
+      "coverage": 57.1,
+      "crap": 5.3,
+      "cyclomatic": 4,
+      "effective_crap": 5.3,
+      "file": "internal/api/pipeline_handler.go",
+      "function": "*PipelineHandler.traceErrResponse"
+    },
+    {
+      "coverage": 100,
+      "crap": 4,
+      "cyclomatic": 4,
+      "effective_crap": 4,
+      "file": "internal/api/pipeline_handler.go",
+      "function": "*PipelineHandler.triggerErrResponse"
+    },
+    {
+      "coverage": 100,
+      "crap": 1,
+      "cyclomatic": 1,
+      "effective_crap": 1,
+      "file": "internal/api/pipeline_handler.go",
+      "function": "NewPipelineHandler"
+    },
+    {
+      "coverage": 80,
+      "crap": 3.1,
+      "cyclomatic": 3,
+      "effective_crap": 3.1,
+      "file": "internal/api/pullrequest_handler.go",
+      "function": "*PullRequestHandler.ListPullRequests"
+    },
+    {
+      "coverage": 100,
+      "crap": 3,
+      "cyclomatic": 3,
+      "effective_crap": 3,
+      "file": "internal/api/pullrequest_handler.go",
+      "function": "*PullRequestHandler.errResponse"
+    },
+    {
+      "coverage": 100,
+      "crap": 1,
+      "cyclomatic": 1,
+      "effective_crap": 1,
+      "file": "internal/api/pullrequest_handler.go",
+      "function": "NewPullRequestHandler"
+    },
+    {
+      "coverage": 0,
+      "crap": 6,
+      "cyclomatic": 2,
+      "effective_crap": 6,
+      "file": "internal/api/repository_handler.go",
+      "function": "*RepositoryHandler.GetRepository"
+    },
+    {
+      "coverage": 0,
+      "crap": 6,
+      "cyclomatic": 2,
+      "effective_crap": 6,
+      "file": "internal/api/repository_handler.go",
+      "function": "*RepositoryHandler.ListRepositories"
+    },
+    {
+      "coverage": 0,
+      "crap": 12,
+      "cyclomatic": 3,
+      "effective_crap": 12,
+      "file": "internal/api/repository_handler.go",
+      "function": "*RepositoryHandler.errResponse"
+    },
+    {
+      "coverage": 0,
+      "crap": 2,
+      "cyclomatic": 1,
+      "effective_crap": 2,
+      "file": "internal/api/repository_handler.go",
+      "function": "*RepositoryHandler.getListOptions"
+    },
+    {
+      "coverage": 0,
+      "crap": 2,
+      "cyclomatic": 1,
+      "effective_crap": 2,
+      "file": "internal/api/repository_handler.go",
+      "function": "NewRepositoryHandler"
+    },
+    {
+      "coverage": 0,
+      "crap": 2,
+      "cyclomatic": 1,
+      "effective_crap": 2,
+      "file": "internal/api/server.go",
+      "function": "*Server.GetPipelineJobTrace"
+    },
+    {
+      "coverage": 0,
+      "crap": 2,
+      "cyclomatic": 1,
+      "effective_crap": 2,
+      "file": "internal/api/server.go",
+      "function": "*Server.GetRepository"
+    },
+    {
+      "coverage": 0,
+      "crap": 2,
+      "cyclomatic": 1,
+      "effective_crap": 2,
+      "file": "internal/api/server.go",
+      "function": "*Server.InvalidateCache"
+    },
+    {
+      "coverage": 0,
+      "crap": 2,
+      "cyclomatic": 1,
+      "effective_crap": 2,
+      "file": "internal/api/server.go",
+      "function": "*Server.ListBranches"
+    },
+    {
+      "coverage": 0,
+      "crap": 2,
+      "cyclomatic": 1,
+      "effective_crap": 2,
+      "file": "internal/api/server.go",
+      "function": "*Server.ListPipelineJobs"
+    },
+    {
+      "coverage": 0,
+      "crap": 2,
+      "cyclomatic": 1,
+      "effective_crap": 2,
+      "file": "internal/api/server.go",
+      "function": "*Server.ListPipelines"
+    },
+    {
+      "coverage": 0,
+      "crap": 2,
+      "cyclomatic": 1,
+      "effective_crap": 2,
+      "file": "internal/api/server.go",
+      "function": "*Server.ListPullRequests"
+    },
+    {
+      "coverage": 0,
+      "crap": 2,
+      "cyclomatic": 1,
+      "effective_crap": 2,
+      "file": "internal/api/server.go",
+      "function": "*Server.ListRepositories"
+    },
+    {
+      "coverage": 0,
+      "crap": 2,
+      "cyclomatic": 1,
+      "effective_crap": 2,
+      "file": "internal/api/server.go",
+      "function": "*Server.ListUserOrganizations"
+    },
+    {
+      "coverage": 0,
+      "crap": 2,
+      "cyclomatic": 1,
+      "effective_crap": 2,
+      "file": "internal/api/server.go",
+      "function": "*Server.TriggerPipeline"
+    },
+    {
+      "coverage": 0,
+      "crap": 6,
+      "cyclomatic": 2,
+      "effective_crap": 6,
+      "file": "internal/api/server.go",
+      "function": "BuildHandler"
+    },
+    {
+      "coverage": 0,
+      "crap": 2,
+      "cyclomatic": 1,
+      "effective_crap": 2,
+      "file": "internal/api/server.go",
+      "function": "NewServer"
+    },
+    {
+      "coverage": 0,
+      "crap": 30,
+      "cyclomatic": 5,
+      "effective_crap": 30,
+      "file": "internal/api/server.go",
+      "function": "initk8sClient"
+    },
+    {
+      "coverage": 0,
+      "crap": 2,
+      "cyclomatic": 1,
+      "effective_crap": 2,
+      "file": "internal/cache/branch_cache.go",
+      "function": "NewBranchCache"
+    },
+    {
+      "coverage": 0,
+      "crap": 2,
+      "cyclomatic": 1,
+      "effective_crap": 2,
+      "file": "internal/cache/cache.go",
+      "function": "NewOrganizationCache"
+    },
+    {
+      "coverage": 0,
+      "crap": 2,
+      "cyclomatic": 1,
+      "effective_crap": 2,
+      "file": "internal/cache/cache.go",
+      "function": "NewRepositoryCache"
+    },
+    {
+      "coverage": 0,
+      "crap": 2,
+      "cyclomatic": 1,
+      "effective_crap": 2,
+      "file": "internal/cache/manager.go",
+      "function": "*Manager.GetSupportedEndpoints"
+    },
+    {
+      "coverage": 0,
+      "crap": 156,
+      "cyclomatic": 12,
+      "effective_crap": 156,
+      "file": "internal/cache/manager.go",
+      "function": "*Manager.InvalidateCache"
+    },
+    {
+      "coverage": 0,
+      "crap": 2,
+      "cyclomatic": 1,
+      "effective_crap": 2,
+      "file": "internal/cache/manager.go",
+      "function": "NewManager"
+    },
+    {
+      "coverage": 100,
+      "crap": 1,
+      "cyclomatic": 1,
+      "effective_crap": 1,
+      "file": "internal/cache/pipeline_cache.go",
+      "function": "NewPipelineCache"
+    },
+    {
+      "coverage": 100,
+      "crap": 1,
+      "cyclomatic": 1,
+      "effective_crap": 1,
+      "file": "internal/cache/pipeline_job_trace_cache.go",
+      "function": "NewPipelineJobTraceCache"
+    },
+    {
+      "coverage": 100,
+      "crap": 1,
+      "cyclomatic": 1,
+      "effective_crap": 1,
+      "file": "internal/cache/pipeline_job_trace_cache.go",
+      "function": "NewTerminalJobsCache"
+    },
+    {
+      "coverage": 100,
+      "crap": 1,
+      "cyclomatic": 1,
+      "effective_crap": 1,
+      "file": "internal/cache/pipeline_jobs_cache.go",
+      "function": "NewPipelineJobsCache"
+    },
+    {
+      "coverage": 100,
+      "crap": 1,
+      "cyclomatic": 1,
+      "effective_crap": 1,
+      "file": "internal/cache/pullrequest_cache.go",
+      "function": "NewPullRequestCache"
+    },
+    {
+      "coverage": 100,
+      "crap": 2,
+      "cyclomatic": 2,
+      "effective_crap": 2,
+      "file": "internal/cache/terminal_aware_cache.go",
+      "function": "*TerminalAwareCache[T].Get"
+    },
+    {
+      "coverage": 100,
+      "crap": 3,
+      "cyclomatic": 3,
+      "effective_crap": 3,
+      "file": "internal/cache/terminal_aware_cache.go",
+      "function": "*TerminalAwareCache[T].Invalidate"
+    },
+    {
+      "coverage": 100,
+      "crap": 2,
+      "cyclomatic": 2,
+      "effective_crap": 2,
+      "file": "internal/cache/terminal_aware_cache.go",
+      "function": "*TerminalAwareCache[T].Set"
+    },
+    {
+      "coverage": 100,
+      "crap": 1,
+      "cyclomatic": 1,
+      "effective_crap": 1,
+      "file": "internal/cache/terminal_aware_cache.go",
+      "function": "NewTerminalAwareCache"
+    },
+    {
+      "coverage": 0,
+      "crap": 2,
+      "cyclomatic": 1,
+      "effective_crap": 2,
+      "file": "internal/errors/errors.go",
+      "function": "*Error.Error"
+    },
+    {
+      "coverage": 0,
+      "crap": 30,
+      "cyclomatic": 5,
+      "effective_crap": 30,
+      "file": "internal/services/bitbucket/bitbucket.go",
+      "function": "*BitbucketService.GetRepository"
+    },
+    {
+      "coverage": 0,
+      "crap": 42,
+      "cyclomatic": 6,
+      "effective_crap": 42,
+      "file": "internal/services/bitbucket/bitbucket.go",
+      "function": "*BitbucketService.ListBranches"
+    },
+    {
+      "coverage": 91.2,
+      "crap": 20.3,
+      "cyclomatic": 20,
+      "effective_crap": 20.3,
+      "file": "internal/services/bitbucket/bitbucket.go",
+      "function": "*BitbucketService.ListPipelines"
+    },
+    {
+      "coverage": 89.7,
+      "crap": 17.3,
+      "cyclomatic": 17,
+      "effective_crap": 17.3,
+      "file": "internal/services/bitbucket/bitbucket.go",
+      "function": "*BitbucketService.ListPullRequests"
+    },
+    {
+      "coverage": 0,
+      "crap": 42,
+      "cyclomatic": 6,
+      "effective_crap": 42,
+      "file": "internal/services/bitbucket/bitbucket.go",
+      "function": "*BitbucketService.ListRepositories"
+    },
+    {
+      "coverage": 90.9,
+      "crap": 7,
+      "cyclomatic": 7,
+      "effective_crap": 7,
+      "file": "internal/services/bitbucket/bitbucket.go",
+      "function": "*BitbucketService.ListUserOrganizations"
+    },
+    {
+      "coverage": 100,
+      "crap": 1,
+      "cyclomatic": 1,
+      "effective_crap": 1,
+      "file": "internal/services/bitbucket/bitbucket.go",
+      "function": "*BitbucketService.TriggerPipeline"
+    },
+    {
+      "coverage": 100,
+      "crap": 1,
+      "cyclomatic": 1,
+      "effective_crap": 1,
+      "file": "internal/services/bitbucket/bitbucket.go",
+      "function": "NewBitbucketProvider"
+    },
+    {
+      "coverage": 100,
+      "crap": 4,
+      "cyclomatic": 4,
+      "effective_crap": 4,
+      "file": "internal/services/bitbucket/bitbucket.go",
+      "function": "convertBitbucketPRState"
+    },
+    {
+      "coverage": 0,
+      "crap": 30,
+      "cyclomatic": 5,
+      "effective_crap": 30,
+      "file": "internal/services/bitbucket/bitbucket.go",
+      "function": "convertBitbucketRepoToRepository"
+    },
+    {
+      "coverage": 80,
+      "crap": 3.1,
+      "cyclomatic": 3,
+      "effective_crap": 3.1,
+      "file": "internal/services/bitbucket/bitbucket.go",
+      "function": "decodeBitbucketToken"
+    },
+    {
+      "coverage": 0,
+      "crap": 6,
+      "cyclomatic": 2,
+      "effective_crap": 6,
+      "file": "internal/services/bitbucket/bitbucket.go",
+      "function": "isBitbucketNotFound"
+    },
+    {
+      "coverage": 100,
+      "crap": 7,
+      "cyclomatic": 7,
+      "effective_crap": 7,
+      "file": "internal/services/bitbucket/bitbucket.go",
+      "function": "mapPipelineStatusToBitbucketQuery"
+    },
+    {
+      "coverage": 100,
+      "crap": 8,
+      "cyclomatic": 8,
+      "effective_crap": 8,
+      "file": "internal/services/bitbucket/bitbucket.go",
+      "function": "normalizeBitbucketPipelineStatus"
+    },
+    {
+      "coverage": 100,
+      "crap": 6,
+      "cyclomatic": 6,
+      "effective_crap": 6,
+      "file": "internal/services/bitbucket/bitbucket.go",
+      "function": "normalizeBitbucketPipelineTrigger"
+    },
+    {
+      "coverage": 0,
+      "crap": 2,
+      "cyclomatic": 1,
+      "effective_crap": 2,
+      "file": "internal/services/branches/branches_provider.go",
+      "function": "*MultiProviderBranchesService.GetCache"
+    },
+    {
+      "coverage": 0,
+      "crap": 6,
+      "cyclomatic": 2,
+      "effective_crap": 6,
+      "file": "internal/services/branches/branches_provider.go",
+      "function": "*MultiProviderBranchesService.ListBranches"
+    },
+    {
+      "coverage": 0,
+      "crap": 2,
+      "cyclomatic": 1,
+      "effective_crap": 2,
+      "file": "internal/services/branches/branches_provider.go",
+      "function": "NewMultiProviderBranchesService"
+    },
+    {
+      "coverage": 0,
+      "crap": 2,
+      "cyclomatic": 1,
+      "effective_crap": 2,
+      "file": "internal/services/branches/branches_service.go",
+      "function": "*BranchesService.GetProvider"
+    },
+    {
+      "coverage": 0,
+      "crap": 6,
+      "cyclomatic": 2,
+      "effective_crap": 6,
+      "file": "internal/services/branches/branches_service.go",
+      "function": "*BranchesService.ListBranches"
+    },
+    {
+      "coverage": 0,
+      "crap": 2,
+      "cyclomatic": 1,
+      "effective_crap": 2,
+      "file": "internal/services/branches/branches_service.go",
+      "function": "NewBranchesService"
+    },
+    {
+      "coverage": 100,
+      "crap": 4,
+      "cyclomatic": 4,
+      "effective_crap": 4,
+      "file": "internal/services/common/project.go",
+      "function": "SplitProject"
+    },
+    {
+      "coverage": 0,
+      "crap": 12,
+      "cyclomatic": 3,
+      "effective_crap": 12,
+      "file": "internal/services/github/github.go",
+      "function": "*GitHubProvider.GetRepository"
+    },
+    {
+      "coverage": 0,
+      "crap": 20,
+      "cyclomatic": 4,
+      "effective_crap": 20,
+      "file": "internal/services/github/github.go",
+      "function": "*GitHubProvider.ListBranches"
+    },
+    {
+      "coverage": 100,
+      "crap": 3,
+      "cyclomatic": 3,
+      "effective_crap": 3,
+      "file": "internal/services/github/github.go",
+      "function": "*GitHubProvider.ListPullRequests"
+    },
+    {
+      "coverage": 0,
+      "crap": 20,
+      "cyclomatic": 4,
+      "effective_crap": 20,
+      "file": "internal/services/github/github.go",
+      "function": "*GitHubProvider.ListRepositories"
+    },
+    {
+      "coverage": 0,
+      "crap": 56,
+      "cyclomatic": 7,
+      "effective_crap": 56,
+      "file": "internal/services/github/github.go",
+      "function": "*GitHubProvider.ListUserOrganizations"
+    },
+    {
+      "coverage": 100,
+      "crap": 6,
+      "cyclomatic": 6,
+      "effective_crap": 6,
+      "file": "internal/services/github/github.go",
+      "function": "*GitHubProvider.listPullRequestsDirect"
+    },
+    {
+      "coverage": 95,
+      "crap": 11,
+      "cyclomatic": 11,
+      "effective_crap": 11,
+      "file": "internal/services/github/github.go",
+      "function": "*GitHubProvider.listPullRequestsWithPostFilter"
+    },
+    {
+      "coverage": 0,
+      "crap": 6,
+      "cyclomatic": 2,
+      "effective_crap": 6,
+      "file": "internal/services/github/github.go",
+      "function": "*GitHubProvider.listRepositories"
+    },
+    {
+      "coverage": 100,
+      "crap": 1,
+      "cyclomatic": 1,
+      "effective_crap": 1,
+      "file": "internal/services/github/github.go",
+      "function": "NewGitHubProvider"
+    },
+    {
+      "coverage": 83.3,
+      "crap": 4.1,
+      "cyclomatic": 4,
+      "effective_crap": 4.1,
+      "file": "internal/services/github/github.go",
+      "function": "classifyGitHubError"
+    },
+    {
+      "coverage": 100,
+      "crap": 7,
+      "cyclomatic": 7,
+      "effective_crap": 7,
+      "file": "internal/services/github/github.go",
+      "function": "convertGitHubPullRequest"
+    },
+    {
+      "coverage": 0,
+      "crap": 42,
+      "cyclomatic": 6,
+      "effective_crap": 42,
+      "file": "internal/services/github/github.go",
+      "function": "convertGitHubRepoToRepository"
+    },
+    {
+      "coverage": 0,
+      "crap": 6,
+      "cyclomatic": 2,
+      "effective_crap": 6,
+      "file": "internal/services/github/github.go",
+      "function": "convertVisibility"
+    },
+    {
+      "coverage": 90.9,
+      "crap": 5,
+      "cyclomatic": 5,
+      "effective_crap": 5,
+      "file": "internal/services/github/github.go",
+      "function": "filterRepositoriesByName"
+    },
+    {
+      "coverage": 100,
+      "crap": 3,
+      "cyclomatic": 3,
+      "effective_crap": 3,
+      "file": "internal/services/github/github.go",
+      "function": "mapPullRequestStateToGitHub"
+    },
+    {
+      "coverage": 100,
+      "crap": 3,
+      "cyclomatic": 3,
+      "effective_crap": 3,
+      "file": "internal/services/github/github.go",
+      "function": "matchesPullRequestStateFilter"
+    },
+    {
+      "coverage": 90.9,
+      "crap": 13.1,
+      "cyclomatic": 13,
+      "effective_crap": 13.1,
+      "file": "internal/services/github/github_pipelines.go",
+      "function": "*GitHubProvider.ListPipelines"
+    },
+    {
+      "coverage": 100,
+      "crap": 1,
+      "cyclomatic": 1,
+      "effective_crap": 1,
+      "file": "internal/services/github/github_pipelines.go",
+      "function": "*GitHubProvider.TriggerPipeline"
+    },
+    {
+      "coverage": 100,
+      "crap": 8,
+      "cyclomatic": 8,
+      "effective_crap": 8,
+      "file": "internal/services/github/github_pipelines.go",
+      "function": "mapPipelineStatusToGitHub"
+    },
+    {
+      "coverage": 100,
+      "crap": 6,
+      "cyclomatic": 6,
+      "effective_crap": 6,
+      "file": "internal/services/github/github_pipelines.go",
+      "function": "normalizeGitHubWorkflowRunEvent"
+    },
+    {
+      "coverage": 100,
+      "crap": 10,
+      "cyclomatic": 10,
+      "effective_crap": 10,
+      "file": "internal/services/github/github_pipelines.go",
+      "function": "normalizeGitHubWorkflowRunStatus"
+    },
+    {
+      "coverage": 75,
+      "crap": 6.6,
+      "cyclomatic": 6,
+      "effective_crap": 6.6,
+      "file": "internal/services/gitlab/gitlab.go",
+      "function": "*GitlabProvider.GetJobTrace"
+    },
+    {
+      "coverage": 0,
+      "crap": 20,
+      "cyclomatic": 4,
+      "effective_crap": 20,
+      "file": "internal/services/gitlab/gitlab.go",
+      "function": "*GitlabProvider.GetRepository"
+    },
+    {
+      "coverage": 0,
+      "crap": 30,
+      "cyclomatic": 5,
+      "effective_crap": 30,
+      "file": "internal/services/gitlab/gitlab.go",
+      "function": "*GitlabProvider.ListBranches"
+    },
+    {
+      "coverage": 85.7,
+      "crap": 6.1,
+      "cyclomatic": 6,
+      "effective_crap": 6.1,
+      "file": "internal/services/gitlab/gitlab.go",
+      "function": "*GitlabProvider.ListPipelineJobs"
+    },
+    {
+      "coverage": 91.7,
+      "crap": 17.2,
+      "cyclomatic": 17,
+      "effective_crap": 17.2,
+      "file": "internal/services/gitlab/gitlab.go",
+      "function": "*GitlabProvider.ListPipelines"
+    },
+    {
+      "coverage": 90.9,
+      "crap": 16.2,
+      "cyclomatic": 16,
+      "effective_crap": 16.2,
+      "file": "internal/services/gitlab/gitlab.go",
+      "function": "*GitlabProvider.ListPullRequests"
+    },
+    {
+      "coverage": 0,
+      "crap": 30,
+      "cyclomatic": 5,
+      "effective_crap": 30,
+      "file": "internal/services/gitlab/gitlab.go",
+      "function": "*GitlabProvider.ListRepositories"
+    },
+    {
+      "coverage": 0,
+      "crap": 30,
+      "cyclomatic": 5,
+      "effective_crap": 30,
+      "file": "internal/services/gitlab/gitlab.go",
+      "function": "*GitlabProvider.ListUserOrganizations"
+    },
+    {
+      "coverage": 0,
+      "crap": 110,
+      "cyclomatic": 10,
+      "effective_crap": 110,
+      "file": "internal/services/gitlab/gitlab.go",
+      "function": "*GitlabProvider.TriggerPipeline"
+    },
+    {
+      "coverage": 100,
+      "crap": 1,
+      "cyclomatic": 1,
+      "effective_crap": 1,
+      "file": "internal/services/gitlab/gitlab.go",
+      "function": "NewGitlabProvider"
+    },
+    {
+      "coverage": 0,
+      "crap": 6,
+      "cyclomatic": 2,
+      "effective_crap": 6,
+      "file": "internal/services/gitlab/gitlab.go",
+      "function": "convertGitlabRepoToRepository"
+    },
+    {
+      "coverage": 100,
+      "crap": 4,
+      "cyclomatic": 4,
+      "effective_crap": 4,
+      "file": "internal/services/gitlab/gitlab.go",
+      "function": "convertToPipelineVariables"
+    },
+    {
+      "coverage": 0,
+      "crap": 6,
+      "cyclomatic": 2,
+      "effective_crap": 6,
+      "file": "internal/services/gitlab/gitlab.go",
+      "function": "convertVisibility"
+    },
+    {
+      "coverage": 88.9,
+      "crap": 5,
+      "cyclomatic": 5,
+      "effective_crap": 5,
+      "file": "internal/services/gitlab/gitlab.go",
+      "function": "mapGitLabJob"
+    },
+    {
+      "coverage": 42.9,
+      "crap": 16.1,
+      "cyclomatic": 7,
+      "effective_crap": 16.1,
+      "file": "internal/services/gitlab/gitlab.go",
+      "function": "mapGitLabJobsError"
+    },
+    {
+      "coverage": 75,
+      "crap": 3.1,
+      "cyclomatic": 3,
+      "effective_crap": 3.1,
+      "file": "internal/services/gitlab/gitlab.go",
+      "function": "mapGitLabTraceStatus"
+    },
+    {
+      "coverage": 100,
+      "crap": 8,
+      "cyclomatic": 8,
+      "effective_crap": 8,
+      "file": "internal/services/gitlab/gitlab.go",
+      "function": "mapPipelineStatusToGitLab"
+    },
+    {
+      "coverage": 100,
+      "crap": 5,
+      "cyclomatic": 5,
+      "effective_crap": 5,
+      "file": "internal/services/gitlab/gitlab.go",
+      "function": "mapPullRequestStateToGitLab"
+    },
+    {
+      "coverage": 100,
+      "crap": 1,
+      "cyclomatic": 1,
+      "effective_crap": 1,
+      "file": "internal/services/gitlab/gitlab.go",
+      "function": "newGitlabClient"
+    },
+    {
+      "coverage": 0,
+      "crap": 2,
+      "cyclomatic": 1,
+      "effective_crap": 2,
+      "file": "internal/services/gitlab/gitlab.go",
+      "function": "newGitlabRepositoryListByOrgOptions"
+    },
+    {
+      "coverage": 100,
+      "crap": 4,
+      "cyclomatic": 4,
+      "effective_crap": 4,
+      "file": "internal/services/gitlab/gitlab.go",
+      "function": "normalizeGitLabMRState"
+    },
+    {
+      "coverage": 100,
+      "crap": 6,
+      "cyclomatic": 6,
+      "effective_crap": 6,
+      "file": "internal/services/gitlab/gitlab.go",
+      "function": "normalizeGitLabPipelineSource"
+    },
+    {
+      "coverage": 100,
+      "crap": 8,
+      "cyclomatic": 8,
+      "effective_crap": 8,
+      "file": "internal/services/gitlab/gitlab.go",
+      "function": "normalizeGitLabPipelineStatus"
+    },
+    {
+      "coverage": 100,
+      "crap": 2,
+      "cyclomatic": 2,
+      "effective_crap": 2,
+      "file": "internal/services/krci/gitserver.go",
+      "function": "*GitServerService.GetGitProviderSettings"
+    },
+    {
+      "coverage": 0,
+      "crap": 20,
+      "cyclomatic": 4,
+      "effective_crap": 20,
+      "file": "internal/services/krci/gitserver.go",
+      "function": "*GitServerService.GetGitProviderSettingsList"
+    },
+    {
+      "coverage": 80,
+      "crap": 3.1,
+      "cyclomatic": 3,
+      "effective_crap": 3.1,
+      "file": "internal/services/krci/gitserver.go",
+      "function": "*GitServerService.getGitProviderSettingsForServer"
+    },
+    {
+      "coverage": 100,
+      "crap": 1,
+      "cyclomatic": 1,
+      "effective_crap": 1,
+      "file": "internal/services/krci/gitserver.go",
+      "function": "NewGitServerService"
+    },
+    {
+      "coverage": 100,
+      "crap": 1,
+      "cyclomatic": 1,
+      "effective_crap": 1,
+      "file": "internal/services/krci/gitserver.go",
+      "function": "newGitServerSettingsCache"
+    },
+    {
+      "coverage": 0,
+      "crap": 2,
+      "cyclomatic": 1,
+      "effective_crap": 2,
+      "file": "internal/services/organizations/organizations_provider.go",
+      "function": "*MultiProviderOrganizationsService.GetCache"
+    },
+    {
+      "coverage": 0,
+      "crap": 6,
+      "cyclomatic": 2,
+      "effective_crap": 6,
+      "file": "internal/services/organizations/organizations_provider.go",
+      "function": "*MultiProviderOrganizationsService.ListUserOrganizations"
+    },
+    {
+      "coverage": 0,
+      "crap": 20,
+      "cyclomatic": 4,
+      "effective_crap": 20,
+      "file": "internal/services/organizations/organizations_provider.go",
+      "function": "NewMultiProviderOrganizationsService"
+    },
+    {
+      "coverage": 0,
+      "crap": 2,
+      "cyclomatic": 1,
+      "effective_crap": 2,
+      "file": "internal/services/organizations/organizations_service.go",
+      "function": "*OrganizationsService.GetProvider"
+    },
+    {
+      "coverage": 0,
+      "crap": 6,
+      "cyclomatic": 2,
+      "effective_crap": 6,
+      "file": "internal/services/organizations/organizations_service.go",
+      "function": "*OrganizationsService.ListUserOrganizations"
+    },
+    {
+      "coverage": 0,
+      "crap": 2,
+      "cyclomatic": 1,
+      "effective_crap": 2,
+      "file": "internal/services/organizations/organizations_service.go",
+      "function": "NewOrganizationsService"
+    },
+    {
+      "coverage": 100,
+      "crap": 1,
+      "cyclomatic": 1,
+      "effective_crap": 1,
+      "file": "internal/services/pipelines/pipelines_provider.go",
+      "function": "*MultiProviderPipelineService.GetCache"
+    },
+    {
+      "coverage": 73.3,
+      "crap": 9.2,
+      "cyclomatic": 8,
+      "effective_crap": 9.2,
+      "file": "internal/services/pipelines/pipelines_provider.go",
+      "function": "*MultiProviderPipelineService.GetJobTrace"
+    },
+    {
+      "coverage": 0,
+      "crap": 2,
+      "cyclomatic": 1,
+      "effective_crap": 2,
+      "file": "internal/services/pipelines/pipelines_provider.go",
+      "function": "*MultiProviderPipelineService.GetJobsCache"
+    },
+    {
+      "coverage": 0,
+      "crap": 2,
+      "cyclomatic": 1,
+      "effective_crap": 2,
+      "file": "internal/services/pipelines/pipelines_provider.go",
+      "function": "*MultiProviderPipelineService.GetTraceCache"
+    },
+    {
+      "coverage": 83.3,
+      "crap": 3,
+      "cyclomatic": 3,
+      "effective_crap": 3,
+      "file": "internal/services/pipelines/pipelines_provider.go",
+      "function": "*MultiProviderPipelineService.ListPipelineJobs"
+    },
+    {
+      "coverage": 15.4,
+      "crap": 27.8,
+      "cyclomatic": 6,
+      "effective_crap": 27.8,
+      "file": "internal/services/pipelines/pipelines_provider.go",
+      "function": "*MultiProviderPipelineService.ListPipelines"
+    },
+    {
+      "coverage": 66.7,
+      "crap": 2.1,
+      "cyclomatic": 2,
+      "effective_crap": 2.1,
+      "file": "internal/services/pipelines/pipelines_provider.go",
+      "function": "*MultiProviderPipelineService.TriggerPipeline"
+    },
+    {
+      "coverage": 100,
+      "crap": 3,
+      "cyclomatic": 3,
+      "effective_crap": 3,
+      "file": "internal/services/pipelines/pipelines_provider.go",
+      "function": "*MultiProviderPipelineService.jobsProvider"
+    },
+    {
+      "coverage": 100,
+      "crap": 3,
+      "cyclomatic": 3,
+      "effective_crap": 3,
+      "file": "internal/services/pipelines/pipelines_provider.go",
+      "function": "*MultiProviderPipelineService.markTerminalJobs"
+    },
+    {
+      "coverage": 100,
+      "crap": 1,
+      "cyclomatic": 1,
+      "effective_crap": 1,
+      "file": "internal/services/pipelines/pipelines_provider.go",
+      "function": "NewMultiProviderPipelineService"
+    },
+    {
+      "coverage": 100,
+      "crap": 1,
+      "cyclomatic": 1,
+      "effective_crap": 1,
+      "file": "internal/services/pipelines/pipelines_provider.go",
+      "function": "isTerminalJobStatus"
+    },
+    {
+      "coverage": 100,
+      "crap": 1,
+      "cyclomatic": 1,
+      "effective_crap": 1,
+      "file": "internal/services/pipelines/pipelines_provider.go",
+      "function": "terminalJobKey"
+    },
+    {
+      "coverage": 0,
+      "crap": 6,
+      "cyclomatic": 2,
+      "effective_crap": 6,
+      "file": "internal/services/pipelines/pipelines_service.go",
+      "function": "*PipelinesService.GetJobTrace"
+    },
+    {
+      "coverage": 100,
+      "crap": 1,
+      "cyclomatic": 1,
+      "effective_crap": 1,
+      "file": "internal/services/pipelines/pipelines_service.go",
+      "function": "*PipelinesService.GetProvider"
+    },
+    {
+      "coverage": 0,
+      "crap": 6,
+      "cyclomatic": 2,
+      "effective_crap": 6,
+      "file": "internal/services/pipelines/pipelines_service.go",
+      "function": "*PipelinesService.ListPipelineJobs"
+    },
+    {
+      "coverage": 0,
+      "crap": 6,
+      "cyclomatic": 2,
+      "effective_crap": 6,
+      "file": "internal/services/pipelines/pipelines_service.go",
+      "function": "*PipelinesService.ListPipelines"
+    },
+    {
+      "coverage": 0,
+      "crap": 6,
+      "cyclomatic": 2,
+      "effective_crap": 6,
+      "file": "internal/services/pipelines/pipelines_service.go",
+      "function": "*PipelinesService.TriggerPipeline"
+    },
+    {
+      "coverage": 100,
+      "crap": 1,
+      "cyclomatic": 1,
+      "effective_crap": 1,
+      "file": "internal/services/pipelines/pipelines_service.go",
+      "function": "NewPipelinesService"
+    },
+    {
+      "coverage": 100,
+      "crap": 1,
+      "cyclomatic": 1,
+      "effective_crap": 1,
+      "file": "internal/services/pullrequests/pullrequests_provider.go",
+      "function": "*MultiProviderPullRequestsService.GetCache"
+    },
+    {
+      "coverage": 22.2,
+      "crap": 11.5,
+      "cyclomatic": 4,
+      "effective_crap": 11.5,
+      "file": "internal/services/pullrequests/pullrequests_provider.go",
+      "function": "*MultiProviderPullRequestsService.ListPullRequests"
+    },
+    {
+      "coverage": 100,
+      "crap": 1,
+      "cyclomatic": 1,
+      "effective_crap": 1,
+      "file": "internal/services/pullrequests/pullrequests_provider.go",
+      "function": "NewMultiProviderPullRequestsService"
+    },
+    {
+      "coverage": 100,
+      "crap": 1,
+      "cyclomatic": 1,
+      "effective_crap": 1,
+      "file": "internal/services/pullrequests/pullrequests_service.go",
+      "function": "*PullRequestsService.GetProvider"
+    },
+    {
+      "coverage": 0,
+      "crap": 6,
+      "cyclomatic": 2,
+      "effective_crap": 6,
+      "file": "internal/services/pullrequests/pullrequests_service.go",
+      "function": "*PullRequestsService.ListPullRequests"
+    },
+    {
+      "coverage": 100,
+      "crap": 1,
+      "cyclomatic": 1,
+      "effective_crap": 1,
+      "file": "internal/services/pullrequests/pullrequests_service.go",
+      "function": "NewPullRequestsService"
+    },
+    {
+      "coverage": 0,
+      "crap": 2,
+      "cyclomatic": 1,
+      "effective_crap": 2,
+      "file": "internal/services/repositories/repositories_provider.go",
+      "function": "*MultiProviderRepositoryService.GetCache"
+    },
+    {
+      "coverage": 0,
+      "crap": 6,
+      "cyclomatic": 2,
+      "effective_crap": 6,
+      "file": "internal/services/repositories/repositories_provider.go",
+      "function": "*MultiProviderRepositoryService.GetRepository"
+    },
+    {
+      "coverage": 0,
+      "crap": 6,
+      "cyclomatic": 2,
+      "effective_crap": 6,
+      "file": "internal/services/repositories/repositories_provider.go",
+      "function": "*MultiProviderRepositoryService.ListRepositories"
+    },
+    {
+      "coverage": 0,
+      "crap": 2,
+      "cyclomatic": 1,
+      "effective_crap": 2,
+      "file": "internal/services/repositories/repositories_provider.go",
+      "function": "NewMultiProviderRepositoryService"
+    },
+    {
+      "coverage": 0,
+      "crap": 2,
+      "cyclomatic": 1,
+      "effective_crap": 2,
+      "file": "internal/services/repositories/repositories_service.go",
+      "function": "*RepositoriesService.GetProvider"
+    },
+    {
+      "coverage": 0,
+      "crap": 6,
+      "cyclomatic": 2,
+      "effective_crap": 6,
+      "file": "internal/services/repositories/repositories_service.go",
+      "function": "*RepositoriesService.GetRepository"
+    },
+    {
+      "coverage": 0,
+      "crap": 6,
+      "cyclomatic": 2,
+      "effective_crap": 6,
+      "file": "internal/services/repositories/repositories_service.go",
+      "function": "*RepositoriesService.ListRepositories"
+    },
+    {
+      "coverage": 0,
+      "crap": 2,
+      "cyclomatic": 1,
+      "effective_crap": 2,
+      "file": "internal/services/repositories/repositories_service.go",
+      "function": "NewRepositoriesService"
+    },
+    {
+      "coverage": 90,
+      "crap": 6,
+      "cyclomatic": 6,
+      "effective_crap": 6,
+      "file": "pkg/bitbucket/pagination.go",
+      "function": "ScanBitbucketBranches"
+    },
+    {
+      "coverage": 91.7,
+      "crap": 7,
+      "cyclomatic": 7,
+      "effective_crap": 7,
+      "file": "pkg/github/pagination.go",
+      "function": "ScanGitHubList"
+    },
+    {
+      "coverage": 100,
+      "crap": 2,
+      "cyclomatic": 2,
+      "effective_crap": 2,
+      "file": "pkg/github/pagination.go",
+      "function": "WithPerPage"
+    },
+    {
+      "coverage": 100,
+      "crap": 1,
+      "cyclomatic": 1,
+      "effective_crap": 1,
+      "file": "pkg/pointer/ptr.go",
+      "function": "To"
+    },
+    {
+      "coverage": 100,
+      "crap": 2,
+      "cyclomatic": 2,
+      "effective_crap": 2,
+      "file": "pkg/pointer/ptr.go",
+      "function": "ValueOrEmpty"
+    },
+    {
+      "coverage": 0,
+      "crap": 6,
+      "cyclomatic": 2,
+      "effective_crap": 6,
+      "file": "pkg/xiter/iter.go",
+      "function": "CollectFromScan"
+    }
+  ]
+}

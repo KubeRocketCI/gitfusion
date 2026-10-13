@@ -30,3 +30,6 @@ go.work.sum
 
 # Claudecode
 .claude/settings.local.json
+
+# CRAP gate report
+/crap.json

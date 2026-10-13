@@ -1,6 +1,6 @@
 module github.com/KubeRocketCI/gitfusion
 
-go 1.25.0
+go 1.26.2
 
 require (
 	github.com/epam/edp-codebase-operator/v2 v2.27.2

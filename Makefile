@@ -2,6 +2,8 @@ OAPICODEGEN_VERSION ?= v2.4.1
 GOLANGCI_LINT_VERSION ?= v2.1.6
 HELMDOCS_VERSION ?= v1.14.2
 GITCHGLOG_VERSION ?= v0.15.4
+GO_CRAP_VERSION ?= v0.5.1
+GOJQ_VERSION ?= v0.12.19
 
 CURRENT_DIR=$(shell pwd)
 HOST_OS?=$(shell go env GOOS)
@@ -51,9 +53,29 @@ else
 	$(GITCHGLOG) -o CHANGELOG.md
 endif
 
-# Run tests
+# Run tests, then the CRAP gate on the produced coverage profile; CRAP_CHECK=false skips the gate
 test: lint
 	go test ./... -coverprofile=coverage.out
+ifneq ($(CRAP_CHECK),false)
+	@$(MAKE) --no-print-directory crap-check
+endif
+
+# CRAP = CC^2 * (1 - coverage)^3 + CC per function, scored from the coverage profile of make test.
+# Gate logic and its settings live in hack/crap-gate.sh.
+CRAP_CHECK ?= true
+CRAP_GATE = GO_CRAP=$(GO_CRAP) GOJQ=$(GOJQ) ./hack/crap-gate.sh
+
+.PHONY: crap
+crap: go-crap gojq ## Report the worst CRAP scores
+	@$(CRAP_GATE) report
+
+.PHONY: crap-check
+crap-check: go-crap gojq ## Fail on CRAP regressions vs baseline and new functions above threshold
+	@$(CRAP_GATE) check
+
+.PHONY: crap-baseline
+crap-baseline: go-crap gojq ## Rewrite the CRAP baseline from the current coverage profile
+	@$(CRAP_GATE) baseline
 
 .PHONY: helm-docs
 helm-docs: helmdocs	## Generate helm docs
@@ -69,6 +91,16 @@ OAPICODEGEN=$(LOCALBIN)/oapi-codegen
 oapi-codegen: $(OAPICODEGEN) ## Download oapi-codegen locally if necessary.
 $(OAPICODEGEN): $(LOCALBIN)
 	$(call go-install-tool,$(OAPICODEGEN),github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen,$(OAPICODEGEN_VERSION))
+
+GO_CRAP = $(LOCALBIN)/go-crap
+.PHONY: go-crap
+go-crap: $(LOCALBIN) ## Download go-crap locally if necessary.
+	$(call go-install-tool,$(GO_CRAP),github.com/padiazg/go-crap,$(GO_CRAP_VERSION))
+
+GOJQ = $(LOCALBIN)/gojq
+.PHONY: gojq
+gojq: $(LOCALBIN) ## Download gojq locally if necessary.
+	$(call go-install-tool,$(GOJQ),github.com/itchyny/gojq/cmd/gojq,$(GOJQ_VERSION))
 
 HELMDOCS = $(LOCALBIN)/helm-docs
 .PHONY: helmdocs
