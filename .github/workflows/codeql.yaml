@@ -4,7 +4,7 @@ on:
   push:
     branches: [ main ]
 env:
-  GOLANG_VERSION: '1.24'
+  GOLANG_VERSION: '1.26'
 
 jobs:
   analyze:

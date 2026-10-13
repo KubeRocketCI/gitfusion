@@ -6,7 +6,7 @@
 
 ```
 make build       # → dist/api-<arch>  (CGO_ENABLED=0)
-make test        # runs lint first, then go test ./... -coverprofile=coverage.out
+make test        # runs lint first, then go test ./... -coverprofile=coverage.out, then the CRAP gate
 make lint        # golangci-lint v2 with .golangci.yaml
 make lint-fix    # golangci-lint --fix
 make generate    # regenerate server_gen.go + models_gen.go from oapi.yaml (see below)
