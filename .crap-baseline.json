@@ -873,10 +873,10 @@
       "function": "*GitlabProvider.ListPullRequests"
     },
     {
-      "coverage": 0,
-      "crap": 30,
+      "coverage": 63.6,
+      "crap": 6.2,
       "cyclomatic": 5,
-      "effective_crap": 30,
+      "effective_crap": 6.2,
       "file": "internal/services/gitlab/gitlab.go",
       "function": "*GitlabProvider.ListRepositories"
     },
@@ -905,10 +905,10 @@
       "function": "NewGitlabProvider"
     },
     {
-      "coverage": 0,
-      "crap": 6,
+      "coverage": 66.7,
+      "crap": 2.1,
       "cyclomatic": 2,
-      "effective_crap": 6,
+      "effective_crap": 2.1,
       "file": "internal/services/gitlab/gitlab.go",
       "function": "convertGitlabRepoToRepository"
     },
@@ -921,10 +921,10 @@
       "function": "convertToPipelineVariables"
     },
     {
-      "coverage": 0,
-      "crap": 6,
+      "coverage": 66.7,
+      "crap": 2.1,
       "cyclomatic": 2,
-      "effective_crap": 6,
+      "effective_crap": 2.1,
       "file": "internal/services/gitlab/gitlab.go",
       "function": "convertVisibility"
     },
@@ -977,10 +977,10 @@
       "function": "newGitlabClient"
     },
     {
-      "coverage": 0,
-      "crap": 2,
+      "coverage": 100,
+      "crap": 1,
       "cyclomatic": 1,
-      "effective_crap": 2,
+      "effective_crap": 1,
       "file": "internal/services/gitlab/gitlab.go",
       "function": "newGitlabRepositoryListByOrgOptions"
     },

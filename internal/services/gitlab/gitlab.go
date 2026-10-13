@@ -96,6 +96,7 @@ func (g *GitlabProvider) ListRepositories(
 			owner,
 			newGitlabRepositoryListByOrgOptions(listOptions),
 			gitlab.WithContext(ctx),
+			p,
 		)
 	})
 
