@@ -31,8 +31,11 @@ const maxTraceBytes = 4 * 1024 * 1024
 // maxTraceBytes, so this only guards against a hung or extremely slow connection.
 const traceRequestTimeout = 30 * time.Second
 
-// maxJobsTotal is the pagination cap for ListPipelineJobs (5 pages × 100).
-const maxJobsTotal = 500
+// glPageSize is the per_page requested from GitLab list endpoints.
+const glPageSize = 100
+
+// maxJobsTotal is the pagination cap for ListPipelineJobs: 5 pages of glPageSize.
+const maxJobsTotal = 5 * glPageSize
 
 const (
 	glStateOpened = "opened"
@@ -218,7 +221,7 @@ func (g *GitlabProvider) TriggerPipeline(
 	)
 
 	if err != nil {
-		if errors.Is(err, gitlab.ErrNotFound) || (resp != nil && resp.StatusCode == http.StatusNotFound) {
+		if errors.Is(err, gitlab.ErrNotFound) {
 			return nil, fmt.Errorf("project %s or ref %s: %w", project, ref, gferrors.ErrNotFound)
 		}
 
@@ -278,7 +281,7 @@ func (g *GitlabProvider) ListPipelines(
 		gitlab.WithContext(ctx),
 	)
 	if err != nil {
-		if errors.Is(err, gitlab.ErrNotFound) || (resp != nil && resp.StatusCode == http.StatusNotFound) {
+		if errors.Is(err, gitlab.ErrNotFound) {
 			return nil, fmt.Errorf("project %s: %w", project, gferrors.ErrNotFound)
 		}
 
@@ -352,7 +355,7 @@ func (g *GitlabProvider) ListPipelineJobs(
 		return client.Jobs.ListPipelineJobs(
 			project,
 			pipelineID,
-			&gitlab.ListJobsOptions{ListOptions: gitlab.ListOptions{PerPage: 100}},
+			&gitlab.ListJobsOptions{ListOptions: gitlab.ListOptions{PerPage: glPageSize}},
 			gitlab.WithContext(ctx),
 			p,
 		)
@@ -514,7 +517,7 @@ func mapGitLabJobsError(err error, project string, id int) error {
 		statusCode = errResp.Response.StatusCode
 	}
 
-	if errors.Is(err, gitlab.ErrNotFound) || statusCode == http.StatusNotFound {
+	if errors.Is(err, gitlab.ErrNotFound) {
 		return fmt.Errorf("project %s or id %d: %w", project, id, gferrors.ErrNotFound)
 	}
 
@@ -592,10 +595,6 @@ func mapPipelineStatusToGitLab(status string) *gitlab.BuildStateValue {
 }
 
 func convertGitlabRepoToRepository(repo *gitlab.Project) *models.Repository {
-	if repo == nil {
-		return nil
-	}
-
 	return &models.Repository{
 		DefaultBranch: &repo.DefaultBranch,
 		Description:   &repo.Description,
@@ -610,7 +609,7 @@ func convertGitlabRepoToRepository(repo *gitlab.Project) *models.Repository {
 func newGitlabRepositoryListByOrgOptions(listOptions models.ListOptions) *gitlab.ListGroupProjectsOptions {
 	return &gitlab.ListGroupProjectsOptions{
 		ListOptions: gitlab.ListOptions{
-			PerPage: 100,
+			PerPage: glPageSize,
 		},
 		Search: listOptions.Name,
 	}
@@ -654,7 +653,7 @@ func (g *GitlabProvider) ListPullRequests(
 		gitlab.WithContext(ctx),
 	)
 	if err != nil {
-		if errors.Is(err, gitlab.ErrNotFound) || (resp != nil && resp.StatusCode == http.StatusNotFound) {
+		if errors.Is(err, gitlab.ErrNotFound) {
 			return nil, fmt.Errorf("project %s/%s: %w", owner, repo, gferrors.ErrNotFound)
 		}
 
