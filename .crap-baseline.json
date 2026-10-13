@@ -481,10 +481,10 @@
       "function": "*BitbucketService.ListBranches"
     },
     {
-      "coverage": 97.1,
-      "crap": 20,
-      "cyclomatic": 20,
-      "effective_crap": 20,
+      "coverage": 94.7,
+      "crap": 11,
+      "cyclomatic": 11,
+      "effective_crap": 11,
       "file": "internal/services/bitbucket/bitbucket.go",
       "function": "*BitbucketService.ListPipelines"
     },
@@ -538,11 +538,27 @@
     },
     {
       "coverage": 100,
+      "crap": 6,
+      "cyclomatic": 6,
+      "effective_crap": 6,
+      "file": "internal/services/bitbucket/bitbucket.go",
+      "function": "bitbucketPipelinesQuery"
+    },
+    {
+      "coverage": 100,
       "crap": 4,
       "cyclomatic": 4,
       "effective_crap": 4,
       "file": "internal/services/bitbucket/bitbucket.go",
       "function": "convertBitbucketPRState"
+    },
+    {
+      "coverage": 100,
+      "crap": 6,
+      "cyclomatic": 6,
+      "effective_crap": 6,
+      "file": "internal/services/bitbucket/bitbucket.go",
+      "function": "convertBitbucketPipeline"
     },
     {
       "coverage": 100,
