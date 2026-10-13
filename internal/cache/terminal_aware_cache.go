@@ -35,11 +35,6 @@ func (c *TerminalAwareCache[T]) Set(key string, value T, terminal bool) {
 }
 
 func (c *TerminalAwareCache[T]) Invalidate() {
-	for _, key := range c.done.ScanKeys() {
-		c.done.Delete(key)
-	}
-
-	for _, key := range c.live.ScanKeys() {
-		c.live.Delete(key)
-	}
+	purge(c.done)
+	purge(c.live)
 }

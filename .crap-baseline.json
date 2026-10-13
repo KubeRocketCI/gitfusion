@@ -361,18 +361,10 @@
       "function": "NewRepositoryCache"
     },
     {
-      "coverage": 0,
-      "crap": 2,
-      "cyclomatic": 1,
-      "effective_crap": 2,
-      "file": "internal/cache/manager.go",
-      "function": "*Manager.GetSupportedEndpoints"
-    },
-    {
       "coverage": 100,
-      "crap": 12,
-      "cyclomatic": 12,
-      "effective_crap": 12,
+      "crap": 2,
+      "cyclomatic": 2,
+      "effective_crap": 2,
       "file": "internal/cache/manager.go",
       "function": "*Manager.InvalidateCache"
     },
@@ -383,6 +375,14 @@
       "effective_crap": 1,
       "file": "internal/cache/manager.go",
       "function": "NewManager"
+    },
+    {
+      "coverage": 100,
+      "crap": 2,
+      "cyclomatic": 2,
+      "effective_crap": 2,
+      "file": "internal/cache/manager.go",
+      "function": "purge"
     },
     {
       "coverage": 100,
@@ -434,9 +434,9 @@
     },
     {
       "coverage": 100,
-      "crap": 3,
-      "cyclomatic": 3,
-      "effective_crap": 3,
+      "crap": 1,
+      "cyclomatic": 1,
+      "effective_crap": 1,
       "file": "internal/cache/terminal_aware_cache.go",
       "function": "*TerminalAwareCache[T].Invalidate"
     },
