@@ -5,6 +5,7 @@ import (
 
 	"github.com/viccon/sturdyc"
 
+	gferrors "github.com/KubeRocketCI/gitfusion/internal/errors"
 	"github.com/KubeRocketCI/gitfusion/internal/models"
 )
 
@@ -40,7 +41,7 @@ func NewManager(
 	}
 }
 
-// InvalidateCache invalidates the specified cache type.
+// InvalidateCache returns an error wrapping gferrors.ErrBadRequest when endpoint is unknown.
 func (m *Manager) InvalidateCache(endpoint string) error {
 	switch endpoint {
 	case "repositories":
@@ -85,7 +86,7 @@ func (m *Manager) InvalidateCache(endpoint string) error {
 
 		return nil
 	default:
-		return fmt.Errorf("unsupported endpoint: %s", endpoint)
+		return fmt.Errorf("unsupported endpoint %s: %w", endpoint, gferrors.ErrBadRequest)
 	}
 }
 
