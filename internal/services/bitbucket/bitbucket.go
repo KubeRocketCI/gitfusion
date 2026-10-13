@@ -531,15 +531,7 @@ func (b *BitbucketService) ListPipelines(
 		return nil, err
 	}
 
-	apiURL := fmt.Sprintf("%s/repositories/%s/%s/pipelines/",
-		defaultBitbucketAPIURL, url.PathEscape(workspace), url.PathEscape(repoSlug))
-
-	queryParams := url.Values{}
-	queryParams.Set("page", strconv.Itoa(opts.Page))
-	queryParams.Set("pagelen", strconv.Itoa(opts.PerPage))
-	queryParams.Set("sort", "-created_on")
-
-	// Handle "skipped" status early — Bitbucket has no equivalent
+	// Bitbucket has no "skipped" state.
 	if opts.Status != nil && *opts.Status == "skipped" {
 		return &models.PipelinesResponse{
 			Data: []models.Pipeline{},
@@ -551,30 +543,15 @@ func (b *BitbucketService) ListPipelines(
 		}, nil
 	}
 
-	var queryParts []string
-
-	if opts.Ref != nil && *opts.Ref != "" {
-		sanitizedRef := strings.ReplaceAll(*opts.Ref, `\`, `\\`)
-		sanitizedRef = strings.ReplaceAll(sanitizedRef, `"`, `\"`)
-		queryParts = append(queryParts, fmt.Sprintf(`target.ref_name="%s"`, sanitizedRef))
-	}
-
-	if opts.Status != nil {
-		if statusQuery := mapPipelineStatusToBitbucketQuery(*opts.Status); statusQuery != "" {
-			queryParts = append(queryParts, statusQuery)
-		}
-	}
-
-	if len(queryParts) > 0 {
-		queryParams.Set("q", strings.Join(queryParts, " AND "))
-	}
+	apiURL := fmt.Sprintf("%s/repositories/%s/%s/pipelines/",
+		defaultBitbucketAPIURL, url.PathEscape(workspace), url.PathEscape(repoSlug))
 
 	var bbResp bitbucketPipelinesResponse
 
 	resp, err := b.httpClient.R().
 		SetContext(ctx).
 		SetBasicAuth(username, password).
-		SetQueryParamsFromValues(queryParams).
+		SetQueryParamsFromValues(bitbucketPipelinesQuery(opts)).
 		SetResult(&bbResp).
 		Get(apiURL)
 	if err != nil {
@@ -596,38 +573,10 @@ func (b *BitbucketService) ListPipelines(
 
 	result := make([]models.Pipeline, 0, len(bbResp.Values))
 
-	for _, p := range bbResp.Values {
-		var resultName string
-		if p.State.Result != nil {
-			resultName = p.State.Result.Name
-		}
-
-		createdAt, err := time.Parse(time.RFC3339Nano, p.CreatedOn)
+	for i := range bbResp.Values {
+		pipeline, err := convertBitbucketPipeline(&bbResp.Values[i])
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse created_on time %q: %w", p.CreatedOn, err)
-		}
-
-		pipeline := models.Pipeline{
-			Id:        strings.Trim(p.UUID, "{}"),
-			Status:    normalizeBitbucketPipelineStatus(p.State.Name, resultName),
-			Ref:       p.Target.RefName,
-			Sha:       p.Target.Commit.Hash,
-			WebUrl:    p.Links.HTML.Href,
-			CreatedAt: createdAt,
-		}
-
-		if p.CompletedOn != "" {
-			completedAt, err := time.Parse(time.RFC3339Nano, p.CompletedOn)
-			if err != nil {
-				return nil, fmt.Errorf("failed to parse completed_on time %q: %w", p.CompletedOn, err)
-			}
-
-			pipeline.UpdatedAt = &completedAt
-		}
-
-		if p.Trigger.Name != "" {
-			source := normalizeBitbucketPipelineTrigger(p.Trigger.Name)
-			pipeline.Source = &source
+			return nil, err
 		}
 
 		result = append(result, pipeline)
@@ -641,6 +590,72 @@ func (b *BitbucketService) ListPipelines(
 			PerPage: &opts.PerPage,
 		},
 	}, nil
+}
+
+// bitbucketPipelinesQuery builds the pipelines query: newest first, filtered by ref and status.
+// Status "skipped" has no Bitbucket filter; ListPipelines returns before building the query.
+func bitbucketPipelinesQuery(opts models.PipelineListOptions) url.Values {
+	query := url.Values{}
+	query.Set("page", strconv.Itoa(opts.Page))
+	query.Set("pagelen", strconv.Itoa(opts.PerPage))
+	query.Set("sort", "-created_on")
+
+	var filters []string
+
+	if opts.Ref != nil && *opts.Ref != "" {
+		sanitizedRef := strings.ReplaceAll(*opts.Ref, `\`, `\\`)
+		sanitizedRef = strings.ReplaceAll(sanitizedRef, `"`, `\"`)
+		filters = append(filters, fmt.Sprintf(`target.ref_name="%s"`, sanitizedRef))
+	}
+
+	if opts.Status != nil {
+		if statusFilter := mapPipelineStatusToBitbucketQuery(*opts.Status); statusFilter != "" {
+			filters = append(filters, statusFilter)
+		}
+	}
+
+	if len(filters) > 0 {
+		query.Set("q", strings.Join(filters, " AND "))
+	}
+
+	return query
+}
+
+func convertBitbucketPipeline(p *bitbucketPipeline) (models.Pipeline, error) {
+	var resultName string
+	if p.State.Result != nil {
+		resultName = p.State.Result.Name
+	}
+
+	createdAt, err := time.Parse(time.RFC3339Nano, p.CreatedOn)
+	if err != nil {
+		return models.Pipeline{}, fmt.Errorf("failed to parse created_on time %q: %w", p.CreatedOn, err)
+	}
+
+	pipeline := models.Pipeline{
+		Id:        strings.Trim(p.UUID, "{}"),
+		Status:    normalizeBitbucketPipelineStatus(p.State.Name, resultName),
+		Ref:       p.Target.RefName,
+		Sha:       p.Target.Commit.Hash,
+		WebUrl:    p.Links.HTML.Href,
+		CreatedAt: createdAt,
+	}
+
+	if p.CompletedOn != "" {
+		completedAt, err := time.Parse(time.RFC3339Nano, p.CompletedOn)
+		if err != nil {
+			return models.Pipeline{}, fmt.Errorf("failed to parse completed_on time %q: %w", p.CompletedOn, err)
+		}
+
+		pipeline.UpdatedAt = &completedAt
+	}
+
+	if p.Trigger.Name != "" {
+		source := normalizeBitbucketPipelineTrigger(p.Trigger.Name)
+		pipeline.Source = &source
+	}
+
+	return pipeline, nil
 }
 
 // normalizeBitbucketPipelineStatus maps Bitbucket pipeline state and result to the unified status enum.
