@@ -337,26 +337,26 @@
       "function": "initk8sClient"
     },
     {
-      "coverage": 0,
-      "crap": 2,
+      "coverage": 100,
+      "crap": 1,
       "cyclomatic": 1,
-      "effective_crap": 2,
+      "effective_crap": 1,
       "file": "internal/cache/branch_cache.go",
       "function": "NewBranchCache"
     },
     {
-      "coverage": 0,
-      "crap": 2,
+      "coverage": 100,
+      "crap": 1,
       "cyclomatic": 1,
-      "effective_crap": 2,
+      "effective_crap": 1,
       "file": "internal/cache/cache.go",
       "function": "NewOrganizationCache"
     },
     {
-      "coverage": 0,
-      "crap": 2,
+      "coverage": 100,
+      "crap": 1,
       "cyclomatic": 1,
-      "effective_crap": 2,
+      "effective_crap": 1,
       "file": "internal/cache/cache.go",
       "function": "NewRepositoryCache"
     },
@@ -369,18 +369,18 @@
       "function": "*Manager.GetSupportedEndpoints"
     },
     {
-      "coverage": 0,
-      "crap": 156,
+      "coverage": 100,
+      "crap": 12,
       "cyclomatic": 12,
-      "effective_crap": 156,
+      "effective_crap": 12,
       "file": "internal/cache/manager.go",
       "function": "*Manager.InvalidateCache"
     },
     {
-      "coverage": 0,
-      "crap": 2,
+      "coverage": 100,
+      "crap": 1,
       "cyclomatic": 1,
-      "effective_crap": 2,
+      "effective_crap": 1,
       "file": "internal/cache/manager.go",
       "function": "NewManager"
     },
