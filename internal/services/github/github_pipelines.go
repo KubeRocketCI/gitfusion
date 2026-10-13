@@ -31,7 +31,7 @@ func (g *GitHubProvider) ListPipelines(
 		return nil, err
 	}
 
-	client := github.NewClient(g.httpClient).WithAuthToken(settings.Token)
+	client := g.newClient(settings)
 
 	ghOpts := &github.ListWorkflowRunsOptions{
 		ListOptions: github.ListOptions{
