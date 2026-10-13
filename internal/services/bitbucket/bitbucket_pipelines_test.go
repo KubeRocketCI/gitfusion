@@ -12,8 +12,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	gferrors "github.com/KubeRocketCI/gitfusion/internal/errors"
 	"github.com/KubeRocketCI/gitfusion/internal/models"
 	"github.com/KubeRocketCI/gitfusion/internal/services/krci"
+	"github.com/KubeRocketCI/gitfusion/pkg/pointer"
 )
 
 func TestNormalizeBitbucketPipelineStatus(t *testing.T) {
@@ -262,49 +264,65 @@ func TestBitbucketServiceListPipelinesMultipleStatuses(t *testing.T) {
 	assert.Equal(t, models.PipelineSourceManual, *result.Data[2].Source)
 }
 
-func TestBitbucketServiceListPipelinesFilterParams(t *testing.T) {
-	var capturedReq *http.Request
+const bitbucketPipelinesRoute = "GET /2.0/repositories/owner/repo/pipelines/"
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		capturedReq = r
+func listBitbucketPipelines(
+	t *testing.T, mux *http.ServeMux, opts models.PipelineListOptions,
+) (*models.PipelinesResponse, error) {
+	t.Helper()
 
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
+	return newBitbucketTestService(t, mux).ListPipelines(context.Background(), "owner/repo", bitbucketTestSettings(), opts)
+}
 
-		resp := bitbucketPipelinesResponse{Size: 0, Page: 1, Pagelen: 20, Values: []bitbucketPipeline{}}
-		body, _ := json.Marshal(resp)
-		_, _ = w.Write(body)
-	}))
-	defer server.Close()
-
-	svc := &BitbucketService{
-		httpClient: resty.New().SetTransport(&redirectTransport{
-			target:  server.URL,
-			wrapped: http.DefaultTransport,
-		}),
+func TestBitbucketServiceListPipelinesFilterQuery(t *testing.T) {
+	tests := []struct {
+		name  string
+		opts  models.PipelineListOptions
+		wantQ []string
+	}{
+		{
+			name:  "ref and status",
+			opts:  models.PipelineListOptions{Ref: pointer.To("main"), Status: pointer.To("success")},
+			wantQ: []string{`target.ref_name="main" AND state.result.name="SUCCESSFUL"`},
+		},
+		{
+			name:  "ref only",
+			opts:  models.PipelineListOptions{Ref: pointer.To("main")},
+			wantQ: []string{`target.ref_name="main"`},
+		},
+		{
+			name:  "status only",
+			opts:  models.PipelineListOptions{Status: pointer.To("running")},
+			wantQ: []string{`state.name="IN_PROGRESS"`},
+		},
+		{name: "status without a Bitbucket filter", opts: models.PipelineListOptions{Status: pointer.To("unknown")}},
+		{name: "empty ref", opts: models.PipelineListOptions{Ref: pointer.To("")}},
+		{name: "no filters"},
 	}
 
-	ref := "main"
-	status := "success"
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var gotQ []string
 
-	_, err := svc.ListPipelines(
-		context.Background(),
-		"owner/repo",
-		krci.GitServerSettings{Token: testBitbucketToken()},
-		models.PipelineListOptions{
-			Ref:     &ref,
-			Status:  &status,
-			Page:    1,
-			PerPage: 20,
-		},
-	)
+			mux := http.NewServeMux()
+			mux.HandleFunc(bitbucketPipelinesRoute, func(w http.ResponseWriter, r *http.Request) {
+				assertBitbucketTestAuth(t, r)
 
-	require.NoError(t, err)
-	require.NotNil(t, capturedReq)
+				gotQ = r.URL.Query()["q"]
 
-	q := capturedReq.URL.Query().Get("q")
-	assert.Contains(t, q, `target.ref_name="main"`)
-	assert.Contains(t, q, `state.result.name="SUCCESSFUL"`)
+				writeBitbucketJSON(t, w, http.StatusOK, map[string]any{"size": 0, "values": []any{}})
+			})
+
+			opts := tt.opts
+			opts.Page, opts.PerPage = 1, 20
+
+			result, err := listBitbucketPipelines(t, mux, opts)
+
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantQ, gotQ)
+			assert.Equal(t, []models.Pipeline{}, result.Data)
+		})
+	}
 }
 
 func TestBitbucketServiceListPipelinesRefSanitization(t *testing.T) {
@@ -396,58 +414,30 @@ func TestBitbucketServiceListPipelinesRefBackslashSanitization(t *testing.T) {
 	assert.Contains(t, q, `target.ref_name="main\\"`)
 }
 
-func TestBitbucketServiceListPipelinesNotFound(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusNotFound)
-		_, _ = w.Write([]byte(`{"error":{"message":"Repository not found"}}`))
-	}))
-	defer server.Close()
-
-	svc := &BitbucketService{
-		httpClient: resty.New().SetTransport(&redirectTransport{
-			target:  server.URL,
-			wrapped: http.DefaultTransport,
-		}),
-	}
-
-	result, err := svc.ListPipelines(
-		context.Background(),
-		"nonexistent/project",
-		krci.GitServerSettings{Token: testBitbucketToken()},
-		models.PipelineListOptions{Page: 1, PerPage: 20},
+func TestBitbucketServiceListPipelinesMapsAPIErrors(t *testing.T) {
+	tests := append(
+		bitbucketErrorCases("project owner/repo", "failed to list pipelines for owner/repo: status 400"),
+		bitbucketErrorCase{
+			name: "unauthorized", status: http.StatusUnauthorized,
+			wantErrIs: gferrors.ErrUnauthorized, wantErr: "invalid credentials",
+		},
+		bitbucketErrorCase{
+			name: "server error", status: http.StatusInternalServerError,
+			wantErr: "failed to list pipelines for owner/repo: status 500",
+		},
 	)
 
-	assert.Error(t, err)
-	assert.Nil(t, result)
-	assert.Contains(t, err.Error(), "not found")
-}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mux := http.NewServeMux()
+			mux.HandleFunc(bitbucketPipelinesRoute, bitbucketErrorHandler(t, tt.status))
 
-func TestBitbucketServiceListPipelinesUnauthorized(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusUnauthorized)
-		_, _ = w.Write([]byte(`{"error":{"message":"Unauthorized"}}`))
-	}))
-	defer server.Close()
+			result, err := listBitbucketPipelines(t, mux, models.PipelineListOptions{Page: 1, PerPage: 20})
 
-	svc := &BitbucketService{
-		httpClient: resty.New().SetTransport(&redirectTransport{
-			target:  server.URL,
-			wrapped: http.DefaultTransport,
-		}),
+			assert.Nil(t, result)
+			assertBitbucketError(t, err, tt)
+		})
 	}
-
-	result, err := svc.ListPipelines(
-		context.Background(),
-		"owner/repo",
-		krci.GitServerSettings{Token: testBitbucketToken()},
-		models.PipelineListOptions{Page: 1, PerPage: 20},
-	)
-
-	assert.Error(t, err)
-	assert.Nil(t, result)
-	assert.Contains(t, err.Error(), "unauthorized")
 }
 
 func TestBitbucketServiceListPipelinesPagination(t *testing.T) {
@@ -509,25 +499,17 @@ func TestBitbucketServiceListPipelinesInvalidProject(t *testing.T) {
 }
 
 func TestBitbucketServiceListPipelinesSkippedStatus(t *testing.T) {
-	svc := &BitbucketService{httpClient: resty.New()}
-
-	status := "skipped"
-
-	result, err := svc.ListPipelines(
-		context.Background(),
-		"owner/repo",
-		krci.GitServerSettings{Token: testBitbucketToken()},
-		models.PipelineListOptions{
-			Status:  &status,
-			Page:    1,
-			PerPage: 20,
-		},
-	)
+	result, err := listBitbucketPipelines(t, http.NewServeMux(), models.PipelineListOptions{
+		Status:  pointer.To("skipped"),
+		Page:    2,
+		PerPage: 5,
+	})
 
 	require.NoError(t, err)
-	require.NotNil(t, result)
-	assert.Empty(t, result.Data)
-	assert.Equal(t, 0, result.Pagination.Total)
+	assert.Equal(t, &models.PipelinesResponse{
+		Data:       []models.Pipeline{},
+		Pagination: models.Pagination{Total: 0, Page: pointer.To(2), PerPage: pointer.To(5)},
+	}, result)
 }
 
 func TestBitbucketServiceListPipelinesInvalidToken(t *testing.T) {
@@ -583,6 +565,28 @@ func TestBitbucketServiceListPipelinesInvalidTimestamp(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to parse created_on time")
+}
+
+func TestBitbucketServiceListPipelinesInvalidCompletedOn(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc(bitbucketPipelinesRoute, func(w http.ResponseWriter, r *http.Request) {
+		assertBitbucketTestAuth(t, r)
+		writeBitbucketJSON(t, w, http.StatusOK, map[string]any{
+			"size": 1,
+			"values": []map[string]any{{
+				"uuid":         "{p1}",
+				"state":        map[string]any{"name": "COMPLETED", "result": map[string]any{"name": "SUCCESSFUL"}},
+				"created_on":   "2026-01-15T10:30:00Z",
+				"completed_on": "not-a-timestamp",
+			}},
+		})
+	})
+
+	result, err := listBitbucketPipelines(t, mux, models.PipelineListOptions{Page: 1, PerPage: 20})
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `failed to parse completed_on time "not-a-timestamp"`)
+	assert.Nil(t, result)
 }
 
 func TestBitbucketServiceTriggerPipelineUnsupported(t *testing.T) {
