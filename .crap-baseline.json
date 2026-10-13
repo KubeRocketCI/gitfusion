@@ -41,26 +41,26 @@
       "function": "NewBranchHandler"
     },
     {
-      "coverage": 0,
-      "crap": 6,
+      "coverage": 100,
+      "crap": 2,
       "cyclomatic": 2,
-      "effective_crap": 6,
+      "effective_crap": 2,
       "file": "internal/api/cache_handler.go",
       "function": "*CacheHandler.InvalidateCache"
     },
     {
-      "coverage": 0,
-      "crap": 12,
-      "cyclomatic": 3,
-      "effective_crap": 12,
+      "coverage": 66.7,
+      "crap": 2.1,
+      "cyclomatic": 2,
+      "effective_crap": 2.1,
       "file": "internal/api/cache_handler.go",
       "function": "*CacheHandler.errResponse"
     },
     {
-      "coverage": 0,
-      "crap": 2,
+      "coverage": 100,
+      "crap": 1,
       "cyclomatic": 1,
-      "effective_crap": 2,
+      "effective_crap": 1,
       "file": "internal/api/cache_handler.go",
       "function": "NewCacheHandler"
     },

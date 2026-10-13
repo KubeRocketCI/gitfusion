@@ -2,9 +2,11 @@ package api
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/KubeRocketCI/gitfusion/internal/cache"
+	gferrors "github.com/KubeRocketCI/gitfusion/internal/errors"
 )
 
 // CacheHandler handles cache management requests.
@@ -36,21 +38,15 @@ func (c *CacheHandler) InvalidateCache(
 	}, nil
 }
 
-// errResponse handles error responses for cache operations.
+// errResponse must only be called when err is not nil.
 func (c *CacheHandler) errResponse(err error) InvalidateCacheResponseObject {
-	if err == nil {
-		return InvalidateCache200JSONResponse{}
-	}
-
-	// Check if it's an unsupported endpoint error (validation error)
-	if err.Error() == "unsupported endpoint" {
+	if errors.Is(err, gferrors.ErrBadRequest) {
 		return InvalidateCache400JSONResponse{
 			Code:    "invalid_endpoint",
 			Message: err.Error(),
 		}
 	}
 
-	// Default to 500 internal server error
 	return InvalidateCache500JSONResponse{
 		Code:    "internal_error",
 		Message: err.Error(),
