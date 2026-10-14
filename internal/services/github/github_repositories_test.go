@@ -6,8 +6,11 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
+	"time"
 
+	"github.com/google/go-github/v72/github"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -60,20 +63,24 @@ type gitHubErrorCase struct {
 }
 
 // gitHubErrorCases covers the statuses mapped to domain sentinels and one passed through as a generic error.
-func gitHubErrorCases(sentinelMsg, genericMsg string) []gitHubErrorCase {
+// msg is the prefix every case expects.
+func gitHubErrorCases(msg string) []gitHubErrorCase {
 	return []gitHubErrorCase{
-		{name: "not found", status: http.StatusNotFound, wantErrIs: gferrors.ErrNotFound, wantErr: sentinelMsg},
-		{name: "unauthorized", status: http.StatusUnauthorized, wantErrIs: gferrors.ErrUnauthorized, wantErr: sentinelMsg},
-		{name: "other API error", status: http.StatusForbidden, wantErr: genericMsg},
+		{name: "not found", status: http.StatusNotFound, wantErrIs: gferrors.ErrNotFound, wantErr: msg},
+		{name: "unauthorized", status: http.StatusUnauthorized, wantErrIs: gferrors.ErrUnauthorized, wantErr: msg},
+		{name: "forbidden", status: http.StatusForbidden, wantErrIs: gferrors.ErrUnauthorized, wantErr: msg},
+		{name: "other API error", status: http.StatusInternalServerError, wantErr: msg},
 	}
 }
 
-// assertGitHubError checks the wrapped message and that only the sentinel statuses map to a domain error.
+// assertGitHubError checks the wrapped message, the upstream error text, and that only the sentinel statuses
+// map to a domain error.
 func assertGitHubError(t *testing.T, err error, tc gitHubErrorCase) {
 	t.Helper()
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), tc.wantErr)
+	assert.Contains(t, err.Error(), fmt.Sprintf("%d %s", tc.status, http.StatusText(tc.status)))
 
 	if tc.wantErrIs != nil {
 		assert.ErrorIs(t, err, tc.wantErrIs)
@@ -169,7 +176,7 @@ func TestGitHubProviderGetRepositoryWithoutOptionalFields(t *testing.T) {
 }
 
 func TestGitHubProviderGetRepositoryErrors(t *testing.T) {
-	tests := gitHubErrorCases("repository owner/repo", "failed to get repository owner/repo")
+	tests := gitHubErrorCases("failed to get repository owner/repo")
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -184,6 +191,55 @@ func TestGitHubProviderGetRepositoryErrors(t *testing.T) {
 			assertGitHubError(t, err, tt)
 		})
 	}
+}
+
+func TestGitHubProviderGetRepositoryRateLimited(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /repos/owner/repo", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("X-RateLimit-Limit", "60")
+		w.Header().Set("X-RateLimit-Remaining", "0")
+		w.Header().Set("X-RateLimit-Reset", strconv.FormatInt(time.Now().Add(time.Hour).Unix(), 10))
+		writeGitHubJSON(t, w, http.StatusForbidden, map[string]string{"message": "API rate limit exceeded"})
+	})
+
+	provider := newGitHubTestServer(t, mux)
+
+	got, err := provider.GetRepository(context.Background(), "owner", "repo", krci.GitServerSettings{})
+
+	assert.Nil(t, got)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to get repository owner/repo")
+	assert.NotErrorIs(t, err, gferrors.ErrUnauthorized)
+	assert.NotErrorIs(t, err, gferrors.ErrNotFound)
+
+	var rateLimitErr *github.RateLimitError
+
+	assert.ErrorAs(t, err, &rateLimitErr)
+}
+
+func TestGitHubProviderGetRepositorySecondaryRateLimited(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /repos/owner/repo", func(w http.ResponseWriter, _ *http.Request) {
+		writeGitHubJSON(t, w, http.StatusForbidden, map[string]string{
+			"message": "You have exceeded a secondary rate limit",
+			"documentation_url": "https://docs.github.com/rest/overview/" +
+				"rate-limits-for-the-rest-api#about-secondary-rate-limits",
+		})
+	})
+
+	provider := newGitHubTestServer(t, mux)
+
+	got, err := provider.GetRepository(context.Background(), "owner", "repo", krci.GitServerSettings{})
+
+	assert.Nil(t, got)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to get repository owner/repo")
+	assert.NotErrorIs(t, err, gferrors.ErrUnauthorized)
+	assert.NotErrorIs(t, err, gferrors.ErrNotFound)
+
+	var abuseErr *github.AbuseRateLimitError
+
+	assert.ErrorAs(t, err, &abuseErr)
 }
 
 func TestGitHubProviderListRepositoriesForOrganization(t *testing.T) {
@@ -233,7 +289,7 @@ func TestGitHubProviderListRepositoriesForUser(t *testing.T) {
 }
 
 func TestGitHubProviderListRepositoriesErrors(t *testing.T) {
-	tests := gitHubErrorCases("organization or user ghost", "failed to list repositories for org ghost")
+	tests := gitHubErrorCases("failed to list repositories for org ghost")
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -269,7 +325,7 @@ func TestGitHubProviderListBranches(t *testing.T) {
 }
 
 func TestGitHubProviderListBranchesErrors(t *testing.T) {
-	tests := gitHubErrorCases("repository owner/repo", "failed to list branches")
+	tests := gitHubErrorCases("failed to list branches")
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -331,45 +387,40 @@ func TestGitHubProviderListUserOrganizations(t *testing.T) {
 }
 
 func TestGitHubProviderListUserOrganizationsErrors(t *testing.T) {
-	healthyMemberships := func(t *testing.T) http.HandlerFunc {
-		return pagedGitHubHandler(t, []any{
-			map[string]any{"organization": map[string]any{"id": int64(1), "login": "acme"}},
-		})
-	}
-
-	tests := []struct {
-		name        string
-		user        func(t *testing.T) http.HandlerFunc
-		memberships func(t *testing.T) http.HandlerFunc
-		wantErr     string
+	endpoints := []struct {
+		name     string
+		failUser bool
+		msg      string
 	}{
-		{
-			name:        "current user request fails",
-			user:        func(t *testing.T) http.HandlerFunc { return gitHubErrorHandler(t, http.StatusUnauthorized) },
-			memberships: healthyMemberships,
-			wantErr:     "failed to get current user",
-		},
-		{
-			name:        "organization memberships request fails",
-			user:        currentGitHubUserHandler,
-			memberships: func(t *testing.T) http.HandlerFunc { return gitHubErrorHandler(t, http.StatusForbidden) },
-			wantErr:     "failed to list organizations",
-		},
+		{name: "current user", failUser: true, msg: "failed to get current user"},
+		{name: "organization memberships", msg: "failed to list organizations"},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			mux := http.NewServeMux()
-			mux.HandleFunc("GET /user", tt.user(t))
-			mux.HandleFunc("GET /user/memberships/orgs", tt.memberships(t))
+	for _, endpoint := range endpoints {
+		for _, tt := range gitHubErrorCases(endpoint.msg) {
+			t.Run(endpoint.name+"/"+tt.name, func(t *testing.T) {
+				user := currentGitHubUserHandler(t)
+				memberships := pagedGitHubHandler(t, []any{
+					map[string]any{"organization": map[string]any{"id": int64(1), "login": "acme"}},
+				})
 
-			provider := newGitHubTestServer(t, mux)
+				if endpoint.failUser {
+					user = gitHubErrorHandler(t, tt.status)
+				} else {
+					memberships = gitHubErrorHandler(t, tt.status)
+				}
 
-			got, err := provider.ListUserOrganizations(context.Background(), krci.GitServerSettings{})
+				mux := http.NewServeMux()
+				mux.HandleFunc("GET /user", user)
+				mux.HandleFunc("GET /user/memberships/orgs", memberships)
 
-			require.Error(t, err)
-			assert.Nil(t, got)
-			assert.Contains(t, err.Error(), tt.wantErr)
-		})
+				provider := newGitHubTestServer(t, mux)
+
+				got, err := provider.ListUserOrganizations(context.Background(), krci.GitServerSettings{})
+
+				assert.Nil(t, got)
+				assertGitHubError(t, err, tt)
+			})
+		}
 	}
 }

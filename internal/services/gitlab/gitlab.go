@@ -73,8 +73,8 @@ func (g *GitlabProvider) GetRepository(
 		gitlab.WithContext(ctx),
 	)
 	if err != nil {
-		if errors.Is(err, gitlab.ErrNotFound) {
-			return nil, fmt.Errorf("repository %s/%s %w", owner, repo, gferrors.ErrNotFound)
+		if sentinel := classifyGitLabError(err); sentinel != nil {
+			return nil, fmt.Errorf("repository %s/%s: %w: %w", owner, repo, sentinel, err)
 		}
 
 		return nil, err
@@ -107,8 +107,8 @@ func (g *GitlabProvider) ListRepositories(
 
 	for repo, err := range it {
 		if err != nil {
-			if errors.Is(err, gitlab.ErrNotFound) {
-				return nil, fmt.Errorf("owner %s %w", owner, gferrors.ErrNotFound)
+			if sentinel := classifyGitLabError(err); sentinel != nil {
+				return nil, fmt.Errorf("owner %s: %w: %w", owner, sentinel, err)
 			}
 
 			return nil, err
@@ -138,21 +138,29 @@ func (g *GitlabProvider) ListUserOrganizations(
 
 	for group, err := range it {
 		if err != nil {
+			if sentinel := classifyGitLabError(err); sentinel != nil {
+				return nil, fmt.Errorf("groups: %w: %w", sentinel, err)
+			}
+
 			return nil, fmt.Errorf("failed to list groups: %w", err)
 		}
 
-		org := models.Organization{
-			Id:   strconv.Itoa(group.ID),
-			Name: group.FullPath,
-		}
-		if group.AvatarURL != "" {
-			org.AvatarUrl = &group.AvatarURL
-		}
-
-		result = append(result, org)
+		result = append(result, convertGitlabGroupToOrganization(group))
 	}
 
 	return result, nil
+}
+
+func convertGitlabGroupToOrganization(group *gitlab.Group) models.Organization {
+	org := models.Organization{
+		Id:   strconv.Itoa(group.ID),
+		Name: group.FullPath,
+	}
+	if group.AvatarURL != "" {
+		org.AvatarUrl = &group.AvatarURL
+	}
+
+	return org
 }
 
 // ListBranches implements BranchesProvider for GitlabService.
@@ -180,8 +188,8 @@ func (g *GitlabProvider) ListBranches(
 
 	for b, err := range it {
 		if err != nil {
-			if errors.Is(err, gitlab.ErrNotFound) {
-				return nil, fmt.Errorf("project %s/%s: %w", owner, repo, gferrors.ErrNotFound)
+			if sentinel := classifyGitLabError(err); sentinel != nil {
+				return nil, fmt.Errorf("project %s/%s: %w: %w", owner, repo, sentinel, err)
 			}
 
 			return nil, fmt.Errorf("failed to list branches for %s/%s: %w", owner, repo, err)
@@ -214,19 +222,15 @@ func (g *GitlabProvider) TriggerPipeline(
 		Variables: convertToPipelineVariables(variables),
 	}
 
-	pipeline, resp, err := client.Pipelines.CreatePipeline(
+	pipeline, _, err := client.Pipelines.CreatePipeline(
 		project,
 		opts,
 		gitlab.WithContext(ctx),
 	)
 
 	if err != nil {
-		if errors.Is(err, gitlab.ErrNotFound) {
-			return nil, fmt.Errorf("project %s or ref %s: %w", project, ref, gferrors.ErrNotFound)
-		}
-
-		if resp != nil && (resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden) {
-			return nil, fmt.Errorf("invalid credentials: %w", gferrors.ErrUnauthorized)
+		if sentinel := classifyGitLabError(err); sentinel != nil {
+			return nil, fmt.Errorf("project %s or ref %s: %w: %w", project, ref, sentinel, err)
 		}
 
 		return nil, fmt.Errorf("create pipeline for %s ref %s: %w", project, ref, err)
@@ -281,12 +285,8 @@ func (g *GitlabProvider) ListPipelines(
 		gitlab.WithContext(ctx),
 	)
 	if err != nil {
-		if errors.Is(err, gitlab.ErrNotFound) {
-			return nil, fmt.Errorf("project %s: %w", project, gferrors.ErrNotFound)
-		}
-
-		if resp != nil && (resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden) {
-			return nil, fmt.Errorf("invalid credentials: %w", gferrors.ErrUnauthorized)
+		if sentinel := classifyGitLabError(err); sentinel != nil {
+			return nil, fmt.Errorf("project %s: %w: %w", project, sentinel, err)
 		}
 
 		return nil, fmt.Errorf("failed to list pipelines for %s: %w", project, err)
@@ -457,9 +457,9 @@ func (g *GitlabProvider) GetJobTrace(
 func mapGitLabTraceStatus(statusCode int, project string, jobID int) error {
 	switch statusCode {
 	case http.StatusNotFound:
-		return fmt.Errorf("project %s or job %d: %w", project, jobID, gferrors.ErrNotFound)
+		return fmt.Errorf("project %s or job %d: %w: status %d", project, jobID, gferrors.ErrNotFound, statusCode)
 	case http.StatusUnauthorized, http.StatusForbidden:
-		return fmt.Errorf("invalid credentials: %w", gferrors.ErrUnauthorized)
+		return fmt.Errorf("invalid credentials: %w: status %d", gferrors.ErrUnauthorized, statusCode)
 	default:
 		return fmt.Errorf("gitlab trace request failed for %s job %d: status %d", project, jobID, statusCode)
 	}
@@ -507,25 +507,36 @@ func mapGitLabJob(j *gitlab.Job) models.PipelineJob {
 
 // mapGitLabJobsError maps go-gitlab errors to GitFusion sentinel errors for jobs/trace.
 func mapGitLabJobsError(err error, project string, id int) error {
-	// gitlab.Scan2 does not surface the *gitlab.Response, so recover the HTTP status
-	// from the error itself — otherwise 401/403 from a paginated call (ListPipelineJobs)
-	// would fall through to a generic 500 instead of the correct credentials error.
-	statusCode := 0
-
-	var errResp *gitlab.ErrorResponse
-	if errors.As(err, &errResp) && errResp.Response != nil {
-		statusCode = errResp.Response.StatusCode
-	}
-
-	if errors.Is(err, gitlab.ErrNotFound) {
-		return fmt.Errorf("project %s or id %d: %w", project, id, gferrors.ErrNotFound)
-	}
-
-	if statusCode == http.StatusUnauthorized || statusCode == http.StatusForbidden {
-		return fmt.Errorf("invalid credentials: %w", gferrors.ErrUnauthorized)
+	if sentinel := classifyGitLabError(err); sentinel != nil {
+		return fmt.Errorf("project %s or id %d: %w: %w", project, id, sentinel, err)
 	}
 
 	return fmt.Errorf("gitlab jobs request failed for %s id %d: %w", project, id, err)
+}
+
+// classifyGitLabError returns gferrors.ErrNotFound for gitlab.ErrNotFound, gferrors.ErrUnauthorized for a
+// GitLab 401 or 403 response, and nil for any other error.
+func classifyGitLabError(err error) error {
+	switch {
+	case errors.Is(err, gitlab.ErrNotFound):
+		return gferrors.ErrNotFound
+	case isGitLabUnauthorized(err):
+		return gferrors.ErrUnauthorized
+	default:
+		return nil
+	}
+}
+
+// isGitLabUnauthorized reports whether err carries a GitLab 401 or 403 response.
+// The status is read from the *gitlab.ErrorResponse in the chain; gitlab.Scan2 yields only the error.
+func isGitLabUnauthorized(err error) bool {
+	var errResp *gitlab.ErrorResponse
+	if !errors.As(err, &errResp) {
+		return false
+	}
+
+	return errResp.Response.StatusCode == http.StatusUnauthorized ||
+		errResp.Response.StatusCode == http.StatusForbidden
 }
 
 // normalizeGitLabPipelineStatus maps GitLab pipeline status strings to the unified status enum.
@@ -653,12 +664,8 @@ func (g *GitlabProvider) ListPullRequests(
 		gitlab.WithContext(ctx),
 	)
 	if err != nil {
-		if errors.Is(err, gitlab.ErrNotFound) {
-			return nil, fmt.Errorf("project %s/%s: %w", owner, repo, gferrors.ErrNotFound)
-		}
-
-		if resp != nil && (resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden) {
-			return nil, fmt.Errorf("invalid credentials: %w", gferrors.ErrUnauthorized)
+		if sentinel := classifyGitLabError(err); sentinel != nil {
+			return nil, fmt.Errorf("project %s/%s: %w: %w", owner, repo, sentinel, err)
 		}
 
 		return nil, fmt.Errorf("failed to list merge requests for %s/%s: %w", owner, repo, err)

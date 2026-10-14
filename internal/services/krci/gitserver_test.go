@@ -15,6 +15,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+
+	gferrors "github.com/KubeRocketCI/gitfusion/internal/errors"
 )
 
 const testNamespace = "krci"
@@ -53,6 +55,15 @@ type failingListClient struct {
 }
 
 func (c failingListClient) List(context.Context, client.ObjectList, ...client.ListOption) error {
+	return c.err
+}
+
+type failingGetClient struct {
+	client.Client
+	err error
+}
+
+func (c failingGetClient) Get(context.Context, client.ObjectKey, client.Object, ...client.GetOption) error {
 	return c.err
 }
 
@@ -97,6 +108,37 @@ func TestGetGitProviderSettings_CachesAcrossCalls(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, s1, s2)
 	assert.Equal(t, 2, cc.gets, "second call within TTL must be served from cache (no extra k8s reads)")
+}
+
+func TestGetGitProviderSettings_MissingGitServerIsErrNotFound(t *testing.T) {
+	svc, _ := newTestService(t)
+
+	_, err := svc.GetGitProviderSettings(context.Background(), "missing")
+
+	require.ErrorIs(t, err, gferrors.ErrNotFound)
+	assert.True(t, apierrors.IsNotFound(err), "expected the GitServer NotFound error to stay in the chain, got: %v", err)
+	assert.Contains(t, err.Error(), `git server missing`)
+}
+
+func TestGetGitProviderSettings_MissingSecretIsNotErrNotFound(t *testing.T) {
+	gs, _ := gitServerFixture()
+	svc, _ := newTestService(t, gs)
+
+	_, err := svc.GetGitProviderSettings(context.Background(), "gitlab")
+
+	require.Error(t, err)
+	assert.NotErrorIs(t, err, gferrors.ErrNotFound)
+	assert.True(t, apierrors.IsNotFound(err), "expected the secret NotFound error, got: %v", err)
+}
+
+func TestGetGitProviderSettings_GitServerLookupFailureIsNotErrNotFound(t *testing.T) {
+	getErr := errors.New("api server unavailable")
+	svc := NewGitServerService(failingGetClient{err: getErr}, testNamespace)
+
+	_, err := svc.GetGitProviderSettings(context.Background(), "gitlab")
+
+	require.ErrorIs(t, err, getErr)
+	assert.NotErrorIs(t, err, gferrors.ErrNotFound)
 }
 
 func TestGetGitProviderSettings_DoesNotCacheNotFound(t *testing.T) {

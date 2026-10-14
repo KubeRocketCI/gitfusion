@@ -367,7 +367,9 @@ func TestGitHubProviderListPipelinesNotFound(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "failed to list pipelines for nonexistent/project")
 	assert.Contains(t, err.Error(), "not found")
+	assert.Contains(t, err.Error(), "404 Not Found")
 }
 
 func TestGitHubProviderListPipelinesUnauthorized(t *testing.T) {
@@ -394,7 +396,9 @@ func TestGitHubProviderListPipelinesUnauthorized(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "failed to list pipelines for owner/repo")
 	assert.Contains(t, err.Error(), "unauthorized")
+	assert.Contains(t, err.Error(), "401 Bad credentials")
 }
 
 func TestGitHubProviderTriggerPipelineUnsupported(t *testing.T) {

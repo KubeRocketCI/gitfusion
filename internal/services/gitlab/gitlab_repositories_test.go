@@ -3,6 +3,7 @@ package gitlab
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	gitlab "gitlab.com/gitlab-org/api/client-go"
 
 	gferrors "github.com/KubeRocketCI/gitfusion/internal/errors"
 	"github.com/KubeRocketCI/gitfusion/internal/models"
@@ -95,22 +97,41 @@ type gitlabErrorCase struct {
 	wantErr   string
 }
 
-// assertGitlabError checks that err contains tc.wantErr and matches tc.wantErrIs; with no wantErrIs it matches neither
-// ErrNotFound nor ErrUnauthorized.
+// assertGitlabResponseStatus checks that err wraps a go-gitlab error response with the given HTTP status.
+func assertGitlabResponseStatus(t *testing.T, err error, status int) {
+	t.Helper()
+
+	var errResp *gitlab.ErrorResponse
+
+	require.ErrorAs(t, err, &errResp)
+	require.NotNil(t, errResp.Response)
+	assert.Equal(t, status, errResp.Response.StatusCode)
+}
+
+// assertGitlabError checks that err contains tc.wantErr and matches tc.wantErrIs.
+// ErrNotFound must also wrap gitlab.ErrNotFound; ErrUnauthorized must also wrap the go-gitlab error response with
+// status tc.status. With no wantErrIs the error matches neither ErrNotFound nor ErrUnauthorized.
 func assertGitlabError(t *testing.T, err error, tc gitlabErrorCase) {
 	t.Helper()
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), tc.wantErr)
 
-	if tc.wantErrIs != nil {
-		assert.ErrorIs(t, err, tc.wantErrIs)
+	if tc.wantErrIs == nil {
+		assert.NotErrorIs(t, err, gferrors.ErrNotFound)
+		assert.NotErrorIs(t, err, gferrors.ErrUnauthorized)
 
 		return
 	}
 
-	assert.NotErrorIs(t, err, gferrors.ErrNotFound)
-	assert.NotErrorIs(t, err, gferrors.ErrUnauthorized)
+	assert.ErrorIs(t, err, tc.wantErrIs)
+
+	switch {
+	case errors.Is(tc.wantErrIs, gferrors.ErrNotFound):
+		assert.ErrorIs(t, err, gitlab.ErrNotFound)
+	case errors.Is(tc.wantErrIs, gferrors.ErrUnauthorized):
+		assertGitlabResponseStatus(t, err, tc.status)
+	}
 }
 
 // gitlabProjectJSON returns a public project in the acme group.
@@ -301,12 +322,13 @@ func genericGitlabError(wantErr string) gitlabErrorCase {
 }
 
 // gitlabRejectedCredentials is the case for a 401 or 403 response that maps to ErrUnauthorized.
-func gitlabRejectedCredentials(status int) gitlabErrorCase {
+func gitlabRejectedCredentials(status int, wantErr string) gitlabErrorCase {
 	return gitlabErrorCase{
-		name: http.StatusText(status), status: status, wantErrIs: gferrors.ErrUnauthorized, wantErr: "invalid credentials",
+		name: http.StatusText(status), status: status, wantErrIs: gferrors.ErrUnauthorized, wantErr: wantErr,
 	}
 }
 
+// gitlabNotFound is the case for a 404 response that maps to ErrNotFound.
 func gitlabNotFound(wantErr string) gitlabErrorCase {
 	return gitlabErrorCase{
 		name: "not found", status: http.StatusNotFound, wantErrIs: gferrors.ErrNotFound, wantErr: wantErr,
@@ -321,7 +343,12 @@ func gitlabCalls() []gitlabCall {
 		{
 			name:  "GetRepository",
 			route: "GET /api/v4/projects/acme%2Fapi",
-			cases: []gitlabErrorCase{gitlabNotFound("repository acme/api"), genericGitlabError(gitlabBadRequest)},
+			cases: []gitlabErrorCase{
+				gitlabNotFound("repository acme/api"),
+				gitlabRejectedCredentials(http.StatusUnauthorized, "repository acme/api"),
+				gitlabRejectedCredentials(http.StatusForbidden, "repository acme/api"),
+				genericGitlabError(gitlabBadRequest),
+			},
 			call: func(ctx context.Context, settings krci.GitServerSettings) (any, error) {
 				return p.GetRepository(ctx, "acme", "api", settings)
 			},
@@ -329,7 +356,12 @@ func gitlabCalls() []gitlabCall {
 		{
 			name:  "ListRepositories",
 			route: "GET /api/v4/groups/acme/projects",
-			cases: []gitlabErrorCase{gitlabNotFound("owner acme"), genericGitlabError(gitlabBadRequest)},
+			cases: []gitlabErrorCase{
+				gitlabNotFound("owner acme"),
+				gitlabRejectedCredentials(http.StatusUnauthorized, "owner acme"),
+				gitlabRejectedCredentials(http.StatusForbidden, "owner acme"),
+				genericGitlabError(gitlabBadRequest),
+			},
 			call: func(ctx context.Context, settings krci.GitServerSettings) (any, error) {
 				return p.ListRepositories(ctx, "acme", settings, models.ListOptions{})
 			},
@@ -339,6 +371,8 @@ func gitlabCalls() []gitlabCall {
 			route: "GET /api/v4/projects/acme%2Fapi/repository/branches",
 			cases: []gitlabErrorCase{
 				gitlabNotFound("project acme/api"),
+				gitlabRejectedCredentials(http.StatusUnauthorized, "project acme/api"),
+				gitlabRejectedCredentials(http.StatusForbidden, "project acme/api"),
 				genericGitlabError("failed to list branches for acme/api"),
 			},
 			call: func(ctx context.Context, settings krci.GitServerSettings) (any, error) {
@@ -348,7 +382,12 @@ func gitlabCalls() []gitlabCall {
 		{
 			name:  "ListUserOrganizations",
 			route: "GET /api/v4/groups",
-			cases: []gitlabErrorCase{genericGitlabError("failed to list groups")},
+			cases: []gitlabErrorCase{
+				gitlabNotFound("groups"),
+				gitlabRejectedCredentials(http.StatusUnauthorized, "groups"),
+				gitlabRejectedCredentials(http.StatusForbidden, "groups"),
+				genericGitlabError("failed to list groups"),
+			},
 			call: func(ctx context.Context, settings krci.GitServerSettings) (any, error) {
 				return p.ListUserOrganizations(ctx, settings)
 			},
@@ -358,8 +397,8 @@ func gitlabCalls() []gitlabCall {
 			route: "POST /api/v4/projects/acme%2Fapi/pipeline",
 			cases: []gitlabErrorCase{
 				gitlabNotFound("project acme/api or ref main"),
-				gitlabRejectedCredentials(http.StatusUnauthorized),
-				gitlabRejectedCredentials(http.StatusForbidden),
+				gitlabRejectedCredentials(http.StatusUnauthorized, "project acme/api or ref main"),
+				gitlabRejectedCredentials(http.StatusForbidden, "project acme/api or ref main"),
 				genericGitlabError("create pipeline for acme/api ref main"),
 			},
 			call: func(ctx context.Context, settings krci.GitServerSettings) (any, error) {
@@ -371,8 +410,8 @@ func gitlabCalls() []gitlabCall {
 			route: "GET /api/v4/projects/acme%2Fapi/pipelines/7/jobs",
 			cases: []gitlabErrorCase{
 				gitlabNotFound("project acme/api or id 7"),
-				gitlabRejectedCredentials(http.StatusUnauthorized),
-				gitlabRejectedCredentials(http.StatusForbidden),
+				gitlabRejectedCredentials(http.StatusUnauthorized, "project acme/api or id 7"),
+				gitlabRejectedCredentials(http.StatusForbidden, "project acme/api or id 7"),
 				genericGitlabError("gitlab jobs request failed for acme/api id 7"),
 			},
 			call: func(ctx context.Context, settings krci.GitServerSettings) (any, error) {

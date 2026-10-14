@@ -54,11 +54,7 @@ func (g *GitHubProvider) ListPipelines(
 
 	workflowRuns, _, err := client.Actions.ListRepositoryWorkflowRuns(ctx, owner, repo, ghOpts)
 	if err != nil {
-		if sentinel := classifyGitHubError(err); sentinel != nil {
-			return nil, fmt.Errorf("project %s: %w", project, sentinel)
-		}
-
-		return nil, fmt.Errorf("failed to list pipelines for %s: %w", project, err)
+		return nil, wrapGitHubError(fmt.Sprintf("failed to list pipelines for %s", project), err)
 	}
 
 	result := make([]models.Pipeline, 0, len(workflowRuns.WorkflowRuns))
