@@ -22,7 +22,7 @@ const healthPath = "/healthz"
 
 func main() {
 	config := api.GetConfigOrDie()
-	logger := initLogger(config)
+	logger := initLogger()
 	info := buildInfo.Get()
 
 	logger.Info("Starting the GitFusion API server",
@@ -95,16 +95,13 @@ func newRouter(logger *httplog.Logger) *chi.Mux {
 	return r
 }
 
-func initLogger(config api.Config) *httplog.Logger {
+func initLogger() *httplog.Logger {
 	l := httplog.NewLogger("gitfusion-api", httplog.Options{
 		JSON:            true,
 		LogLevel:        slog.LevelDebug,
 		Concise:         true,
 		RequestHeaders:  false,
 		TimeFieldFormat: time.RFC3339,
-		Tags: map[string]string{
-			"ns": config.Namespace,
-		},
 		QuietDownRoutes: []string{
 			"/",
 		},
