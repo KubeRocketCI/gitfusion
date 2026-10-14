@@ -32,18 +32,10 @@ func (h *BranchHandler) ListBranches(
 		models.ListOptions{},
 	)
 	if err != nil {
-		return h.errResponse(err), nil
+		return nil, err
 	}
 
 	return ListBranches200JSONResponse{
 		Data: branches,
 	}, nil
-}
-
-// errResponse returns a consistent error response.
-func (h *BranchHandler) errResponse(err error) ListBranchesResponseObject {
-	return ListBranches400JSONResponse{
-		Message: err.Error(),
-		Code:    "bad_request",
-	}
 }

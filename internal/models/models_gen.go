@@ -100,15 +100,6 @@ type CacheInvalidationResponse struct {
 	Message string `json:"message"`
 }
 
-// Error defines model for Error.
-type Error struct {
-	// Code A short error code representing the type of error
-	Code string `json:"code"`
-
-	// Message A human-readable message providing more details about the error
-	Message string `json:"message"`
-}
-
 // Organization defines model for Organization.
 type Organization struct {
 	AvatarUrl *string `json:"avatar_url,omitempty"`
@@ -257,6 +248,24 @@ type PipelinesResponse struct {
 	Pagination Pagination `json:"pagination"`
 }
 
+// Problem RFC 9457 problem details. `detail` never carries the error cause; look the cause up in the server log by `requestId`.
+type Problem struct {
+	// Detail Fixed, human-readable explanation.
+	Detail string `json:"detail"`
+
+	// RequestId Request ID; equals the X-Request-Id response header and `httpRequest.requestID` in the server log line.
+	RequestId *string `json:"requestId,omitempty"`
+
+	// Status HTTP status code.
+	Status int `json:"status"`
+
+	// Title HTTP status phrase.
+	Title string `json:"title"`
+
+	// Type Problem type URI. Always `about:blank`.
+	Type string `json:"type"`
+}
+
 // PullRequest defines model for PullRequest.
 type PullRequest struct {
 	Author *Owner `json:"author,omitempty"`
@@ -338,6 +347,18 @@ type RepoNameQueryParam = string
 
 // RepoOwnerParam defines model for repoOwnerParam.
 type RepoOwnerParam = string
+
+// BadGateway RFC 9457 problem details. `detail` never carries the error cause; look the cause up in the server log by `requestId`.
+type BadGateway = Problem
+
+// BadRequest RFC 9457 problem details. `detail` never carries the error cause; look the cause up in the server log by `requestId`.
+type BadRequest = Problem
+
+// InternalError RFC 9457 problem details. `detail` never carries the error cause; look the cause up in the server log by `requestId`.
+type InternalError = Problem
+
+// NotFound RFC 9457 problem details. `detail` never carries the error cause; look the cause up in the server log by `requestId`.
+type NotFound = Problem
 
 // ListBranchesParams defines parameters for ListBranches.
 type ListBranchesParams struct {

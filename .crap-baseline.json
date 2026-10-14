@@ -17,26 +17,18 @@
       "function": "main"
     },
     {
-      "coverage": 0,
-      "crap": 6,
+      "coverage": 66.7,
+      "crap": 2.1,
       "cyclomatic": 2,
-      "effective_crap": 6,
+      "effective_crap": 2.1,
       "file": "internal/api/branch_handler.go",
       "function": "*BranchHandler.ListBranches"
     },
     {
-      "coverage": 0,
-      "crap": 2,
+      "coverage": 100,
+      "crap": 1,
       "cyclomatic": 1,
-      "effective_crap": 2,
-      "file": "internal/api/branch_handler.go",
-      "function": "*BranchHandler.errResponse"
-    },
-    {
-      "coverage": 0,
-      "crap": 2,
-      "cyclomatic": 1,
-      "effective_crap": 2,
+      "effective_crap": 1,
       "file": "internal/api/branch_handler.go",
       "function": "NewBranchHandler"
     },
@@ -47,14 +39,6 @@
       "effective_crap": 2,
       "file": "internal/api/cache_handler.go",
       "function": "*CacheHandler.InvalidateCache"
-    },
-    {
-      "coverage": 66.7,
-      "crap": 2.1,
-      "cyclomatic": 2,
-      "effective_crap": 2.1,
-      "file": "internal/api/cache_handler.go",
-      "function": "*CacheHandler.errResponse"
     },
     {
       "coverage": 100,
@@ -73,18 +57,18 @@
       "function": "GetConfigOrDie"
     },
     {
-      "coverage": 0,
-      "crap": 6,
+      "coverage": 66.7,
+      "crap": 2.1,
       "cyclomatic": 2,
-      "effective_crap": 6,
+      "effective_crap": 2.1,
       "file": "internal/api/organization_handler.go",
       "function": "*OrganizationHandler.ListUserOrganizations"
     },
     {
-      "coverage": 0,
-      "crap": 2,
+      "coverage": 100,
+      "crap": 1,
       "cyclomatic": 1,
-      "effective_crap": 2,
+      "effective_crap": 1,
       "file": "internal/api/organization_handler.go",
       "function": "NewOrganizationHandler"
     },
@@ -97,68 +81,36 @@
       "function": "clampPagination"
     },
     {
-      "coverage": 80,
-      "crap": 3.1,
+      "coverage": 100,
+      "crap": 3,
       "cyclomatic": 3,
-      "effective_crap": 3.1,
+      "effective_crap": 3,
       "file": "internal/api/pipeline_handler.go",
       "function": "*PipelineHandler.GetPipelineJobTrace"
     },
     {
-      "coverage": 80,
-      "crap": 3.1,
+      "coverage": 100,
+      "crap": 3,
       "cyclomatic": 3,
-      "effective_crap": 3.1,
+      "effective_crap": 3,
       "file": "internal/api/pipeline_handler.go",
       "function": "*PipelineHandler.ListPipelineJobs"
     },
     {
-      "coverage": 85.7,
-      "crap": 5.1,
+      "coverage": 100,
+      "crap": 5,
       "cyclomatic": 5,
-      "effective_crap": 5.1,
+      "effective_crap": 5,
       "file": "internal/api/pipeline_handler.go",
       "function": "*PipelineHandler.ListPipelines"
     },
     {
-      "coverage": 75,
-      "crap": 9,
-      "cyclomatic": 8,
-      "effective_crap": 9,
+      "coverage": 100,
+      "crap": 5,
+      "cyclomatic": 5,
+      "effective_crap": 5,
       "file": "internal/api/pipeline_handler.go",
       "function": "*PipelineHandler.TriggerPipeline"
-    },
-    {
-      "coverage": 71.4,
-      "crap": 4.4,
-      "cyclomatic": 4,
-      "effective_crap": 4.4,
-      "file": "internal/api/pipeline_handler.go",
-      "function": "*PipelineHandler.jobsErrResponse"
-    },
-    {
-      "coverage": 100,
-      "crap": 4,
-      "cyclomatic": 4,
-      "effective_crap": 4,
-      "file": "internal/api/pipeline_handler.go",
-      "function": "*PipelineHandler.listErrResponse"
-    },
-    {
-      "coverage": 57.1,
-      "crap": 5.3,
-      "cyclomatic": 4,
-      "effective_crap": 5.3,
-      "file": "internal/api/pipeline_handler.go",
-      "function": "*PipelineHandler.traceErrResponse"
-    },
-    {
-      "coverage": 100,
-      "crap": 4,
-      "cyclomatic": 4,
-      "effective_crap": 4,
-      "file": "internal/api/pipeline_handler.go",
-      "function": "*PipelineHandler.triggerErrResponse"
     },
     {
       "coverage": 100,
@@ -169,12 +121,28 @@
       "function": "NewPipelineHandler"
     },
     {
-      "coverage": 80,
-      "crap": 3.1,
-      "cyclomatic": 3,
-      "effective_crap": 3.1,
-      "file": "internal/api/pullrequest_handler.go",
-      "function": "*PullRequestHandler.ListPullRequests"
+      "coverage": 100,
+      "crap": 7,
+      "cyclomatic": 7,
+      "effective_crap": 7,
+      "file": "internal/api/problem.go",
+      "function": "classifyError"
+    },
+    {
+      "coverage": 100,
+      "crap": 1,
+      "cyclomatic": 1,
+      "effective_crap": 1,
+      "file": "internal/api/problem.go",
+      "function": "invalidParamDetail"
+    },
+    {
+      "coverage": 100,
+      "crap": 2,
+      "cyclomatic": 2,
+      "effective_crap": 2,
+      "file": "internal/api/problem.go",
+      "function": "writeProblem"
     },
     {
       "coverage": 100,
@@ -182,7 +150,7 @@
       "cyclomatic": 3,
       "effective_crap": 3,
       "file": "internal/api/pullrequest_handler.go",
-      "function": "*PullRequestHandler.errResponse"
+      "function": "*PullRequestHandler.ListPullRequests"
     },
     {
       "coverage": 100,
@@ -193,42 +161,34 @@
       "function": "NewPullRequestHandler"
     },
     {
-      "coverage": 0,
-      "crap": 6,
+      "coverage": 66.7,
+      "crap": 2.1,
       "cyclomatic": 2,
-      "effective_crap": 6,
+      "effective_crap": 2.1,
       "file": "internal/api/repository_handler.go",
       "function": "*RepositoryHandler.GetRepository"
     },
     {
-      "coverage": 0,
-      "crap": 6,
+      "coverage": 66.7,
+      "crap": 2.1,
       "cyclomatic": 2,
-      "effective_crap": 6,
+      "effective_crap": 2.1,
       "file": "internal/api/repository_handler.go",
       "function": "*RepositoryHandler.ListRepositories"
     },
     {
-      "coverage": 0,
-      "crap": 12,
-      "cyclomatic": 3,
-      "effective_crap": 12,
-      "file": "internal/api/repository_handler.go",
-      "function": "*RepositoryHandler.errResponse"
-    },
-    {
-      "coverage": 0,
-      "crap": 2,
+      "coverage": 100,
+      "crap": 1,
       "cyclomatic": 1,
-      "effective_crap": 2,
+      "effective_crap": 1,
       "file": "internal/api/repository_handler.go",
       "function": "*RepositoryHandler.getListOptions"
     },
     {
-      "coverage": 0,
-      "crap": 2,
+      "coverage": 100,
+      "crap": 1,
       "cyclomatic": 1,
-      "effective_crap": 2,
+      "effective_crap": 1,
       "file": "internal/api/repository_handler.go",
       "function": "NewRepositoryHandler"
     },
@@ -241,66 +201,66 @@
       "function": "*Server.GetPipelineJobTrace"
     },
     {
-      "coverage": 0,
-      "crap": 2,
+      "coverage": 100,
+      "crap": 1,
       "cyclomatic": 1,
-      "effective_crap": 2,
+      "effective_crap": 1,
       "file": "internal/api/server.go",
       "function": "*Server.GetRepository"
     },
     {
-      "coverage": 0,
-      "crap": 2,
+      "coverage": 100,
+      "crap": 1,
       "cyclomatic": 1,
-      "effective_crap": 2,
+      "effective_crap": 1,
       "file": "internal/api/server.go",
       "function": "*Server.InvalidateCache"
     },
     {
-      "coverage": 0,
-      "crap": 2,
+      "coverage": 100,
+      "crap": 1,
       "cyclomatic": 1,
-      "effective_crap": 2,
+      "effective_crap": 1,
       "file": "internal/api/server.go",
       "function": "*Server.ListBranches"
     },
     {
-      "coverage": 0,
-      "crap": 2,
+      "coverage": 100,
+      "crap": 1,
       "cyclomatic": 1,
-      "effective_crap": 2,
+      "effective_crap": 1,
       "file": "internal/api/server.go",
       "function": "*Server.ListPipelineJobs"
     },
     {
-      "coverage": 0,
-      "crap": 2,
+      "coverage": 100,
+      "crap": 1,
       "cyclomatic": 1,
-      "effective_crap": 2,
+      "effective_crap": 1,
       "file": "internal/api/server.go",
       "function": "*Server.ListPipelines"
     },
     {
-      "coverage": 0,
-      "crap": 2,
+      "coverage": 100,
+      "crap": 1,
       "cyclomatic": 1,
-      "effective_crap": 2,
+      "effective_crap": 1,
       "file": "internal/api/server.go",
       "function": "*Server.ListPullRequests"
     },
     {
-      "coverage": 0,
-      "crap": 2,
+      "coverage": 100,
+      "crap": 1,
       "cyclomatic": 1,
-      "effective_crap": 2,
+      "effective_crap": 1,
       "file": "internal/api/server.go",
       "function": "*Server.ListRepositories"
     },
     {
-      "coverage": 0,
-      "crap": 2,
+      "coverage": 100,
+      "crap": 1,
       "cyclomatic": 1,
-      "effective_crap": 2,
+      "effective_crap": 1,
       "file": "internal/api/server.go",
       "function": "*Server.ListUserOrganizations"
     },
@@ -321,10 +281,18 @@
       "function": "BuildHandler"
     },
     {
-      "coverage": 0,
-      "crap": 2,
+      "coverage": 100,
+      "crap": 1,
       "cyclomatic": 1,
-      "effective_crap": 2,
+      "effective_crap": 1,
+      "file": "internal/api/server.go",
+      "function": "NewHTTPHandler"
+    },
+    {
+      "coverage": 100,
+      "crap": 1,
+      "cyclomatic": 1,
+      "effective_crap": 1,
       "file": "internal/api/server.go",
       "function": "NewServer"
     },
@@ -335,6 +303,14 @@
       "effective_crap": 30,
       "file": "internal/api/server.go",
       "function": "initk8sClient"
+    },
+    {
+      "coverage": 100,
+      "crap": 1,
+      "cyclomatic": 1,
+      "effective_crap": 1,
+      "file": "internal/api/server.go",
+      "function": "newStrictHandler"
     },
     {
       "coverage": 100,
@@ -457,12 +433,20 @@
       "function": "NewTerminalAwareCache"
     },
     {
-      "coverage": 0,
-      "crap": 2,
+      "coverage": 100,
+      "crap": 1,
       "cyclomatic": 1,
-      "effective_crap": 2,
+      "effective_crap": 1,
       "file": "internal/errors/errors.go",
-      "function": "*Error.Error"
+      "function": "*InvalidParamError.Error"
+    },
+    {
+      "coverage": 100,
+      "crap": 1,
+      "cyclomatic": 1,
+      "effective_crap": 1,
+      "file": "internal/errors/errors.go",
+      "function": "*InvalidParamError.Unwrap"
     },
     {
       "coverage": 100,
@@ -617,18 +601,18 @@
       "function": "*MultiProviderBranchesService.GetCache"
     },
     {
-      "coverage": 0,
-      "crap": 6,
+      "coverage": 40,
+      "crap": 2.9,
       "cyclomatic": 2,
-      "effective_crap": 6,
+      "effective_crap": 2.9,
       "file": "internal/services/branches/branches_provider.go",
       "function": "*MultiProviderBranchesService.ListBranches"
     },
     {
-      "coverage": 0,
-      "crap": 2,
+      "coverage": 100,
+      "crap": 1,
       "cyclomatic": 1,
-      "effective_crap": 2,
+      "effective_crap": 1,
       "file": "internal/services/branches/branches_provider.go",
       "function": "NewMultiProviderBranchesService"
     },
@@ -1073,10 +1057,10 @@
       "function": "*MultiProviderOrganizationsService.GetCache"
     },
     {
-      "coverage": 0,
-      "crap": 6,
+      "coverage": 40,
+      "crap": 2.9,
       "cyclomatic": 2,
-      "effective_crap": 6,
+      "effective_crap": 2.9,
       "file": "internal/services/organizations/organizations_provider.go",
       "function": "*MultiProviderOrganizationsService.ListUserOrganizations"
     },
@@ -1313,26 +1297,26 @@
       "function": "*MultiProviderRepositoryService.GetCache"
     },
     {
-      "coverage": 0,
-      "crap": 6,
+      "coverage": 66.7,
+      "crap": 2.1,
       "cyclomatic": 2,
-      "effective_crap": 6,
+      "effective_crap": 2.1,
       "file": "internal/services/repositories/repositories_provider.go",
       "function": "*MultiProviderRepositoryService.GetRepository"
     },
     {
-      "coverage": 0,
-      "crap": 6,
+      "coverage": 40,
+      "crap": 2.9,
       "cyclomatic": 2,
-      "effective_crap": 6,
+      "effective_crap": 2.9,
       "file": "internal/services/repositories/repositories_provider.go",
       "function": "*MultiProviderRepositoryService.ListRepositories"
     },
     {
-      "coverage": 0,
-      "crap": 2,
+      "coverage": 100,
+      "crap": 1,
       "cyclomatic": 1,
-      "effective_crap": 2,
+      "effective_crap": 1,
       "file": "internal/services/repositories/repositories_provider.go",
       "function": "NewMultiProviderRepositoryService"
     },

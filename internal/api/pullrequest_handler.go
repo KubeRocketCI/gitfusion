@@ -2,11 +2,7 @@ package api
 
 import (
 	"context"
-	"errors"
-	"fmt"
-	"net/http"
 
-	gferrors "github.com/KubeRocketCI/gitfusion/internal/errors"
 	"github.com/KubeRocketCI/gitfusion/internal/models"
 )
 
@@ -57,31 +53,8 @@ func (h *PullRequestHandler) ListPullRequests(
 		},
 	)
 	if err != nil {
-		return h.errResponse(err), nil
+		return nil, err
 	}
 
 	return ListPullRequests200JSONResponse(*resp), nil
-}
-
-// errResponse maps errors to appropriate HTTP response objects.
-// This method must only be called when err is not nil.
-func (h *PullRequestHandler) errResponse(err error) ListPullRequestsResponseObject {
-	if errors.Is(err, gferrors.ErrUnauthorized) {
-		return ListPullRequests401JSONResponse{
-			Code:    fmt.Sprintf("%d", http.StatusUnauthorized),
-			Message: err.Error(),
-		}
-	}
-
-	if errors.Is(err, gferrors.ErrNotFound) {
-		return ListPullRequests404JSONResponse{
-			Code:    fmt.Sprintf("%d", http.StatusNotFound),
-			Message: err.Error(),
-		}
-	}
-
-	return ListPullRequests500JSONResponse{
-		Code:    fmt.Sprintf("%d", http.StatusInternalServerError),
-		Message: err.Error(),
-	}
 }

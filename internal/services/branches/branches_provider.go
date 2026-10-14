@@ -7,6 +7,7 @@ import (
 	"github.com/viccon/sturdyc"
 
 	"github.com/KubeRocketCI/gitfusion/internal/cache"
+	gferrors "github.com/KubeRocketCI/gitfusion/internal/errors"
 	"github.com/KubeRocketCI/gitfusion/internal/models"
 	"github.com/KubeRocketCI/gitfusion/internal/services/bitbucket"
 	"github.com/KubeRocketCI/gitfusion/internal/services/github"
@@ -48,7 +49,7 @@ func (m *MultiProviderBranchesService) ListBranches(
 ) ([]models.Branch, error) {
 	provider, ok := m.providers[settings.GitProvider]
 	if !ok {
-		return nil, fmt.Errorf("unsupported provider: %s", settings.GitProvider)
+		return nil, fmt.Errorf("unsupported provider %s: %w", settings.GitProvider, gferrors.ErrUnsupportedOperation)
 	}
 
 	key := fmt.Sprintf("%s|%s|%s|%s", settings.GitServerName, owner, repo, pointer.ValueOrEmpty(opts.Name))

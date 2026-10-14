@@ -21,23 +21,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/RepositoriesResponse'
         '400':
-          description: Bad request due to invalid parameters or missing fields.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthorized access due to invalid credentials.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
         '500':
-          description: Internal server error.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/InternalError'
+        '502':
+          $ref: '#/components/responses/BadGateway'
 
   /api/v1/repository:
     get:
@@ -56,18 +46,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Repository'
-        '404':
-          description: Git server not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
         '400':
-          description: Something went wrong with the request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '502':
+          $ref: '#/components/responses/BadGateway'
 
   /api/v1/user/organizations:
     get:
@@ -85,23 +71,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/OrganizationsResponse'
         '400':
-          description: Bad request due to invalid parameters or missing fields.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthorized access due to invalid credentials.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
         '500':
-          description: Internal server error.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/InternalError'
+        '502':
+          $ref: '#/components/responses/BadGateway'
 
   /api/v1/branches:
     get:
@@ -121,23 +97,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/BranchesResponse'
         '400':
-          description: Bad request due to invalid parameters or missing fields.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthorized access due to invalid credentials.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
         '500':
-          description: Internal server error.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/InternalError'
+        '502':
+          $ref: '#/components/responses/BadGateway'
 
   /api/v1/trigger-pipeline:
     post:
@@ -173,29 +139,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/PipelineResponse'
         '400':
-          description: Bad request due to invalid parameters or variables format
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthorized access due to invalid credentials
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/BadRequest'
         '404':
-          description: GitServer, project, or ref not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/NotFound'
         '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/InternalError'
+        '502':
+          $ref: '#/components/responses/BadGateway'
 
   /api/v1/pull-requests:
     get:
@@ -236,29 +186,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/PullRequestsResponse'
         '400':
-          description: Bad request due to invalid parameters or missing fields.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthorized access due to invalid credentials.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/BadRequest'
         '404':
-          description: Repository or git server not found.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/NotFound'
         '500':
-          description: Internal server error.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/InternalError'
+        '502':
+          $ref: '#/components/responses/BadGateway'
 
   /api/v1/pipelines:
     get:
@@ -308,29 +242,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/PipelinesResponse'
         '400':
-          description: Bad request due to invalid parameters or missing fields.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthorized access due to invalid credentials.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/BadRequest'
         '404':
-          description: Project or git server not found.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/NotFound'
         '500':
-          description: Internal server error.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/InternalError'
+        '502':
+          $ref: '#/components/responses/BadGateway'
 
   /api/v1/pipeline-jobs:
     get:
@@ -361,29 +279,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/PipelineJobsResponse'
         '400':
-          description: Bad request due to invalid parameters or missing fields.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthorized access due to invalid credentials.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/BadRequest'
         '404':
-          description: Project, pipeline or git server not found.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/NotFound'
         '500':
-          description: Internal server error.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/InternalError'
+        '502':
+          $ref: '#/components/responses/BadGateway'
 
   /api/v1/pipeline-job-trace:
     get:
@@ -414,29 +316,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/PipelineJobTraceResponse'
         '400':
-          description: Bad request due to invalid parameters or missing fields.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthorized access due to invalid credentials.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/BadRequest'
         '404':
-          description: Project, job or git server not found.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/NotFound'
         '500':
-          description: Internal server error.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/InternalError'
+        '502':
+          $ref: '#/components/responses/BadGateway'
 
   /api/v1/cache/invalidate:
     delete:
@@ -460,17 +346,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/CacheInvalidationResponse'
         '400':
-          description: Bad request due to invalid parameters.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/BadRequest'
         '500':
-          description: Internal server error.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/InternalError'
 
 components:
   parameters:
@@ -502,6 +380,48 @@ components:
       description: The name of the repository.
       schema:
         type: string
+  headers:
+    XRequestId:
+      description: Request ID; equals the requestId field of the body.
+      schema:
+        type: string
+  responses:
+    BadRequest:
+      description: A parameter is missing or invalid, or the git server does not support the operation.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/XRequestId'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    NotFound:
+      description: The requested resource was not found.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/XRequestId'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    BadGateway:
+      description: The git server rejected the credentials stored for it.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/XRequestId'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    InternalError:
+      description: The request could not be completed.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/XRequestId'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
   schemas:
     Owner:
       type: object
@@ -588,18 +508,30 @@ components:
             $ref: '#/components/schemas/Repository'
       required:
         - data
-    Error:
+    Problem:
       type: object
+      description: RFC 9457 problem details. `detail` never carries the error cause; look the cause up in the server log by `requestId`.
       properties:
-        code:
+        type:
           type: string
-          description: A short error code representing the type of error
-        message:
+          description: Problem type URI. Always `about:blank`.
+        title:
           type: string
-          description: A human-readable message providing more details about the error
+          description: HTTP status phrase.
+        status:
+          type: integer
+          description: HTTP status code.
+        detail:
+          type: string
+          description: Fixed, human-readable explanation.
+        requestId:
+          type: string
+          description: Request ID; equals the X-Request-Id response header and `httpRequest.requestID` in the server log line.
       required:
-        - code
-        - message
+        - type
+        - title
+        - status
+        - detail
     OrganizationsResponse:
       type: object
       properties:

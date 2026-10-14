@@ -1,7 +1,6 @@
 package common
 
 import (
-	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -32,8 +31,13 @@ func TestSplitProject(t *testing.T) {
 			first, second, err := SplitProject(tt.project)
 
 			if tt.wantErr {
-				assert.Error(t, err)
-				assert.True(t, errors.Is(err, gferrors.ErrBadRequest), "error should wrap ErrBadRequest")
+				require.Error(t, err)
+
+				var invalidParam *gferrors.InvalidParamError
+
+				require.ErrorAs(t, err, &invalidParam)
+				assert.Equal(t, "project", invalidParam.Param)
+				assert.Contains(t, err.Error(), "invalid project format")
 				assert.Empty(t, first)
 				assert.Empty(t, second)
 			} else {

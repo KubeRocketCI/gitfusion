@@ -23,9 +23,23 @@ go test ./internal/services/pipelines/... -run TestListPipelines
 
 ### Entry point & wiring
 
-`cmd/gitfusion-api/main.go` initialises the chi router with request-ID, structured JSON logging (`go-chi/httplog`), recovery, and a 60 s timeout, then calls `api.BuildHandler` to wire everything together. `BuildHandler` (`internal/api/server.go`) creates a controller-runtime Kubernetes client, a `GitServerService`, one multi-provider service per resource type, wraps them in oapi-codegen's `StrictHandler`, and mounts them on the router.
+`cmd/gitfusion-api/main.go` initialises the chi router with `httplog.RequestLogger` (chains chi `RequestID`, structured JSON logging and `Recoverer`), a 60 s timeout and a heartbeat, then mounts `api.BuildHandler` through `api.NewHTTPHandler`. `BuildHandler` (`internal/api/server.go`) creates a controller-runtime Kubernetes client, a `GitServerService`, one multi-provider service per resource type, and wraps them in oapi-codegen's `StrictHandler`.
 
 Required env vars: `NAMESPACE` (Kubernetes namespace to watch for `GitServer` CRs); `PORT` defaults to `8080`.
+
+### Errors
+
+Handlers return Go errors. `internal/api/problem.go` writes every API error as RFC 9457 `application/problem+json`: fixed `detail`, `requestId` equal to the `X-Request-Id` header. The cause (`err.Error()`) goes only to the request log line, field `error`; never put it in a response.
+
+| Error (`internal/errors`) | Status |
+|---|---|
+| missing or invalid parameter (generated binding errors, `InvalidParamError`) | 400 |
+| `ErrUnsupportedOperation`: provider not supported, or operation not implemented by the provider | 400 |
+| `ErrNotFound` | 404 |
+| `ErrUnauthorized`: provider rejects the stored token | 502 |
+| anything else | 500 |
+
+Unknown routes (404), wrong methods (405), panics (500) and timeouts (504) keep chi's defaults.
 
 ### Provider dispatch
 

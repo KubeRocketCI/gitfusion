@@ -34,9 +34,7 @@ func main() {
 	)
 
 	r := chi.NewMux()
-	r.Use(middleware.RequestID)
 	r.Use(httplog.RequestLogger(logger))
-	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(60 * time.Second))
 	r.Use(middleware.Heartbeat("/healthz"))
 
@@ -46,7 +44,7 @@ func main() {
 	}
 
 	server := &http.Server{
-		Handler: api.HandlerFromMux(handler, r),
+		Handler: api.NewHTTPHandler(handler, r),
 		Addr:    ":" + config.Port,
 	}
 
@@ -105,7 +103,6 @@ func initLogger(config api.Config) *httplog.Logger {
 			"/health",
 		},
 		QuietDownPeriod: 10 * time.Second,
-		SourceFieldName: "source",
 	})
 
 	slog.SetDefault(l.Logger)
