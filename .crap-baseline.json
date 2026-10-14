@@ -793,10 +793,10 @@
       "function": "convertGitHubPullRequest"
     },
     {
-      "coverage": 88.9,
-      "crap": 6,
-      "cyclomatic": 6,
-      "effective_crap": 6,
+      "coverage": 100,
+      "crap": 1,
+      "cyclomatic": 1,
+      "effective_crap": 1,
       "file": "internal/services/github/github.go",
       "function": "convertGitHubRepoToRepository"
     },
@@ -809,10 +809,10 @@
       "function": "convertVisibility"
     },
     {
-      "coverage": 90.9,
-      "crap": 5,
-      "cyclomatic": 5,
-      "effective_crap": 5,
+      "coverage": 100,
+      "crap": 4,
+      "cyclomatic": 4,
+      "effective_crap": 4,
       "file": "internal/services/github/github.go",
       "function": "filterRepositoriesByName"
     },
