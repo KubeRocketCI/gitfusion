@@ -36,7 +36,7 @@ GitFusion is built as a RESTful API service with the following characteristics:
 
 ### Prerequisites
 
-- Go 1.24+
+- Go 1.26+
 - Kubernetes cluster with configured GitServer CRDs
 - Access to Git provider API tokens
 
