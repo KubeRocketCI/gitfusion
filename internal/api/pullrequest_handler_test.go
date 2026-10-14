@@ -2,12 +2,8 @@ package api
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"net/http"
-	"net/http/httptest"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -208,118 +204,18 @@ func TestPullRequestHandlerListPullRequestsParameterDefaults(t *testing.T) {
 	}
 }
 
-func TestPullRequestHandlerErrResponse(t *testing.T) {
-	handler := &PullRequestHandler{}
+func TestPullRequestHandlerListPullRequestsReturnsServiceError(t *testing.T) {
+	serviceErr := fmt.Errorf("upstream: %w", gferrors.ErrUnauthorized)
+	stub := &stubPullRequestLister{err: serviceErr}
+	handler := NewPullRequestHandler(stub)
 
-	t.Run("unauthorized error returns 401", func(t *testing.T) {
-		err := fmt.Errorf("token expired: %w", gferrors.ErrUnauthorized)
-
-		resp := handler.errResponse(err)
-
-		errResp, ok := resp.(ListPullRequests401JSONResponse)
-		require.True(t, ok, "expected ListPullRequests401JSONResponse")
-		assert.Equal(t, fmt.Sprintf("%d", http.StatusUnauthorized), errResp.Code)
-		assert.Contains(t, errResp.Message, "unauthorized")
+	resp, err := handler.ListPullRequests(context.Background(), ListPullRequestsRequestObject{
+		Params: models.ListPullRequestsParams{GitServer: "my-server", Owner: "my-owner", RepoName: "my-repo"},
 	})
 
-	t.Run("not found error returns 404", func(t *testing.T) {
-		err := fmt.Errorf("project deleted-group/deleted-repo: %w", gferrors.ErrNotFound)
-
-		resp := handler.errResponse(err)
-
-		errResp, ok := resp.(ListPullRequests404JSONResponse)
-		require.True(t, ok, "expected ListPullRequests404JSONResponse")
-		assert.Equal(t, fmt.Sprintf("%d", http.StatusNotFound), errResp.Code)
-		assert.Contains(t, errResp.Message, "not found")
-	})
-
-	t.Run("generic error returns 500", func(t *testing.T) {
-		resp := handler.errResponse(errors.New("something went wrong"))
-
-		errResp, ok := resp.(ListPullRequests500JSONResponse)
-		require.True(t, ok, "expected ListPullRequests500JSONResponse")
-		assert.Equal(t, fmt.Sprintf("%d", http.StatusInternalServerError), errResp.Code)
-		assert.Equal(t, "something went wrong", errResp.Message)
-	})
-}
-
-func TestListPullRequests200JSONResponseVisitResponse(t *testing.T) {
-	page := 1
-	perPage := 20
-
-	resp := ListPullRequests200JSONResponse{
-		Data: []models.PullRequest{
-			{
-				Id:           "123",
-				Number:       42,
-				Title:        "Test PR",
-				State:        models.PullRequestStateOpen,
-				SourceBranch: "feature",
-				TargetBranch: "main",
-				Url:          "https://github.com/owner/repo/pull/42",
-				CreatedAt:    time.Date(2026, 1, 15, 10, 0, 0, 0, time.UTC),
-				UpdatedAt:    time.Date(2026, 1, 16, 10, 0, 0, 0, time.UTC),
-			},
-		},
-		Pagination: models.Pagination{
-			Total:   1,
-			Page:    &page,
-			PerPage: &perPage,
-		},
-	}
-
-	w := httptest.NewRecorder()
-	err := resp.VisitListPullRequestsResponse(w)
-
-	require.NoError(t, err)
-	assert.Equal(t, 200, w.Code)
-	assert.Contains(t, w.Header().Get("Content-Type"), "application/json")
-	assert.Contains(t, w.Body.String(), `"title":"Test PR"`)
-}
-
-func TestListPullRequests400JSONResponseVisitResponse(t *testing.T) {
-	resp := ListPullRequests400JSONResponse{
-		Message: "bad request",
-		Code:    "bad_request",
-	}
-
-	w := httptest.NewRecorder()
-	err := resp.VisitListPullRequestsResponse(w)
-
-	require.NoError(t, err)
-	assert.Equal(t, 400, w.Code)
-	assert.Contains(t, w.Header().Get("Content-Type"), "application/json")
-	assert.Contains(t, w.Body.String(), `"message":"bad request"`)
-}
-
-func TestListPullRequests401JSONResponseVisitResponse(t *testing.T) {
-	resp := ListPullRequests401JSONResponse{
-		Message: "unauthorized",
-		Code:    "401",
-	}
-
-	w := httptest.NewRecorder()
-	err := resp.VisitListPullRequestsResponse(w)
-
-	require.NoError(t, err)
-	assert.Equal(t, 401, w.Code)
-	assert.Contains(t, w.Header().Get("Content-Type"), "application/json")
-	assert.Contains(t, w.Body.String(), `"message":"unauthorized"`)
-}
-
-func TestListPullRequests500JSONResponseVisitResponse(t *testing.T) {
-	resp := ListPullRequests500JSONResponse{
-		Message: "internal server error",
-		Code:    "500",
-	}
-
-	w := httptest.NewRecorder()
-	err := resp.VisitListPullRequestsResponse(w)
-
-	require.NoError(t, err)
-	assert.Equal(t, 500, w.Code)
-	assert.Contains(t, w.Header().Get("Content-Type"), "application/json")
-	assert.Contains(t, w.Body.String(), `"message":"internal server error"`)
+	assert.Nil(t, resp)
+	assert.Same(t, serviceErr, err)
+	assert.Equal(t, "my-server", stub.gotGitServer)
 }
 
 func TestNewPullRequestHandler(t *testing.T) {

@@ -39,12 +39,15 @@ func NewManager(
 	}
 }
 
-// InvalidateCache returns an error wrapping gferrors.ErrBadRequest when endpoint is unknown.
+// InvalidateCache returns a *gferrors.InvalidParamError for parameter "endpoint" when endpoint is unknown.
 // Clearing is best-effort: entries written during the scan can survive.
 func (m *Manager) InvalidateCache(endpoint string) error {
 	invalidate, ok := m.invalidators[models.InvalidateCacheParamsEndpoint(endpoint)]
 	if !ok {
-		return fmt.Errorf("unsupported endpoint %s: %w", endpoint, gferrors.ErrBadRequest)
+		return &gferrors.InvalidParamError{
+			Param: "endpoint",
+			Err:   fmt.Errorf("unsupported endpoint %s", endpoint),
+		}
 	}
 
 	invalidate()

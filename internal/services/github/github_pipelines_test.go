@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	gferrors "github.com/KubeRocketCI/gitfusion/internal/errors"
 	"github.com/KubeRocketCI/gitfusion/internal/models"
 	"github.com/KubeRocketCI/gitfusion/internal/services/krci"
 )
@@ -407,7 +408,7 @@ func TestGitHubProviderTriggerPipelineUnsupported(t *testing.T) {
 		krci.GitServerSettings{Token: "test-token"},
 	)
 
-	assert.Error(t, err)
+	require.ErrorIs(t, err, gferrors.ErrUnsupportedOperation)
 	assert.Nil(t, result)
 	assert.Contains(t, err.Error(), "not supported for GitHub")
 }

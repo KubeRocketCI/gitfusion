@@ -2,7 +2,6 @@ package pipelines
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -47,7 +46,7 @@ func TestMultiProviderPipelineService_UnsupportedProvider(t *testing.T) {
 	}
 }
 
-func TestMultiProviderPipelineService_TriggerPipeline_UnsupportedProvider(t *testing.T) {
+func TestMultiProviderPipelineService_TriggerPipeline_UnknownProviderReturnsUnsupportedOperation(t *testing.T) {
 	tests := []struct {
 		name           string
 		gitProvider    string
@@ -57,6 +56,11 @@ func TestMultiProviderPipelineService_TriggerPipeline_UnsupportedProvider(t *tes
 			name:           "unknown provider",
 			gitProvider:    "unknown",
 			expectedErrMsg: "unsupported provider unknown",
+		},
+		{
+			name:           "gerrit provider",
+			gitProvider:    "gerrit",
+			expectedErrMsg: "unsupported provider gerrit",
 		},
 		{
 			name:           "empty provider",
@@ -77,11 +81,9 @@ func TestMultiProviderPipelineService_TriggerPipeline_UnsupportedProvider(t *tes
 				krci.GitServerSettings{GitProvider: tt.gitProvider},
 			)
 
-			assert.Error(t, err)
+			require.ErrorIs(t, err, gferrors.ErrUnsupportedOperation)
 			assert.Nil(t, result)
 			assert.Contains(t, err.Error(), tt.expectedErrMsg)
-			assert.True(t, errors.Is(err, gferrors.ErrBadRequest),
-				"unsupported provider should map to ErrBadRequest, got: %v", err)
 		})
 	}
 }
@@ -93,7 +95,7 @@ func TestMultiProviderPipelineService_GetCache(t *testing.T) {
 	assert.NotNil(t, cache, "cache should not be nil")
 }
 
-func TestMultiProviderPipelineService_ListPipelines_UnsupportedProvider(t *testing.T) {
+func TestMultiProviderPipelineService_ListPipelines_UnknownProviderReturnsUnsupportedOperation(t *testing.T) {
 	tests := []struct {
 		name           string
 		gitProvider    string
@@ -103,6 +105,11 @@ func TestMultiProviderPipelineService_ListPipelines_UnsupportedProvider(t *testi
 			name:           "unknown provider",
 			gitProvider:    "unknown",
 			expectedErrMsg: "unsupported provider unknown",
+		},
+		{
+			name:           "gerrit provider",
+			gitProvider:    "gerrit",
+			expectedErrMsg: "unsupported provider gerrit",
 		},
 	}
 
@@ -117,22 +124,21 @@ func TestMultiProviderPipelineService_ListPipelines_UnsupportedProvider(t *testi
 				models.PipelineListOptions{Page: 1, PerPage: 20},
 			)
 
-			assert.Error(t, err)
+			require.ErrorIs(t, err, gferrors.ErrUnsupportedOperation)
 			assert.Nil(t, result)
 			assert.Contains(t, err.Error(), tt.expectedErrMsg)
-			assert.True(t, errors.Is(err, gferrors.ErrBadRequest),
-				"unsupported provider should map to ErrBadRequest, got: %v", err)
 		})
 	}
 }
 
-func TestMultiProviderPipelineService_ListPipelineJobs_UnsupportedProviderReturnsBadRequest(t *testing.T) {
+func TestMultiProviderPipelineService_ListPipelineJobs_UnknownProviderReturnsUnsupportedOperation(t *testing.T) {
 	tests := []struct {
 		name        string
 		gitProvider string
 	}{
-		{name: "unknown provider returns ErrBadRequest", gitProvider: "unknown"},
-		{name: "empty provider returns ErrBadRequest", gitProvider: ""},
+		{name: "unknown provider", gitProvider: "unknown"},
+		{name: "gerrit provider", gitProvider: "gerrit"},
+		{name: "empty provider", gitProvider: ""},
 	}
 
 	for _, tt := range tests {
@@ -146,15 +152,14 @@ func TestMultiProviderPipelineService_ListPipelineJobs_UnsupportedProviderReturn
 				krci.GitServerSettings{GitProvider: tt.gitProvider},
 			)
 
-			require.Error(t, err)
+			require.ErrorIs(t, err, gferrors.ErrUnsupportedOperation)
 			assert.Nil(t, result)
-			assert.True(t, errors.Is(err, gferrors.ErrBadRequest),
-				"expected ErrBadRequest for unsupported provider %q, got: %v", tt.gitProvider, err)
+			assert.Contains(t, err.Error(), "unsupported provider "+tt.gitProvider)
 		})
 	}
 }
 
-func TestMultiProviderPipelineService_ListPipelineJobs_GitHubReturnsBadRequest(t *testing.T) {
+func TestMultiProviderPipelineService_ListPipelineJobs_GitHubReturnsUnsupportedOperation(t *testing.T) {
 	// GitHub is a registered provider but does not implement PipelineJobsProvider.
 	service := NewMultiProviderPipelineService()
 
@@ -165,8 +170,7 @@ func TestMultiProviderPipelineService_ListPipelineJobs_GitHubReturnsBadRequest(t
 		krci.GitServerSettings{GitProvider: "github"},
 	)
 
-	require.Error(t, err)
+	require.ErrorIs(t, err, gferrors.ErrUnsupportedOperation)
 	assert.Nil(t, result)
-	assert.True(t, errors.Is(err, gferrors.ErrBadRequest),
-		"expected ErrBadRequest for github provider (no jobs support), got: %v", err)
+	assert.Contains(t, err.Error(), "provider github does not support pipeline jobs")
 }

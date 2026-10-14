@@ -2,9 +2,7 @@ package api
 
 import (
 	"context"
-	"errors"
 
-	gferrors "github.com/KubeRocketCI/gitfusion/internal/errors"
 	"github.com/KubeRocketCI/gitfusion/internal/models"
 	"github.com/KubeRocketCI/gitfusion/internal/services/repositories"
 )
@@ -33,7 +31,7 @@ func (r *RepositoryHandler) GetRepository(
 		request.Params.RepoName,
 	)
 	if err != nil {
-		return r.errResponse(err), nil
+		return nil, err
 	}
 
 	return GetRepository200JSONResponse(*repo), nil
@@ -51,33 +49,12 @@ func (r *RepositoryHandler) ListRepositories(
 		r.getListOptions(request),
 	)
 	if err != nil {
-		return ListRepositories400JSONResponse{
-			Message: err.Error(),
-			Code:    "bad_request",
-		}, nil
+		return nil, err
 	}
 
 	return ListRepositories200JSONResponse{
 		Data: repositories,
 	}, nil
-}
-
-func (r *RepositoryHandler) errResponse(err error) GetRepositoryResponseObject {
-	if err == nil {
-		return GetRepository200JSONResponse{}
-	}
-
-	if errors.Is(err, gferrors.ErrNotFound) {
-		return GetRepository404JSONResponse{
-			Message: err.Error(),
-			Code:    "not_found",
-		}
-	}
-
-	return GetRepository400JSONResponse{
-		Message: err.Error(),
-		Code:    "bad_request",
-	}
 }
 
 func (r *RepositoryHandler) getListOptions(

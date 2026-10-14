@@ -35,7 +35,7 @@ type PipelineProvider interface {
 }
 
 // PipelineJobsProvider is an optional capability; providers that don't implement it make the
-// dispatch below return a bad-request error.
+// dispatch below return an error wrapping gferrors.ErrUnsupportedOperation.
 type PipelineJobsProvider interface {
 	ListPipelineJobs(
 		ctx context.Context,
@@ -106,7 +106,7 @@ func (m *MultiProviderPipelineService) TriggerPipeline(
 ) (*models.PipelineResponse, error) {
 	provider, ok := m.providers[settings.GitProvider]
 	if !ok {
-		return nil, fmt.Errorf("unsupported provider %s: %w", settings.GitProvider, gferrors.ErrBadRequest)
+		return nil, fmt.Errorf("unsupported provider %s: %w", settings.GitProvider, gferrors.ErrUnsupportedOperation)
 	}
 
 	return provider.TriggerPipeline(ctx, project, ref, variables, settings)
@@ -120,7 +120,7 @@ func (m *MultiProviderPipelineService) ListPipelines(
 ) (*models.PipelinesResponse, error) {
 	provider, ok := m.providers[settings.GitProvider]
 	if !ok {
-		return nil, fmt.Errorf("unsupported provider %s: %w", settings.GitProvider, gferrors.ErrBadRequest)
+		return nil, fmt.Errorf("unsupported provider %s: %w", settings.GitProvider, gferrors.ErrUnsupportedOperation)
 	}
 
 	refKey := ""
@@ -237,17 +237,20 @@ func (m *MultiProviderPipelineService) GetJobTrace(
 	return trace.Content, trace.Truncated, nil
 }
 
-// jobsProvider resolves a provider that supports per-pipeline jobs/logs, or a
-// bad-request error if the configured provider doesn't (e.g. GitHub/Bitbucket).
+// jobsProvider resolves a provider that supports per-pipeline jobs/logs. An unregistered provider
+// or a registered provider without jobs support (e.g. GitHub/Bitbucket) yields an error wrapping
+// gferrors.ErrUnsupportedOperation.
 func (m *MultiProviderPipelineService) jobsProvider(gitProvider string) (PipelineJobsProvider, error) {
 	provider, ok := m.providers[gitProvider]
 	if !ok {
-		return nil, fmt.Errorf("unsupported provider %s: %w", gitProvider, gferrors.ErrBadRequest)
+		return nil, fmt.Errorf("unsupported provider %s: %w", gitProvider, gferrors.ErrUnsupportedOperation)
 	}
 
 	jobsProvider, ok := provider.(PipelineJobsProvider)
 	if !ok {
-		return nil, fmt.Errorf("provider %s does not support pipeline jobs: %w", gitProvider, gferrors.ErrBadRequest)
+		return nil, fmt.Errorf(
+			"provider %s does not support pipeline jobs: %w", gitProvider, gferrors.ErrUnsupportedOperation,
+		)
 	}
 
 	return jobsProvider, nil

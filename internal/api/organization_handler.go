@@ -25,10 +25,7 @@ func (h *OrganizationHandler) ListUserOrganizations(
 ) (ListUserOrganizationsResponseObject, error) {
 	orgs, err := h.organizationsService.ListUserOrganizations(ctx, request.Params.GitServer)
 	if err != nil {
-		return ListUserOrganizations400JSONResponse{
-			Message: err.Error(),
-			Code:    "bad_request",
-		}, nil
+		return nil, err
 	}
 
 	return ListUserOrganizations200JSONResponse{

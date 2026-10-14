@@ -891,6 +891,42 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	return r
 }
 
+type BadGatewayResponseHeaders struct {
+	XRequestId string
+}
+type BadGatewayApplicationProblemPlusJSONResponse struct {
+	Body Problem
+
+	Headers BadGatewayResponseHeaders
+}
+
+type BadRequestResponseHeaders struct {
+	XRequestId string
+}
+type BadRequestApplicationProblemPlusJSONResponse struct {
+	Body Problem
+
+	Headers BadRequestResponseHeaders
+}
+
+type InternalErrorResponseHeaders struct {
+	XRequestId string
+}
+type InternalErrorApplicationProblemPlusJSONResponse struct {
+	Body Problem
+
+	Headers InternalErrorResponseHeaders
+}
+
+type NotFoundResponseHeaders struct {
+	XRequestId string
+}
+type NotFoundApplicationProblemPlusJSONResponse struct {
+	Body Problem
+
+	Headers NotFoundResponseHeaders
+}
+
 type ListBranchesRequestObject struct {
 	Params ListBranchesParams
 }
@@ -908,31 +944,52 @@ func (response ListBranches200JSONResponse) VisitListBranchesResponse(w http.Res
 	return json.NewEncoder(w).Encode(response)
 }
 
-type ListBranches400JSONResponse Error
+type ListBranches400ApplicationProblemPlusJSONResponse struct {
+	BadRequestApplicationProblemPlusJSONResponse
+}
 
-func (response ListBranches400JSONResponse) VisitListBranchesResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
+func (response ListBranches400ApplicationProblemPlusJSONResponse) VisitListBranchesResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.Header().Set("X-Request-Id", fmt.Sprint(response.Headers.XRequestId))
 	w.WriteHeader(400)
 
-	return json.NewEncoder(w).Encode(response)
+	return json.NewEncoder(w).Encode(response.Body)
 }
 
-type ListBranches401JSONResponse Error
-
-func (response ListBranches401JSONResponse) VisitListBranchesResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(401)
-
-	return json.NewEncoder(w).Encode(response)
+type ListBranches404ApplicationProblemPlusJSONResponse struct {
+	NotFoundApplicationProblemPlusJSONResponse
 }
 
-type ListBranches500JSONResponse Error
+func (response ListBranches404ApplicationProblemPlusJSONResponse) VisitListBranchesResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.Header().Set("X-Request-Id", fmt.Sprint(response.Headers.XRequestId))
+	w.WriteHeader(404)
 
-func (response ListBranches500JSONResponse) VisitListBranchesResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type ListBranches500ApplicationProblemPlusJSONResponse struct {
+	InternalErrorApplicationProblemPlusJSONResponse
+}
+
+func (response ListBranches500ApplicationProblemPlusJSONResponse) VisitListBranchesResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.Header().Set("X-Request-Id", fmt.Sprint(response.Headers.XRequestId))
 	w.WriteHeader(500)
 
-	return json.NewEncoder(w).Encode(response)
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type ListBranches502ApplicationProblemPlusJSONResponse struct {
+	BadGatewayApplicationProblemPlusJSONResponse
+}
+
+func (response ListBranches502ApplicationProblemPlusJSONResponse) VisitListBranchesResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.Header().Set("X-Request-Id", fmt.Sprint(response.Headers.XRequestId))
+	w.WriteHeader(502)
+
+	return json.NewEncoder(w).Encode(response.Body)
 }
 
 type InvalidateCacheRequestObject struct {
@@ -952,22 +1009,28 @@ func (response InvalidateCache200JSONResponse) VisitInvalidateCacheResponse(w ht
 	return json.NewEncoder(w).Encode(response)
 }
 
-type InvalidateCache400JSONResponse Error
-
-func (response InvalidateCache400JSONResponse) VisitInvalidateCacheResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(400)
-
-	return json.NewEncoder(w).Encode(response)
+type InvalidateCache400ApplicationProblemPlusJSONResponse struct {
+	BadRequestApplicationProblemPlusJSONResponse
 }
 
-type InvalidateCache500JSONResponse Error
+func (response InvalidateCache400ApplicationProblemPlusJSONResponse) VisitInvalidateCacheResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.Header().Set("X-Request-Id", fmt.Sprint(response.Headers.XRequestId))
+	w.WriteHeader(400)
 
-func (response InvalidateCache500JSONResponse) VisitInvalidateCacheResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type InvalidateCache500ApplicationProblemPlusJSONResponse struct {
+	InternalErrorApplicationProblemPlusJSONResponse
+}
+
+func (response InvalidateCache500ApplicationProblemPlusJSONResponse) VisitInvalidateCacheResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.Header().Set("X-Request-Id", fmt.Sprint(response.Headers.XRequestId))
 	w.WriteHeader(500)
 
-	return json.NewEncoder(w).Encode(response)
+	return json.NewEncoder(w).Encode(response.Body)
 }
 
 type GetPipelineJobTraceRequestObject struct {
@@ -987,40 +1050,52 @@ func (response GetPipelineJobTrace200JSONResponse) VisitGetPipelineJobTraceRespo
 	return json.NewEncoder(w).Encode(response)
 }
 
-type GetPipelineJobTrace400JSONResponse Error
+type GetPipelineJobTrace400ApplicationProblemPlusJSONResponse struct {
+	BadRequestApplicationProblemPlusJSONResponse
+}
 
-func (response GetPipelineJobTrace400JSONResponse) VisitGetPipelineJobTraceResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
+func (response GetPipelineJobTrace400ApplicationProblemPlusJSONResponse) VisitGetPipelineJobTraceResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.Header().Set("X-Request-Id", fmt.Sprint(response.Headers.XRequestId))
 	w.WriteHeader(400)
 
-	return json.NewEncoder(w).Encode(response)
+	return json.NewEncoder(w).Encode(response.Body)
 }
 
-type GetPipelineJobTrace401JSONResponse Error
-
-func (response GetPipelineJobTrace401JSONResponse) VisitGetPipelineJobTraceResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(401)
-
-	return json.NewEncoder(w).Encode(response)
+type GetPipelineJobTrace404ApplicationProblemPlusJSONResponse struct {
+	NotFoundApplicationProblemPlusJSONResponse
 }
 
-type GetPipelineJobTrace404JSONResponse Error
-
-func (response GetPipelineJobTrace404JSONResponse) VisitGetPipelineJobTraceResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
+func (response GetPipelineJobTrace404ApplicationProblemPlusJSONResponse) VisitGetPipelineJobTraceResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.Header().Set("X-Request-Id", fmt.Sprint(response.Headers.XRequestId))
 	w.WriteHeader(404)
 
-	return json.NewEncoder(w).Encode(response)
+	return json.NewEncoder(w).Encode(response.Body)
 }
 
-type GetPipelineJobTrace500JSONResponse Error
+type GetPipelineJobTrace500ApplicationProblemPlusJSONResponse struct {
+	InternalErrorApplicationProblemPlusJSONResponse
+}
 
-func (response GetPipelineJobTrace500JSONResponse) VisitGetPipelineJobTraceResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
+func (response GetPipelineJobTrace500ApplicationProblemPlusJSONResponse) VisitGetPipelineJobTraceResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.Header().Set("X-Request-Id", fmt.Sprint(response.Headers.XRequestId))
 	w.WriteHeader(500)
 
-	return json.NewEncoder(w).Encode(response)
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type GetPipelineJobTrace502ApplicationProblemPlusJSONResponse struct {
+	BadGatewayApplicationProblemPlusJSONResponse
+}
+
+func (response GetPipelineJobTrace502ApplicationProblemPlusJSONResponse) VisitGetPipelineJobTraceResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.Header().Set("X-Request-Id", fmt.Sprint(response.Headers.XRequestId))
+	w.WriteHeader(502)
+
+	return json.NewEncoder(w).Encode(response.Body)
 }
 
 type ListPipelineJobsRequestObject struct {
@@ -1040,40 +1115,52 @@ func (response ListPipelineJobs200JSONResponse) VisitListPipelineJobsResponse(w 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type ListPipelineJobs400JSONResponse Error
+type ListPipelineJobs400ApplicationProblemPlusJSONResponse struct {
+	BadRequestApplicationProblemPlusJSONResponse
+}
 
-func (response ListPipelineJobs400JSONResponse) VisitListPipelineJobsResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
+func (response ListPipelineJobs400ApplicationProblemPlusJSONResponse) VisitListPipelineJobsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.Header().Set("X-Request-Id", fmt.Sprint(response.Headers.XRequestId))
 	w.WriteHeader(400)
 
-	return json.NewEncoder(w).Encode(response)
+	return json.NewEncoder(w).Encode(response.Body)
 }
 
-type ListPipelineJobs401JSONResponse Error
-
-func (response ListPipelineJobs401JSONResponse) VisitListPipelineJobsResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(401)
-
-	return json.NewEncoder(w).Encode(response)
+type ListPipelineJobs404ApplicationProblemPlusJSONResponse struct {
+	NotFoundApplicationProblemPlusJSONResponse
 }
 
-type ListPipelineJobs404JSONResponse Error
-
-func (response ListPipelineJobs404JSONResponse) VisitListPipelineJobsResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
+func (response ListPipelineJobs404ApplicationProblemPlusJSONResponse) VisitListPipelineJobsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.Header().Set("X-Request-Id", fmt.Sprint(response.Headers.XRequestId))
 	w.WriteHeader(404)
 
-	return json.NewEncoder(w).Encode(response)
+	return json.NewEncoder(w).Encode(response.Body)
 }
 
-type ListPipelineJobs500JSONResponse Error
+type ListPipelineJobs500ApplicationProblemPlusJSONResponse struct {
+	InternalErrorApplicationProblemPlusJSONResponse
+}
 
-func (response ListPipelineJobs500JSONResponse) VisitListPipelineJobsResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
+func (response ListPipelineJobs500ApplicationProblemPlusJSONResponse) VisitListPipelineJobsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.Header().Set("X-Request-Id", fmt.Sprint(response.Headers.XRequestId))
 	w.WriteHeader(500)
 
-	return json.NewEncoder(w).Encode(response)
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type ListPipelineJobs502ApplicationProblemPlusJSONResponse struct {
+	BadGatewayApplicationProblemPlusJSONResponse
+}
+
+func (response ListPipelineJobs502ApplicationProblemPlusJSONResponse) VisitListPipelineJobsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.Header().Set("X-Request-Id", fmt.Sprint(response.Headers.XRequestId))
+	w.WriteHeader(502)
+
+	return json.NewEncoder(w).Encode(response.Body)
 }
 
 type ListPipelinesRequestObject struct {
@@ -1093,40 +1180,52 @@ func (response ListPipelines200JSONResponse) VisitListPipelinesResponse(w http.R
 	return json.NewEncoder(w).Encode(response)
 }
 
-type ListPipelines400JSONResponse Error
+type ListPipelines400ApplicationProblemPlusJSONResponse struct {
+	BadRequestApplicationProblemPlusJSONResponse
+}
 
-func (response ListPipelines400JSONResponse) VisitListPipelinesResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
+func (response ListPipelines400ApplicationProblemPlusJSONResponse) VisitListPipelinesResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.Header().Set("X-Request-Id", fmt.Sprint(response.Headers.XRequestId))
 	w.WriteHeader(400)
 
-	return json.NewEncoder(w).Encode(response)
+	return json.NewEncoder(w).Encode(response.Body)
 }
 
-type ListPipelines401JSONResponse Error
-
-func (response ListPipelines401JSONResponse) VisitListPipelinesResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(401)
-
-	return json.NewEncoder(w).Encode(response)
+type ListPipelines404ApplicationProblemPlusJSONResponse struct {
+	NotFoundApplicationProblemPlusJSONResponse
 }
 
-type ListPipelines404JSONResponse Error
-
-func (response ListPipelines404JSONResponse) VisitListPipelinesResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
+func (response ListPipelines404ApplicationProblemPlusJSONResponse) VisitListPipelinesResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.Header().Set("X-Request-Id", fmt.Sprint(response.Headers.XRequestId))
 	w.WriteHeader(404)
 
-	return json.NewEncoder(w).Encode(response)
+	return json.NewEncoder(w).Encode(response.Body)
 }
 
-type ListPipelines500JSONResponse Error
+type ListPipelines500ApplicationProblemPlusJSONResponse struct {
+	InternalErrorApplicationProblemPlusJSONResponse
+}
 
-func (response ListPipelines500JSONResponse) VisitListPipelinesResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
+func (response ListPipelines500ApplicationProblemPlusJSONResponse) VisitListPipelinesResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.Header().Set("X-Request-Id", fmt.Sprint(response.Headers.XRequestId))
 	w.WriteHeader(500)
 
-	return json.NewEncoder(w).Encode(response)
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type ListPipelines502ApplicationProblemPlusJSONResponse struct {
+	BadGatewayApplicationProblemPlusJSONResponse
+}
+
+func (response ListPipelines502ApplicationProblemPlusJSONResponse) VisitListPipelinesResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.Header().Set("X-Request-Id", fmt.Sprint(response.Headers.XRequestId))
+	w.WriteHeader(502)
+
+	return json.NewEncoder(w).Encode(response.Body)
 }
 
 type ListPullRequestsRequestObject struct {
@@ -1146,40 +1245,52 @@ func (response ListPullRequests200JSONResponse) VisitListPullRequestsResponse(w 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type ListPullRequests400JSONResponse Error
+type ListPullRequests400ApplicationProblemPlusJSONResponse struct {
+	BadRequestApplicationProblemPlusJSONResponse
+}
 
-func (response ListPullRequests400JSONResponse) VisitListPullRequestsResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
+func (response ListPullRequests400ApplicationProblemPlusJSONResponse) VisitListPullRequestsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.Header().Set("X-Request-Id", fmt.Sprint(response.Headers.XRequestId))
 	w.WriteHeader(400)
 
-	return json.NewEncoder(w).Encode(response)
+	return json.NewEncoder(w).Encode(response.Body)
 }
 
-type ListPullRequests401JSONResponse Error
-
-func (response ListPullRequests401JSONResponse) VisitListPullRequestsResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(401)
-
-	return json.NewEncoder(w).Encode(response)
+type ListPullRequests404ApplicationProblemPlusJSONResponse struct {
+	NotFoundApplicationProblemPlusJSONResponse
 }
 
-type ListPullRequests404JSONResponse Error
-
-func (response ListPullRequests404JSONResponse) VisitListPullRequestsResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
+func (response ListPullRequests404ApplicationProblemPlusJSONResponse) VisitListPullRequestsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.Header().Set("X-Request-Id", fmt.Sprint(response.Headers.XRequestId))
 	w.WriteHeader(404)
 
-	return json.NewEncoder(w).Encode(response)
+	return json.NewEncoder(w).Encode(response.Body)
 }
 
-type ListPullRequests500JSONResponse Error
+type ListPullRequests500ApplicationProblemPlusJSONResponse struct {
+	InternalErrorApplicationProblemPlusJSONResponse
+}
 
-func (response ListPullRequests500JSONResponse) VisitListPullRequestsResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
+func (response ListPullRequests500ApplicationProblemPlusJSONResponse) VisitListPullRequestsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.Header().Set("X-Request-Id", fmt.Sprint(response.Headers.XRequestId))
 	w.WriteHeader(500)
 
-	return json.NewEncoder(w).Encode(response)
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type ListPullRequests502ApplicationProblemPlusJSONResponse struct {
+	BadGatewayApplicationProblemPlusJSONResponse
+}
+
+func (response ListPullRequests502ApplicationProblemPlusJSONResponse) VisitListPullRequestsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.Header().Set("X-Request-Id", fmt.Sprint(response.Headers.XRequestId))
+	w.WriteHeader(502)
+
+	return json.NewEncoder(w).Encode(response.Body)
 }
 
 type ListRepositoriesRequestObject struct {
@@ -1199,31 +1310,52 @@ func (response ListRepositories200JSONResponse) VisitListRepositoriesResponse(w 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type ListRepositories400JSONResponse Error
+type ListRepositories400ApplicationProblemPlusJSONResponse struct {
+	BadRequestApplicationProblemPlusJSONResponse
+}
 
-func (response ListRepositories400JSONResponse) VisitListRepositoriesResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
+func (response ListRepositories400ApplicationProblemPlusJSONResponse) VisitListRepositoriesResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.Header().Set("X-Request-Id", fmt.Sprint(response.Headers.XRequestId))
 	w.WriteHeader(400)
 
-	return json.NewEncoder(w).Encode(response)
+	return json.NewEncoder(w).Encode(response.Body)
 }
 
-type ListRepositories401JSONResponse Error
-
-func (response ListRepositories401JSONResponse) VisitListRepositoriesResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(401)
-
-	return json.NewEncoder(w).Encode(response)
+type ListRepositories404ApplicationProblemPlusJSONResponse struct {
+	NotFoundApplicationProblemPlusJSONResponse
 }
 
-type ListRepositories500JSONResponse Error
+func (response ListRepositories404ApplicationProblemPlusJSONResponse) VisitListRepositoriesResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.Header().Set("X-Request-Id", fmt.Sprint(response.Headers.XRequestId))
+	w.WriteHeader(404)
 
-func (response ListRepositories500JSONResponse) VisitListRepositoriesResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type ListRepositories500ApplicationProblemPlusJSONResponse struct {
+	InternalErrorApplicationProblemPlusJSONResponse
+}
+
+func (response ListRepositories500ApplicationProblemPlusJSONResponse) VisitListRepositoriesResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.Header().Set("X-Request-Id", fmt.Sprint(response.Headers.XRequestId))
 	w.WriteHeader(500)
 
-	return json.NewEncoder(w).Encode(response)
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type ListRepositories502ApplicationProblemPlusJSONResponse struct {
+	BadGatewayApplicationProblemPlusJSONResponse
+}
+
+func (response ListRepositories502ApplicationProblemPlusJSONResponse) VisitListRepositoriesResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.Header().Set("X-Request-Id", fmt.Sprint(response.Headers.XRequestId))
+	w.WriteHeader(502)
+
+	return json.NewEncoder(w).Encode(response.Body)
 }
 
 type GetRepositoryRequestObject struct {
@@ -1243,22 +1375,52 @@ func (response GetRepository200JSONResponse) VisitGetRepositoryResponse(w http.R
 	return json.NewEncoder(w).Encode(response)
 }
 
-type GetRepository400JSONResponse Error
-
-func (response GetRepository400JSONResponse) VisitGetRepositoryResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(400)
-
-	return json.NewEncoder(w).Encode(response)
+type GetRepository400ApplicationProblemPlusJSONResponse struct {
+	BadRequestApplicationProblemPlusJSONResponse
 }
 
-type GetRepository404JSONResponse Error
+func (response GetRepository400ApplicationProblemPlusJSONResponse) VisitGetRepositoryResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.Header().Set("X-Request-Id", fmt.Sprint(response.Headers.XRequestId))
+	w.WriteHeader(400)
 
-func (response GetRepository404JSONResponse) VisitGetRepositoryResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type GetRepository404ApplicationProblemPlusJSONResponse struct {
+	NotFoundApplicationProblemPlusJSONResponse
+}
+
+func (response GetRepository404ApplicationProblemPlusJSONResponse) VisitGetRepositoryResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.Header().Set("X-Request-Id", fmt.Sprint(response.Headers.XRequestId))
 	w.WriteHeader(404)
 
-	return json.NewEncoder(w).Encode(response)
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type GetRepository500ApplicationProblemPlusJSONResponse struct {
+	InternalErrorApplicationProblemPlusJSONResponse
+}
+
+func (response GetRepository500ApplicationProblemPlusJSONResponse) VisitGetRepositoryResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.Header().Set("X-Request-Id", fmt.Sprint(response.Headers.XRequestId))
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type GetRepository502ApplicationProblemPlusJSONResponse struct {
+	BadGatewayApplicationProblemPlusJSONResponse
+}
+
+func (response GetRepository502ApplicationProblemPlusJSONResponse) VisitGetRepositoryResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.Header().Set("X-Request-Id", fmt.Sprint(response.Headers.XRequestId))
+	w.WriteHeader(502)
+
+	return json.NewEncoder(w).Encode(response.Body)
 }
 
 type TriggerPipelineRequestObject struct {
@@ -1278,40 +1440,52 @@ func (response TriggerPipeline201JSONResponse) VisitTriggerPipelineResponse(w ht
 	return json.NewEncoder(w).Encode(response)
 }
 
-type TriggerPipeline400JSONResponse Error
+type TriggerPipeline400ApplicationProblemPlusJSONResponse struct {
+	BadRequestApplicationProblemPlusJSONResponse
+}
 
-func (response TriggerPipeline400JSONResponse) VisitTriggerPipelineResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
+func (response TriggerPipeline400ApplicationProblemPlusJSONResponse) VisitTriggerPipelineResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.Header().Set("X-Request-Id", fmt.Sprint(response.Headers.XRequestId))
 	w.WriteHeader(400)
 
-	return json.NewEncoder(w).Encode(response)
+	return json.NewEncoder(w).Encode(response.Body)
 }
 
-type TriggerPipeline401JSONResponse Error
-
-func (response TriggerPipeline401JSONResponse) VisitTriggerPipelineResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(401)
-
-	return json.NewEncoder(w).Encode(response)
+type TriggerPipeline404ApplicationProblemPlusJSONResponse struct {
+	NotFoundApplicationProblemPlusJSONResponse
 }
 
-type TriggerPipeline404JSONResponse Error
-
-func (response TriggerPipeline404JSONResponse) VisitTriggerPipelineResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
+func (response TriggerPipeline404ApplicationProblemPlusJSONResponse) VisitTriggerPipelineResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.Header().Set("X-Request-Id", fmt.Sprint(response.Headers.XRequestId))
 	w.WriteHeader(404)
 
-	return json.NewEncoder(w).Encode(response)
+	return json.NewEncoder(w).Encode(response.Body)
 }
 
-type TriggerPipeline500JSONResponse Error
+type TriggerPipeline500ApplicationProblemPlusJSONResponse struct {
+	InternalErrorApplicationProblemPlusJSONResponse
+}
 
-func (response TriggerPipeline500JSONResponse) VisitTriggerPipelineResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
+func (response TriggerPipeline500ApplicationProblemPlusJSONResponse) VisitTriggerPipelineResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.Header().Set("X-Request-Id", fmt.Sprint(response.Headers.XRequestId))
 	w.WriteHeader(500)
 
-	return json.NewEncoder(w).Encode(response)
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type TriggerPipeline502ApplicationProblemPlusJSONResponse struct {
+	BadGatewayApplicationProblemPlusJSONResponse
+}
+
+func (response TriggerPipeline502ApplicationProblemPlusJSONResponse) VisitTriggerPipelineResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.Header().Set("X-Request-Id", fmt.Sprint(response.Headers.XRequestId))
+	w.WriteHeader(502)
+
+	return json.NewEncoder(w).Encode(response.Body)
 }
 
 type ListUserOrganizationsRequestObject struct {
@@ -1331,31 +1505,52 @@ func (response ListUserOrganizations200JSONResponse) VisitListUserOrganizationsR
 	return json.NewEncoder(w).Encode(response)
 }
 
-type ListUserOrganizations400JSONResponse Error
+type ListUserOrganizations400ApplicationProblemPlusJSONResponse struct {
+	BadRequestApplicationProblemPlusJSONResponse
+}
 
-func (response ListUserOrganizations400JSONResponse) VisitListUserOrganizationsResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
+func (response ListUserOrganizations400ApplicationProblemPlusJSONResponse) VisitListUserOrganizationsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.Header().Set("X-Request-Id", fmt.Sprint(response.Headers.XRequestId))
 	w.WriteHeader(400)
 
-	return json.NewEncoder(w).Encode(response)
+	return json.NewEncoder(w).Encode(response.Body)
 }
 
-type ListUserOrganizations401JSONResponse Error
-
-func (response ListUserOrganizations401JSONResponse) VisitListUserOrganizationsResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(401)
-
-	return json.NewEncoder(w).Encode(response)
+type ListUserOrganizations404ApplicationProblemPlusJSONResponse struct {
+	NotFoundApplicationProblemPlusJSONResponse
 }
 
-type ListUserOrganizations500JSONResponse Error
+func (response ListUserOrganizations404ApplicationProblemPlusJSONResponse) VisitListUserOrganizationsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.Header().Set("X-Request-Id", fmt.Sprint(response.Headers.XRequestId))
+	w.WriteHeader(404)
 
-func (response ListUserOrganizations500JSONResponse) VisitListUserOrganizationsResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type ListUserOrganizations500ApplicationProblemPlusJSONResponse struct {
+	InternalErrorApplicationProblemPlusJSONResponse
+}
+
+func (response ListUserOrganizations500ApplicationProblemPlusJSONResponse) VisitListUserOrganizationsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.Header().Set("X-Request-Id", fmt.Sprint(response.Headers.XRequestId))
 	w.WriteHeader(500)
 
-	return json.NewEncoder(w).Encode(response)
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type ListUserOrganizations502ApplicationProblemPlusJSONResponse struct {
+	BadGatewayApplicationProblemPlusJSONResponse
+}
+
+func (response ListUserOrganizations502ApplicationProblemPlusJSONResponse) VisitListUserOrganizationsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.Header().Set("X-Request-Id", fmt.Sprint(response.Headers.XRequestId))
+	w.WriteHeader(502)
+
+	return json.NewEncoder(w).Encode(response.Body)
 }
 
 // StrictServerInterface represents all server handlers.

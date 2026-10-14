@@ -600,7 +600,7 @@ func TestBitbucketServiceTriggerPipelineUnsupported(t *testing.T) {
 		krci.GitServerSettings{Token: testBitbucketToken()},
 	)
 
-	assert.Error(t, err)
+	require.ErrorIs(t, err, gferrors.ErrUnsupportedOperation)
 	assert.Nil(t, result)
 	assert.Contains(t, err.Error(), "not supported for Bitbucket")
 }

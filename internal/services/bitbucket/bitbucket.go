@@ -735,5 +735,5 @@ func (b *BitbucketService) TriggerPipeline(
 	_ []models.PipelineVariable,
 	_ krci.GitServerSettings,
 ) (*models.PipelineResponse, error) {
-	return nil, fmt.Errorf("trigger pipeline is not supported for Bitbucket")
+	return nil, fmt.Errorf("trigger pipeline is not supported for Bitbucket: %w", gferrors.ErrUnsupportedOperation)
 }

@@ -2,10 +2,12 @@ package api
 
 import (
 	"context"
+	"net/http"
 
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	codebaseApi "github.com/epam/edp-codebase-operator/v2/api/v1"
+	"github.com/go-chi/chi/v5"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -170,18 +172,30 @@ func BuildHandler(conf Config) (ServerInterface, error) {
 	pipelineHandler := NewPipelineHandler(pipelinesSvc)
 	pullRequestHandler := NewPullRequestHandler(pullRequestsSvc)
 
-	return NewStrictHandlerWithOptions(
-		NewServer(
-			NewRepositoryHandler(repoSvc),
-			NewOrganizationHandler(orgSvc),
-			branchHandler,
-			cacheHandler,
-			pipelineHandler,
-			pullRequestHandler,
-		),
-		[]StrictMiddlewareFunc{},
-		StrictHTTPServerOptions{},
-	), nil
+	return newStrictHandler(NewServer(
+		NewRepositoryHandler(repoSvc),
+		NewOrganizationHandler(orgSvc),
+		branchHandler,
+		cacheHandler,
+		pipelineHandler,
+		pullRequestHandler,
+	)), nil
+}
+
+// newStrictHandler adapts s to ServerInterface; request and handler errors go through writeProblem.
+func newStrictHandler(s *Server) ServerInterface {
+	return NewStrictHandlerWithOptions(s, nil, StrictHTTPServerOptions{
+		RequestErrorHandlerFunc:  writeProblem,
+		ResponseErrorHandlerFunc: writeProblem,
+	})
+}
+
+// NewHTTPHandler mounts si on r; parameter binding errors go through writeProblem.
+func NewHTTPHandler(si ServerInterface, r chi.Router) http.Handler {
+	return HandlerWithOptions(si, ChiServerOptions{
+		BaseRouter:       r,
+		ErrorHandlerFunc: writeProblem,
+	})
 }
 
 func initk8sClient() (client.Client, error) {

@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/KubeRocketCI/gitfusion/internal/cache"
-	gferrors "github.com/KubeRocketCI/gitfusion/internal/errors"
 	"github.com/KubeRocketCI/gitfusion/internal/models"
 )
 
@@ -38,12 +37,9 @@ func TestCacheHandlerInvalidateCacheKnownEndpoint(t *testing.T) {
 	}, resp)
 }
 
-func TestCacheHandlerInvalidateCacheUnknownEndpointIsBadRequest(t *testing.T) {
+func TestCacheHandlerInvalidateCacheUnknownEndpointReturnsInvalidParamError(t *testing.T) {
 	resp, err := newTestCacheHandler().InvalidateCache(context.Background(), invalidateCacheRequest("foo"))
 
-	require.NoError(t, err)
-	assert.Equal(t, InvalidateCache400JSONResponse{
-		Code:    "invalid_endpoint",
-		Message: "unsupported endpoint foo: " + gferrors.ErrBadRequest.Error(),
-	}, resp)
+	assert.Nil(t, resp)
+	requireInvalidParam(t, err, "endpoint")
 }

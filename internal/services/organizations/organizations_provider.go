@@ -8,6 +8,7 @@ import (
 	"github.com/viccon/sturdyc"
 
 	"github.com/KubeRocketCI/gitfusion/internal/cache"
+	gferrors "github.com/KubeRocketCI/gitfusion/internal/errors"
 	"github.com/KubeRocketCI/gitfusion/internal/models"
 	"github.com/KubeRocketCI/gitfusion/internal/services/bitbucket"
 	"github.com/KubeRocketCI/gitfusion/internal/services/github"
@@ -73,7 +74,7 @@ func (m *MultiProviderOrganizationsService) ListUserOrganizations(
 ) ([]models.Organization, error) {
 	provider, ok := m.providers[settings.GitProvider]
 	if !ok {
-		return nil, fmt.Errorf("unsupported provider: %s", settings.GitProvider)
+		return nil, fmt.Errorf("unsupported provider %s: %w", settings.GitProvider, gferrors.ErrUnsupportedOperation)
 	}
 
 	fetchFn := func(ctx context.Context) ([]models.Organization, error) {

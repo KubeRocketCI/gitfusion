@@ -149,7 +149,10 @@ func TestManager_InvalidateCacheRejectsUnknownEndpoint(t *testing.T) {
 
 	err := caches.manager().InvalidateCache("foo")
 
-	require.ErrorIs(t, err, gferrors.ErrBadRequest)
+	var invalidParam *gferrors.InvalidParamError
+
+	require.ErrorAs(t, err, &invalidParam)
+	assert.Equal(t, "endpoint", invalidParam.Param)
 	assert.Contains(t, err.Error(), "unsupported endpoint foo")
 	assert.Empty(t, caches.emptied())
 }

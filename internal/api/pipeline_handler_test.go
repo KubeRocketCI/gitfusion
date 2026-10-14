@@ -2,12 +2,8 @@ package api
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"net/http"
-	"net/http/httptest"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -102,47 +98,22 @@ func (s *stubPipelineService) GetJobTrace(
 
 // --- TriggerPipeline tests ---
 
-func TestPipelineHandlerTriggerPipelineValidation(t *testing.T) {
-	handler := NewPipelineHandler(&stubPipelineService{})
+func TestPipelineHandlerTriggerPipelineInvalidVariables(t *testing.T) {
+	stub := &stubPipelineService{}
+	handler := NewPipelineHandler(stub)
 
-	t.Run("missing gitServer returns 400", func(t *testing.T) {
-		resp, err := handler.TriggerPipeline(context.Background(), TriggerPipelineRequestObject{
-			Params: models.TriggerPipelineParams{
-				GitServer: "",
-				Project:   "my-project",
-				Ref:       "main",
-			},
-		})
-
-		require.NoError(t, err)
-		assert.IsType(t, TriggerPipeline400JSONResponse{}, resp)
+	resp, err := handler.TriggerPipeline(context.Background(), TriggerPipelineRequestObject{
+		Params: models.TriggerPipelineParams{
+			GitServer: "my-server",
+			Project:   "my-project",
+			Ref:       "main",
+			Variables: pointer.To("{not-json"),
+		},
 	})
 
-	t.Run("missing project returns 400", func(t *testing.T) {
-		resp, err := handler.TriggerPipeline(context.Background(), TriggerPipelineRequestObject{
-			Params: models.TriggerPipelineParams{
-				GitServer: "my-server",
-				Project:   "",
-				Ref:       "main",
-			},
-		})
-
-		require.NoError(t, err)
-		assert.IsType(t, TriggerPipeline400JSONResponse{}, resp)
-	})
-
-	t.Run("missing ref returns 400", func(t *testing.T) {
-		resp, err := handler.TriggerPipeline(context.Background(), TriggerPipelineRequestObject{
-			Params: models.TriggerPipelineParams{
-				GitServer: "my-server",
-				Project:   "my-project",
-				Ref:       "",
-			},
-		})
-
-		require.NoError(t, err)
-		assert.IsType(t, TriggerPipeline400JSONResponse{}, resp)
-	})
+	assert.Nil(t, resp)
+	requireInvalidParam(t, err, "variables")
+	assert.Empty(t, stub.gotTriggerGitServer, "service must not be called")
 }
 
 func TestPipelineHandlerTriggerPipelineSuccess(t *testing.T) {
@@ -171,44 +142,77 @@ func TestPipelineHandlerTriggerPipelineSuccess(t *testing.T) {
 	assert.Equal(t, "main", stub.gotTriggerRef)
 }
 
-func TestPipelineHandlerTriggerErrResponse(t *testing.T) {
-	handler := &PipelineHandler{}
+func TestPipelineHandlerTriggerPipelineForwardsVariables(t *testing.T) {
+	stub := &stubPipelineService{triggerResp: &models.PipelineResponse{}}
+	handler := NewPipelineHandler(stub)
 
-	t.Run("bad request error returns 400", func(t *testing.T) {
-		resp := handler.triggerErrResponse(fmt.Errorf("invalid project format: %w", gferrors.ErrBadRequest))
-
-		errResp, ok := resp.(TriggerPipeline400JSONResponse)
-		require.True(t, ok, "expected TriggerPipeline400JSONResponse")
-		assert.Equal(t, fmt.Sprintf("%d", http.StatusBadRequest), errResp.Code)
-		assert.Contains(t, errResp.Message, "bad_request")
+	resp, err := handler.TriggerPipeline(context.Background(), TriggerPipelineRequestObject{
+		Params: models.TriggerPipelineParams{
+			GitServer: "my-server",
+			Project:   "my-project",
+			Ref:       "main",
+			Variables: pointer.To(`[{"key":"K","value":"V"}]`),
+		},
 	})
 
-	t.Run("not found error returns 404", func(t *testing.T) {
-		resp := handler.triggerErrResponse(fmt.Errorf("project not found: %w", gferrors.ErrNotFound))
+	require.NoError(t, err)
+	assert.IsType(t, TriggerPipeline201JSONResponse{}, resp)
+	assert.Equal(t, []models.PipelineVariable{{Key: "K", Value: "V"}}, stub.gotTriggerVars)
+}
 
-		errResp, ok := resp.(TriggerPipeline404JSONResponse)
-		require.True(t, ok, "expected TriggerPipeline404JSONResponse")
-		assert.Equal(t, fmt.Sprintf("%d", http.StatusNotFound), errResp.Code)
-		assert.Contains(t, errResp.Message, "not found")
-	})
+func TestPipelineHandlerReturnsServiceError(t *testing.T) {
+	serviceErr := fmt.Errorf("upstream: %w", gferrors.ErrNotFound)
+	stub := &stubPipelineService{
+		triggerErr: serviceErr,
+		listErr:    serviceErr,
+		jobsErr:    serviceErr,
+		traceErr:   serviceErr,
+	}
+	handler := NewPipelineHandler(stub)
+	ctx := context.Background()
 
-	t.Run("unauthorized error returns 401", func(t *testing.T) {
-		resp := handler.triggerErrResponse(fmt.Errorf("token expired: %w", gferrors.ErrUnauthorized))
+	tests := []struct {
+		name string
+		call func() (any, error)
+	}{
+		{
+			name: "TriggerPipeline",
+			call: func() (any, error) {
+				return handler.TriggerPipeline(ctx, TriggerPipelineRequestObject{})
+			},
+		},
+		{
+			name: "ListPipelines",
+			call: func() (any, error) {
+				return handler.ListPipelines(ctx, ListPipelinesRequestObject{})
+			},
+		},
+		{
+			name: "ListPipelineJobs",
+			call: func() (any, error) {
+				return handler.ListPipelineJobs(ctx, ListPipelineJobsRequestObject{
+					Params: models.ListPipelineJobsParams{PipelineId: "5"},
+				})
+			},
+		},
+		{
+			name: "GetPipelineJobTrace",
+			call: func() (any, error) {
+				return handler.GetPipelineJobTrace(ctx, GetPipelineJobTraceRequestObject{
+					Params: models.GetPipelineJobTraceParams{JobId: "23"},
+				})
+			},
+		},
+	}
 
-		errResp, ok := resp.(TriggerPipeline401JSONResponse)
-		require.True(t, ok, "expected TriggerPipeline401JSONResponse")
-		assert.Equal(t, fmt.Sprintf("%d", http.StatusUnauthorized), errResp.Code)
-		assert.Contains(t, errResp.Message, "unauthorized")
-	})
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resp, err := tt.call()
 
-	t.Run("generic error returns 500 with generic message", func(t *testing.T) {
-		resp := handler.triggerErrResponse(errors.New("something went wrong"))
-
-		errResp, ok := resp.(TriggerPipeline500JSONResponse)
-		require.True(t, ok, "expected TriggerPipeline500JSONResponse")
-		assert.Equal(t, fmt.Sprintf("%d", http.StatusInternalServerError), errResp.Code)
-		assert.Equal(t, "something went wrong", errResp.Message)
-	})
+			assert.Nil(t, resp)
+			assert.Same(t, serviceErr, err)
+		})
+	}
 }
 
 // --- ListPipelines tests ---
@@ -329,130 +333,6 @@ func TestPipelineHandlerListPipelinesWithFilters(t *testing.T) {
 	assert.Equal(t, "success", *stub.gotListOpts.Status)
 }
 
-func TestPipelineHandlerListErrResponse(t *testing.T) {
-	handler := &PipelineHandler{}
-
-	t.Run("unauthorized error returns 401", func(t *testing.T) {
-		err := fmt.Errorf("token expired: %w", gferrors.ErrUnauthorized)
-
-		resp := handler.listErrResponse(err)
-
-		errResp, ok := resp.(ListPipelines401JSONResponse)
-		require.True(t, ok, "expected ListPipelines401JSONResponse")
-		assert.Equal(t, fmt.Sprintf("%d", http.StatusUnauthorized), errResp.Code)
-		assert.Contains(t, errResp.Message, "unauthorized")
-	})
-
-	t.Run("bad request error returns 400", func(t *testing.T) {
-		err := fmt.Errorf("invalid project format: %w", gferrors.ErrBadRequest)
-
-		resp := handler.listErrResponse(err)
-
-		errResp, ok := resp.(ListPipelines400JSONResponse)
-		require.True(t, ok, "expected ListPipelines400JSONResponse")
-		assert.Equal(t, fmt.Sprintf("%d", http.StatusBadRequest), errResp.Code)
-		assert.Contains(t, errResp.Message, "bad_request")
-	})
-
-	t.Run("not found error returns 404", func(t *testing.T) {
-		err := fmt.Errorf("project not found: %w", gferrors.ErrNotFound)
-
-		resp := handler.listErrResponse(err)
-
-		errResp, ok := resp.(ListPipelines404JSONResponse)
-		require.True(t, ok, "expected ListPipelines404JSONResponse")
-		assert.Equal(t, fmt.Sprintf("%d", http.StatusNotFound), errResp.Code)
-		assert.Contains(t, errResp.Message, "not found")
-	})
-
-	t.Run("generic error returns 500 with generic message", func(t *testing.T) {
-		resp := handler.listErrResponse(errors.New("something went wrong"))
-
-		errResp, ok := resp.(ListPipelines500JSONResponse)
-		require.True(t, ok, "expected ListPipelines500JSONResponse")
-		assert.Equal(t, fmt.Sprintf("%d", http.StatusInternalServerError), errResp.Code)
-		assert.Equal(t, "something went wrong", errResp.Message)
-	})
-}
-
-// --- VisitResponse tests ---
-
-func TestListPipelines200JSONResponseVisitResponse(t *testing.T) {
-	page := 1
-	perPage := 20
-
-	resp := ListPipelines200JSONResponse{
-		Data: []models.Pipeline{
-			{
-				Id:        "12345",
-				Status:    models.PipelineStatusSuccess,
-				Ref:       "main",
-				Sha:       "abc123",
-				WebUrl:    "https://gitlab.com/project/-/pipelines/12345",
-				CreatedAt: time.Date(2026, 1, 15, 10, 0, 0, 0, time.UTC),
-			},
-		},
-		Pagination: models.Pagination{
-			Total:   1,
-			Page:    &page,
-			PerPage: &perPage,
-		},
-	}
-
-	w := httptest.NewRecorder()
-	err := resp.VisitListPipelinesResponse(w)
-
-	require.NoError(t, err)
-	assert.Equal(t, 200, w.Code)
-	assert.Contains(t, w.Header().Get("Content-Type"), "application/json")
-	assert.Contains(t, w.Body.String(), `"status":"success"`)
-}
-
-func TestListPipelines400JSONResponseVisitResponse(t *testing.T) {
-	resp := ListPipelines400JSONResponse{
-		Message: "bad request",
-		Code:    "bad_request",
-	}
-
-	w := httptest.NewRecorder()
-	err := resp.VisitListPipelinesResponse(w)
-
-	require.NoError(t, err)
-	assert.Equal(t, 400, w.Code)
-	assert.Contains(t, w.Header().Get("Content-Type"), "application/json")
-	assert.Contains(t, w.Body.String(), `"message":"bad request"`)
-}
-
-func TestListPipelines401JSONResponseVisitResponse(t *testing.T) {
-	resp := ListPipelines401JSONResponse{
-		Message: "unauthorized",
-		Code:    "401",
-	}
-
-	w := httptest.NewRecorder()
-	err := resp.VisitListPipelinesResponse(w)
-
-	require.NoError(t, err)
-	assert.Equal(t, 401, w.Code)
-	assert.Contains(t, w.Header().Get("Content-Type"), "application/json")
-	assert.Contains(t, w.Body.String(), `"message":"unauthorized"`)
-}
-
-func TestListPipelines500JSONResponseVisitResponse(t *testing.T) {
-	resp := ListPipelines500JSONResponse{
-		Message: "internal server error",
-		Code:    "500",
-	}
-
-	w := httptest.NewRecorder()
-	err := resp.VisitListPipelinesResponse(w)
-
-	require.NoError(t, err)
-	assert.Equal(t, 500, w.Code)
-	assert.Contains(t, w.Header().Get("Content-Type"), "application/json")
-	assert.Contains(t, w.Body.String(), `"message":"internal server error"`)
-}
-
 // --- Constructor and signature tests ---
 
 func TestNewPipelineHandler(t *testing.T) {
@@ -474,16 +354,17 @@ func TestPipelineHandlerImplementsExpectedSignature(t *testing.T) {
 
 // --- ListPipelineJobs tests ---
 
-func TestPipelineHandlerListPipelineJobsValidation(t *testing.T) {
-	handler := NewPipelineHandler(&stubPipelineService{})
+func TestPipelineHandlerListPipelineJobsInvalidPipelineID(t *testing.T) {
+	stub := &stubPipelineService{}
+	handler := NewPipelineHandler(stub)
 
-	t.Run("non-numeric pipelineId returns 400", func(t *testing.T) {
-		resp, err := handler.ListPipelineJobs(context.Background(), ListPipelineJobsRequestObject{
-			Params: models.ListPipelineJobsParams{GitServer: "gl", Project: "p", PipelineId: "abc"},
-		})
-		require.NoError(t, err)
-		assert.IsType(t, ListPipelineJobs400JSONResponse{}, resp)
+	resp, err := handler.ListPipelineJobs(context.Background(), ListPipelineJobsRequestObject{
+		Params: models.ListPipelineJobsParams{GitServer: "gl", Project: "p", PipelineId: "abc"},
 	})
+
+	assert.Nil(t, resp)
+	requireInvalidParam(t, err, "pipelineId")
+	assert.Empty(t, stub.gotJobsGitServer, "service must not be called")
 }
 
 func TestPipelineHandlerListPipelineJobsSuccess(t *testing.T) {
@@ -507,32 +388,19 @@ func TestPipelineHandlerListPipelineJobsSuccess(t *testing.T) {
 	assert.Equal(t, "build", jobsResp.Data[0].Name)
 }
 
-func TestPipelineHandlerJobsErrResponse(t *testing.T) {
-	handler := &PipelineHandler{}
-
-	t.Run("not found returns 404", func(t *testing.T) {
-		resp := handler.jobsErrResponse(fmt.Errorf("missing: %w", gferrors.ErrNotFound))
-		assert.IsType(t, ListPipelineJobs404JSONResponse{}, resp)
-	})
-
-	t.Run("unauthorized returns 401", func(t *testing.T) {
-		resp := handler.jobsErrResponse(fmt.Errorf("bad token: %w", gferrors.ErrUnauthorized))
-		assert.IsType(t, ListPipelineJobs401JSONResponse{}, resp)
-	})
-}
-
 // --- GetPipelineJobTrace tests ---
 
-func TestPipelineHandlerGetPipelineJobTraceValidation(t *testing.T) {
-	handler := NewPipelineHandler(&stubPipelineService{})
+func TestPipelineHandlerGetPipelineJobTraceInvalidJobID(t *testing.T) {
+	stub := &stubPipelineService{}
+	handler := NewPipelineHandler(stub)
 
-	t.Run("non-numeric jobId returns 400", func(t *testing.T) {
-		resp, err := handler.GetPipelineJobTrace(context.Background(), GetPipelineJobTraceRequestObject{
-			Params: models.GetPipelineJobTraceParams{GitServer: "gl", Project: "p", JobId: "nope"},
-		})
-		require.NoError(t, err)
-		assert.IsType(t, GetPipelineJobTrace400JSONResponse{}, resp)
+	resp, err := handler.GetPipelineJobTrace(context.Background(), GetPipelineJobTraceRequestObject{
+		Params: models.GetPipelineJobTraceParams{GitServer: "gl", Project: "p", JobId: "nope"},
 	})
+
+	assert.Nil(t, resp)
+	requireInvalidParam(t, err, "jobId")
+	assert.Empty(t, stub.gotTraceGitServer, "service must not be called")
 }
 
 func TestPipelineHandlerGetPipelineJobTraceSuccess(t *testing.T) {
@@ -550,11 +418,4 @@ func TestPipelineHandlerGetPipelineJobTraceSuccess(t *testing.T) {
 	assert.Equal(t, 23, stub.gotTraceJobID)
 	assert.Equal(t, "23", traceResp.JobId)
 	assert.Equal(t, "hello log", traceResp.Content)
-}
-
-func TestPipelineHandlerTraceErrResponse(t *testing.T) {
-	handler := &PipelineHandler{}
-
-	resp := handler.traceErrResponse(fmt.Errorf("boom: %w", gferrors.ErrNotFound))
-	assert.IsType(t, GetPipelineJobTrace404JSONResponse{}, resp)
 }
