@@ -190,6 +190,48 @@ func TestNewHTTPHandlerErrorResponses(t *testing.T) {
 				fmt.Sprintf("strconv.Atoi: parsing %q: invalid syntax", leakMarker),
 		},
 		{
+			name:       "unknown pull request state",
+			target:     pullRequestsTarget + "&state=" + escapedMarker,
+			wantStatus: http.StatusBadRequest,
+			wantDetail: "Invalid value for parameter 'state'.",
+			wantCause:  fmt.Sprintf("invalid parameter state: unsupported value %q", leakMarker),
+		},
+		{
+			name:       "upper-case pull request state",
+			target:     pullRequestsTarget + "&state=OPEN",
+			wantStatus: http.StatusBadRequest,
+			wantDetail: "Invalid value for parameter 'state'.",
+			wantCause:  `invalid parameter state: unsupported value "OPEN"`,
+		},
+		{
+			name:       "empty pull request state",
+			target:     pullRequestsTarget + "&state=",
+			wantStatus: http.StatusBadRequest,
+			wantDetail: "Invalid value for parameter 'state'.",
+			wantCause:  `invalid parameter state: unsupported value ""`,
+		},
+		{
+			name:       "unknown pipeline status",
+			target:     pipelinesTarget + "&status=" + escapedMarker,
+			wantStatus: http.StatusBadRequest,
+			wantDetail: "Invalid value for parameter 'status'.",
+			wantCause:  fmt.Sprintf("invalid parameter status: unsupported value %q", leakMarker),
+		},
+		{
+			name:       "provider spelling of a pipeline status",
+			target:     pipelinesTarget + "&status=canceled",
+			wantStatus: http.StatusBadRequest,
+			wantDetail: "Invalid value for parameter 'status'.",
+			wantCause:  `invalid parameter status: unsupported value "canceled"`,
+		},
+		{
+			name:       "empty pipeline status",
+			target:     pipelinesTarget + "&status=",
+			wantStatus: http.StatusBadRequest,
+			wantDetail: "Invalid value for parameter 'status'.",
+			wantCause:  `invalid parameter status: unsupported value ""`,
+		},
+		{
 			name:   "invalid parameter error from a service",
 			target: pullRequestsTarget,
 			serviceErr: fmt.Errorf("list: %w", &gferrors.InvalidParamError{
@@ -278,6 +320,11 @@ func TestNewHTTPHandlerErrorResponses(t *testing.T) {
 
 			line := requireProblemResponse(t, rec, &logs, tt.wantStatus, tt.wantDetail)
 			assert.Equal(t, wantCause, line.Error)
+
+			if tt.serviceErr == nil {
+				assert.Empty(t, pullRequests.gotGitServer, "pull request service must not be called")
+				assert.Empty(t, pipelines.gotListGitServer, "pipeline service must not be called")
+			}
 		})
 	}
 }
