@@ -18,6 +18,8 @@ import (
 	"github.com/KubeRocketCI/gitfusion/internal/api"
 )
 
+const healthPath = "/healthz"
+
 func main() {
 	config := api.GetConfigOrDie()
 	logger := initLogger(config)
@@ -33,10 +35,7 @@ func main() {
 		"platform", info.Platform,
 	)
 
-	r := chi.NewMux()
-	r.Use(httplog.RequestLogger(logger))
-	r.Use(middleware.Timeout(60 * time.Second))
-	r.Use(middleware.Heartbeat("/healthz"))
+	r := newRouter(logger)
 
 	handler, err := api.BuildHandler(config)
 	if err != nil {
@@ -88,6 +87,15 @@ func main() {
 	<-serverCtx.Done()
 }
 
+func newRouter(logger *httplog.Logger) *chi.Mux {
+	r := chi.NewMux()
+	r.Use(httplog.RequestLogger(logger, []string{healthPath}))
+	r.Use(middleware.Timeout(60 * time.Second))
+	r.Use(middleware.Heartbeat(healthPath))
+
+	return r
+}
+
 func initLogger(config api.Config) *httplog.Logger {
 	l := httplog.NewLogger("gitfusion-api", httplog.Options{
 		JSON:            true,
@@ -100,7 +108,6 @@ func initLogger(config api.Config) *httplog.Logger {
 		},
 		QuietDownRoutes: []string{
 			"/",
-			"/health",
 		},
 		QuietDownPeriod: 10 * time.Second,
 	})
