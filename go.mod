@@ -10,7 +10,7 @@ require (
 	github.com/go-resty/resty/v2 v2.17.1
 	github.com/google/go-github/v72 v72.0.0
 	github.com/ktrysmt/go-bitbucket v0.9.95
-	github.com/oapi-codegen/runtime v1.1.1
+	github.com/oapi-codegen/runtime v1.2.0
 	github.com/stretchr/testify v1.11.1
 	github.com/viccon/sturdyc v1.1.5
 	gitlab.com/gitlab-org/api/client-go v0.128.0

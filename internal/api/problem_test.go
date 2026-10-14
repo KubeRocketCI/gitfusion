@@ -160,6 +160,13 @@ func TestNewHTTPHandlerErrorResponses(t *testing.T) {
 			wantCause:  "Query argument gitServer is required, but not found",
 		},
 		{
+			name:       "empty required parameter",
+			target:     "/api/v1/pipelines?gitServer=gs&project=",
+			wantStatus: http.StatusBadRequest,
+			wantDetail: "Missing required parameter 'project'.",
+			wantCause:  "Query argument project is required, but not found",
+		},
+		{
 			name:       "non-integer page",
 			target:     pullRequestsTarget + "&page=" + escapedMarker,
 			wantStatus: http.StatusBadRequest,
