@@ -17,6 +17,14 @@
       "function": "main"
     },
     {
+      "coverage": 100,
+      "crap": 1,
+      "cyclomatic": 1,
+      "effective_crap": 1,
+      "file": "cmd/gitfusion-api/main.go",
+      "function": "newRouter"
+    },
+    {
       "coverage": 66.7,
       "crap": 2.1,
       "cyclomatic": 2,

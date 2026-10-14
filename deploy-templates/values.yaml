@@ -75,12 +75,13 @@ resources: {}
   #   memory: 128Mi
 
 livenessProbe:
-  tcpSocket:
+  httpGet:
+    path: /healthz
     port: http
 readinessProbe:
-  tcpSocket:
+  httpGet:
+    path: /healthz
     port: http
-  initialDelaySeconds: 20
 
 autoscaling:
   enabled: false
