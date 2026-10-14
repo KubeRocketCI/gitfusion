@@ -93,8 +93,7 @@ golangci-lint: ## Download golangci-lint locally if necessary.
 
 OAPICODEGEN=$(LOCALBIN)/oapi-codegen
 .PHONY: oapi-codegen
-oapi-codegen: $(OAPICODEGEN) ## Download oapi-codegen locally if necessary.
-$(OAPICODEGEN): $(LOCALBIN)
+oapi-codegen: $(LOCALBIN) ## Download oapi-codegen locally if necessary.
 	$(call go-install-tool,$(OAPICODEGEN),github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen,$(OAPICODEGEN_VERSION))
 
 GO_CRAP = $(LOCALBIN)/go-crap
