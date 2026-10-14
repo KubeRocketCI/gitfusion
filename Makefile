@@ -5,16 +5,21 @@ GITCHGLOG_VERSION ?= v0.15.4
 GO_CRAP_VERSION ?= v0.5.1
 GOJQ_VERSION ?= v0.12.19
 
+PACKAGE=github.com/epam/edp-common/pkg/config
 CURRENT_DIR=$(shell pwd)
 HOST_OS?=$(shell go env GOOS)
 HOST_ARCH?=$(shell go env GOARCH)
 DIST_DIR=${CURRENT_DIR}/dist
 
+VERSION?=$(shell git describe --tags)
+BUILD_DATE=$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
+GIT_COMMIT=$(shell git rev-parse HEAD)
+GIT_TAG=$(shell if [ -z "`git status --porcelain`" ]; then git describe --exact-match --tags HEAD 2>/dev/null; fi)
+
 override LDFLAGS += \
   -X ${PACKAGE}.version=${VERSION} \
   -X ${PACKAGE}.buildDate=${BUILD_DATE} \
-  -X ${PACKAGE}.gitCommit=${GIT_COMMIT} \
-  -X ${PACKAGE}.kubectlVersion=${KUBECTL_VERSION}
+  -X ${PACKAGE}.gitCommit=${GIT_COMMIT}
 
 ifneq (${GIT_TAG},)
 LDFLAGS += -X ${PACKAGE}.gitTag=${GIT_TAG}

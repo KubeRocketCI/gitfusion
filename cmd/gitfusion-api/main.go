@@ -31,7 +31,6 @@ func main() {
 		"git-tag", info.GitTag,
 		"build-date", info.BuildDate,
 		"go-version", info.Go,
-		"go-client", info.KubectlVersion,
 		"platform", info.Platform,
 	)
 
