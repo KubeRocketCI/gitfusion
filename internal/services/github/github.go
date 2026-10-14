@@ -122,10 +122,6 @@ func filterRepositoriesByName(
 				return yield(repo, nil)
 			}
 
-			if repo == nil {
-				return true
-			}
-
 			if strings.Contains(
 				strings.ToLower(repo.GetName()),
 				strings.ToLower(pointer.ValueOrEmpty(opt.Name)),
@@ -172,28 +168,14 @@ func (g *GitHubProvider) listRepositories(
 }
 
 func convertGitHubRepoToRepository(repo *github.Repository) *models.Repository {
-	if repo == nil {
-		return nil
-	}
-
-	var name, owner, url string
-	if repo.Name != nil {
-		name = *repo.Name
-	}
-
-	if repo.Owner != nil && repo.Owner.Login != nil {
-		owner = *repo.Owner.Login
-	}
-
-	if repo.HTMLURL != nil {
-		url = *repo.HTMLURL
-	}
+	owner := repo.GetOwner().GetLogin()
+	url := repo.GetHTMLURL()
 
 	return &models.Repository{
 		DefaultBranch: repo.DefaultBranch,
 		Description:   repo.Description,
 		Id:            strconv.FormatInt(repo.GetID(), 10),
-		Name:          name,
+		Name:          repo.GetName(),
 		Owner:         &owner,
 		Url:           &url,
 		Visibility:    convertVisibility(repo.GetPrivate()),
