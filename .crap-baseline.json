@@ -754,9 +754,9 @@
     },
     {
       "coverage": 100,
-      "crap": 2,
-      "cyclomatic": 2,
-      "effective_crap": 2,
+      "crap": 3,
+      "cyclomatic": 3,
+      "effective_crap": 3,
       "file": "internal/services/github/github.go",
       "function": "*GitHubProvider.listRepositories"
     },
