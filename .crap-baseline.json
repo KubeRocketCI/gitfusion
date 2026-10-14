@@ -65,6 +65,14 @@
       "function": "GetConfigOrDie"
     },
     {
+      "coverage": 100,
+      "crap": 3,
+      "cyclomatic": 3,
+      "effective_crap": 3,
+      "file": "internal/api/enum.go",
+      "function": "validateEnum"
+    },
+    {
       "coverage": 66.7,
       "crap": 2.1,
       "cyclomatic": 2,
@@ -106,9 +114,9 @@
     },
     {
       "coverage": 100,
-      "crap": 5,
-      "cyclomatic": 5,
-      "effective_crap": 5,
+      "crap": 6,
+      "cyclomatic": 6,
+      "effective_crap": 6,
       "file": "internal/api/pipeline_handler.go",
       "function": "*PipelineHandler.ListPipelines"
     },
@@ -154,9 +162,9 @@
     },
     {
       "coverage": 100,
-      "crap": 3,
-      "cyclomatic": 3,
-      "effective_crap": 3,
+      "crap": 4,
+      "cyclomatic": 4,
+      "effective_crap": 4,
       "file": "internal/api/pullrequest_handler.go",
       "function": "*PullRequestHandler.ListPullRequests"
     },

@@ -33,6 +33,10 @@ func (h *PullRequestHandler) ListPullRequests(
 	ctx context.Context,
 	request ListPullRequestsRequestObject,
 ) (ListPullRequestsResponseObject, error) {
+	if err := validateEnum("state", request.Params.State); err != nil {
+		return nil, err
+	}
+
 	// Apply defaults for optional parameters
 	state := "open"
 	if request.Params.State != nil {

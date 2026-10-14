@@ -77,6 +77,10 @@ func (h *PipelineHandler) ListPipelines(
 	ctx context.Context,
 	request ListPipelinesRequestObject,
 ) (ListPipelinesResponseObject, error) {
+	if err := validateEnum("status", request.Params.Status); err != nil {
+		return nil, err
+	}
+
 	page, perPage := clampPagination(request.Params.Page, request.Params.PerPage)
 
 	var ref *string
