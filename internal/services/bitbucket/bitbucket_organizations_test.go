@@ -92,8 +92,11 @@ func TestBitbucketServiceListUserOrganizationsEmpty(t *testing.T) {
 }
 
 func TestBitbucketServiceListUserOrganizationsUnauthorized(t *testing.T) {
+	const body = `{"error": "unauthorized"}`
+
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
+		_, _ = w.Write([]byte(body))
 	}))
 	defer server.Close()
 
@@ -111,11 +114,15 @@ func TestBitbucketServiceListUserOrganizationsUnauthorized(t *testing.T) {
 	assert.Nil(t, result)
 	require.Error(t, err)
 	assert.True(t, errors.Is(err, gferrors.ErrUnauthorized))
+	assert.Contains(t, err.Error(), "invalid credentials: unauthorized: status 401, body: "+body)
 }
 
 func TestBitbucketServiceListUserOrganizationsForbidden(t *testing.T) {
+	const body = `{"error": "forbidden"}`
+
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusForbidden)
+		_, _ = w.Write([]byte(body))
 	}))
 	defer server.Close()
 
@@ -133,6 +140,7 @@ func TestBitbucketServiceListUserOrganizationsForbidden(t *testing.T) {
 	assert.Nil(t, result)
 	require.Error(t, err)
 	assert.True(t, errors.Is(err, gferrors.ErrUnauthorized))
+	assert.Contains(t, err.Error(), "invalid credentials: unauthorized: status 403, body: "+body)
 }
 
 func TestBitbucketServiceListUserOrganizationsServerError(t *testing.T) {

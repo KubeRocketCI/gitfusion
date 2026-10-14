@@ -3,6 +3,7 @@ package bitbucket
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -24,45 +25,74 @@ func writeBitbucketJSON(t *testing.T, w http.ResponseWriter, status int, body an
 	assert.NoError(t, json.NewEncoder(w).Encode(body))
 }
 
+// bitbucketErrorBody is the compact JSON body of bitbucketErrorHandler; the handler adds a trailing newline.
+func bitbucketErrorBody(status int) string {
+	return fmt.Sprintf(`{"type":"error","error":{"message":%q}}`, http.StatusText(status))
+}
+
 func bitbucketErrorHandler(t *testing.T, status int) http.HandlerFunc {
 	t.Helper()
 
 	return func(w http.ResponseWriter, _ *http.Request) {
-		writeBitbucketJSON(t, w, status, map[string]any{
-			"type":  "error",
-			"error": map[string]any{"message": http.StatusText(status)},
-		})
+		writeBitbucketJSON(t, w, status, json.RawMessage(bitbucketErrorBody(status)))
 	}
 }
 
 type bitbucketErrorCase struct {
-	name      string
-	status    int
-	wantErrIs error
-	wantErr   string
+	name       string
+	status     int
+	wantErrIs  error
+	wantErr    string
+	wantDetail string
 }
 
-// bitbucketErrorCases covers the status mapped to a domain sentinel and one passed through as a generic error.
-func bitbucketErrorCases(sentinelMsg, genericMsg string) []bitbucketErrorCase {
+// bitbucketErrorCases covers the statuses mapped to domain sentinels and one passed through as a generic error.
+// wantErr of a sentinel row is the subject prefix; detail returns the upstream text that follows the sentinel.
+func bitbucketErrorCases(
+	notFoundMsg, unauthorizedMsg, genericMsg string, detail func(status int) string,
+) []bitbucketErrorCase {
 	return []bitbucketErrorCase{
-		{name: "not found", status: http.StatusNotFound, wantErrIs: gferrors.ErrNotFound, wantErr: sentinelMsg},
+		{
+			name: "not found", status: http.StatusNotFound,
+			wantErrIs: gferrors.ErrNotFound, wantErr: notFoundMsg, wantDetail: detail(http.StatusNotFound),
+		},
+		{
+			name: "unauthorized", status: http.StatusUnauthorized,
+			wantErrIs: gferrors.ErrUnauthorized, wantErr: unauthorizedMsg, wantDetail: detail(http.StatusUnauthorized),
+		},
+		{
+			name: "forbidden", status: http.StatusForbidden,
+			wantErrIs: gferrors.ErrUnauthorized, wantErr: unauthorizedMsg, wantDetail: detail(http.StatusForbidden),
+		},
 		{name: "other API error", status: http.StatusBadRequest, wantErr: genericMsg},
 	}
 }
 
-// assertBitbucketError checks the wrapped message and that only the sentinel status maps to a domain error.
+// bitbucketStatusDetail is the status line and body go-bitbucket puts in its error for bitbucketErrorHandler responses.
+func bitbucketStatusDetail(status int) string {
+	return fmt.Sprintf("%d %s, body: %s", status, http.StatusText(status), bitbucketErrorBody(status))
+}
+
+// bitbucketRESTDetail is the status and body the REST calls put in their errors for bitbucketErrorHandler responses.
+func bitbucketRESTDetail(status int) string {
+	return fmt.Sprintf("status %d, body: %s", status, bitbucketErrorBody(status))
+}
+
+// assertBitbucketError checks that only the sentinel statuses map to a domain error.
+// A sentinel error reads "<subject>: <sentinel>: <upstream detail>".
 func assertBitbucketError(t *testing.T, err error, tc bitbucketErrorCase) {
 	t.Helper()
 
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), tc.wantErr)
 
 	if tc.wantErrIs != nil {
 		assert.ErrorIs(t, err, tc.wantErrIs)
+		assert.Equal(t, tc.wantErr+": "+tc.wantErrIs.Error()+": "+tc.wantDetail, err.Error())
 
 		return
 	}
 
+	assert.Contains(t, err.Error(), tc.wantErr)
 	assert.NotErrorIs(t, err, gferrors.ErrNotFound)
 	assert.NotErrorIs(t, err, gferrors.ErrUnauthorized)
 }
@@ -234,7 +264,7 @@ func TestBitbucketServiceListBranches(t *testing.T) {
 type bitbucketClientCall struct {
 	name        string
 	path        string
-	notFoundMsg string
+	sentinelMsg string
 	genericMsg  string
 	call        func(*BitbucketService, krci.GitServerSettings) (any, error)
 }
@@ -247,7 +277,7 @@ func bitbucketClientCalls() []bitbucketClientCall {
 		{
 			name:        "GetRepository",
 			path:        "/2.0/repositories/owner/repo",
-			notFoundMsg: "repository owner/repo",
+			sentinelMsg: "repository owner/repo",
 			genericMsg:  "failed to get repository owner/repo",
 			call: func(svc *BitbucketService, settings krci.GitServerSettings) (any, error) {
 				return svc.GetRepository(ctx, "owner", "repo", settings)
@@ -256,7 +286,7 @@ func bitbucketClientCalls() []bitbucketClientCall {
 		{
 			name:        "ListRepositories",
 			path:        "/2.0/repositories/acme",
-			notFoundMsg: "account acme",
+			sentinelMsg: "account acme",
 			genericMsg:  "failed to list repositories for account acme",
 			call: func(svc *BitbucketService, settings krci.GitServerSettings) (any, error) {
 				return svc.ListRepositories(ctx, "acme", settings, models.ListOptions{})
@@ -265,7 +295,7 @@ func bitbucketClientCalls() []bitbucketClientCall {
 		{
 			name:        "ListBranches",
 			path:        "/2.0/repositories/owner/repo/refs/branches",
-			notFoundMsg: "repository owner/repo",
+			sentinelMsg: "repository owner/repo",
 			genericMsg:  "failed to list branches",
 			call: func(svc *BitbucketService, settings krci.GitServerSettings) (any, error) {
 				return svc.ListBranches(ctx, "owner", "repo", settings, models.ListOptions{})
@@ -276,7 +306,7 @@ func bitbucketClientCalls() []bitbucketClientCall {
 
 func TestBitbucketServiceClientCallsMapAPIErrors(t *testing.T) {
 	for _, c := range bitbucketClientCalls() {
-		for _, tt := range bitbucketErrorCases(c.notFoundMsg, c.genericMsg) {
+		for _, tt := range bitbucketErrorCases(c.sentinelMsg, c.sentinelMsg, c.genericMsg, bitbucketStatusDetail) {
 			t.Run(c.name+"/"+tt.name, func(t *testing.T) {
 				mux := http.NewServeMux()
 				mux.HandleFunc("GET "+c.path, bitbucketErrorHandler(t, tt.status))

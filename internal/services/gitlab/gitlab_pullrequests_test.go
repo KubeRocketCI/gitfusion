@@ -11,6 +11,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	gitlab "gitlab.com/gitlab-org/api/client-go"
 
 	gferrors "github.com/KubeRocketCI/gitfusion/internal/errors"
 	"github.com/KubeRocketCI/gitfusion/internal/models"
@@ -336,6 +337,7 @@ func TestGitLabProviderListPullRequestsNotFound(t *testing.T) {
 	assert.Nil(t, result)
 	assert.True(t, errors.Is(err, gferrors.ErrNotFound), "error should wrap gferrors.ErrNotFound")
 	assert.Contains(t, err.Error(), "not found")
+	assert.ErrorIs(t, err, gitlab.ErrNotFound)
 }
 
 func TestGitLabProviderListPullRequestsUnauthorized(t *testing.T) {
@@ -363,4 +365,5 @@ func TestGitLabProviderListPullRequestsUnauthorized(t *testing.T) {
 	assert.Nil(t, result)
 	assert.True(t, errors.Is(err, gferrors.ErrUnauthorized), "error should wrap gferrors.ErrUnauthorized")
 	assert.Contains(t, err.Error(), "unauthorized")
+	assertGitlabResponseStatus(t, err, http.StatusUnauthorized)
 }

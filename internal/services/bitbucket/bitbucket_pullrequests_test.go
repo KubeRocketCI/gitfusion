@@ -783,10 +783,12 @@ func TestBitbucketServiceListPullRequestsSupersededState(t *testing.T) {
 }
 
 func TestBitbucketServiceListPullRequestsNotFound(t *testing.T) {
+	const body = `{"type":"error","error":{"message":"Repository not found"}}`
+
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusNotFound)
-		_, _ = w.Write([]byte(`{"type":"error","error":{"message":"Repository not found"}}`))
+		_, _ = w.Write([]byte(body))
 	}))
 	defer server.Close()
 
@@ -810,13 +812,16 @@ func TestBitbucketServiceListPullRequestsNotFound(t *testing.T) {
 	assert.Nil(t, result)
 	assert.True(t, errors.Is(err, gferrors.ErrNotFound), "error should wrap gferrors.ErrNotFound")
 	assert.Contains(t, err.Error(), "not found")
+	assert.Contains(t, err.Error(), "repository deleted-owner/deleted-repo: not found: status 404, body: "+body)
 }
 
 func TestBitbucketServiceListPullRequestsUnauthorized(t *testing.T) {
+	const body = `{"type":"error","error":{"message":"Unauthorized"}}`
+
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusUnauthorized)
-		_, _ = w.Write([]byte(`{"type":"error","error":{"message":"Unauthorized"}}`))
+		_, _ = w.Write([]byte(body))
 	}))
 	defer server.Close()
 
@@ -840,4 +845,24 @@ func TestBitbucketServiceListPullRequestsUnauthorized(t *testing.T) {
 	assert.Nil(t, result)
 	assert.True(t, errors.Is(err, gferrors.ErrUnauthorized), "error should wrap gferrors.ErrUnauthorized")
 	assert.Contains(t, err.Error(), "unauthorized")
+	assert.Contains(t, err.Error(), "invalid credentials: unauthorized: status 401, body: "+body)
+}
+
+func TestBitbucketServiceListPullRequestsForbidden(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /2.0/repositories/owner/repo/pullrequests", bitbucketErrorHandler(t, http.StatusForbidden))
+
+	svc := newBitbucketTestService(t, mux)
+
+	result, err := svc.ListPullRequests(
+		context.Background(),
+		"owner",
+		"repo",
+		bitbucketTestSettings(),
+		models.PullRequestListOptions{State: "open", Page: 1, PerPage: 20},
+	)
+
+	assert.Nil(t, result)
+	require.ErrorIs(t, err, gferrors.ErrUnauthorized)
+	assert.EqualError(t, err, "invalid credentials: unauthorized: "+bitbucketRESTDetail(http.StatusForbidden))
 }

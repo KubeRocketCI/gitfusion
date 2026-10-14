@@ -1,6 +1,7 @@
 package bitbucket
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"errors"
@@ -27,16 +28,57 @@ import (
 // (bitbucket.NewBasicAuthWithBaseUrlStr) together.
 const defaultBitbucketAPIURL = "https://api.bitbucket.org/2.0"
 
-// isBitbucketNotFound checks whether the error from the go-bitbucket library
-// indicates a 404 response. The library returns *UnexpectedResponseStatusError
-// with Status set to the HTTP status text (e.g. "404 Not Found").
-func isBitbucketNotFound(err error) bool {
+// bitbucketStatusCode returns the HTTP status code of a go-bitbucket *UnexpectedResponseStatusError
+// in the chain, or 0 for any other error. The library sets Status to the status line, e.g. "404 Not Found".
+func bitbucketStatusCode(err error) int {
 	var statusErr *bitbucket.UnexpectedResponseStatusError
-	if errors.As(err, &statusErr) {
-		return strings.HasPrefix(statusErr.Status, "404")
+	if !errors.As(err, &statusErr) {
+		return 0
 	}
 
-	return false
+	code, _, _ := strings.Cut(statusErr.Status, " ")
+	status, _ := strconv.Atoi(code)
+
+	return status
+}
+
+// isBitbucketNotFound reports a go-bitbucket 404 response.
+func isBitbucketNotFound(err error) bool {
+	return bitbucketStatusCode(err) == http.StatusNotFound
+}
+
+// isBitbucketUnauthorizedStatus reports a 401 or 403 response status.
+func isBitbucketUnauthorizedStatus(code int) bool {
+	return code == http.StatusUnauthorized || code == http.StatusForbidden
+}
+
+// isBitbucketUnauthorized reports a go-bitbucket 401 or 403 response.
+func isBitbucketUnauthorized(err error) bool {
+	return isBitbucketUnauthorizedStatus(bitbucketStatusCode(err))
+}
+
+// classifyBitbucketError maps a go-bitbucket 404 to ErrNotFound and 401/403 to ErrUnauthorized.
+// Any other error maps to nil.
+func classifyBitbucketError(err error) error {
+	switch {
+	case isBitbucketNotFound(err):
+		return gferrors.ErrNotFound
+	case isBitbucketUnauthorized(err):
+		return gferrors.ErrUnauthorized
+	default:
+		return nil
+	}
+}
+
+// withBitbucketBody appends the trimmed upstream response body to a go-bitbucket status error, whose Error()
+// omits it. The result keeps err in its chain. Other errors return unchanged.
+func withBitbucketBody(err error) error {
+	var statusErr *bitbucket.UnexpectedResponseStatusError
+	if !errors.As(err, &statusErr) {
+		return err
+	}
+
+	return fmt.Errorf("%w, body: %s", err, bytes.TrimSpace(statusErr.Body))
 }
 
 type BitbucketService struct {
@@ -86,8 +128,8 @@ func (b *BitbucketService) GetRepository(
 
 	repository, err := client.Repositories.Repository.Get(repoOptions)
 	if err != nil {
-		if isBitbucketNotFound(err) {
-			return nil, fmt.Errorf("repository %s/%s %w", owner, repo, gferrors.ErrNotFound)
+		if sentinel := classifyBitbucketError(err); sentinel != nil {
+			return nil, fmt.Errorf("repository %s/%s: %w: %w", owner, repo, sentinel, withBitbucketBody(err))
 		}
 
 		return nil, fmt.Errorf("failed to get repository %s/%s: %w", owner, repo, err)
@@ -114,8 +156,8 @@ func (b *BitbucketService) ListRepositories(
 
 	repositories, err := client.Repositories.ListForAccount(repoOptions)
 	if err != nil {
-		if isBitbucketNotFound(err) {
-			return nil, fmt.Errorf("account %s: %w", account, gferrors.ErrNotFound)
+		if sentinel := classifyBitbucketError(err); sentinel != nil {
+			return nil, fmt.Errorf("account %s: %w: %w", account, sentinel, withBitbucketBody(err))
 		}
 
 		return nil, fmt.Errorf("failed to list repositories for account %s: %w", account, err)
@@ -182,8 +224,9 @@ func (b *BitbucketService) ListUserOrganizations(
 		return nil, fmt.Errorf("failed to list workspaces: %w", err)
 	}
 
-	if resp.StatusCode() == http.StatusUnauthorized || resp.StatusCode() == http.StatusForbidden {
-		return nil, fmt.Errorf("invalid credentials: %w", gferrors.ErrUnauthorized)
+	if isBitbucketUnauthorizedStatus(resp.StatusCode()) {
+		return nil, fmt.Errorf("invalid credentials: %w: status %d, body: %s",
+			gferrors.ErrUnauthorized, resp.StatusCode(), resp.String())
 	}
 
 	if resp.IsError() {
@@ -233,8 +276,8 @@ func (b *BitbucketService) ListBranches(
 
 	for b, err := range scanBranches {
 		if err != nil {
-			if isBitbucketNotFound(err) {
-				return nil, fmt.Errorf("repository %s/%s: %w", owner, repo, gferrors.ErrNotFound)
+			if sentinel := classifyBitbucketError(err); sentinel != nil {
+				return nil, fmt.Errorf("repository %s/%s: %w: %w", owner, repo, sentinel, withBitbucketBody(err))
 			}
 
 			return nil, fmt.Errorf("failed to list branches: %w", err)
@@ -347,11 +390,13 @@ func (b *BitbucketService) ListPullRequests(
 	}
 
 	if resp.StatusCode() == http.StatusNotFound {
-		return nil, fmt.Errorf("repository %s/%s: %w", owner, repo, gferrors.ErrNotFound)
+		return nil, fmt.Errorf("repository %s/%s: %w: status %d, body: %s",
+			owner, repo, gferrors.ErrNotFound, resp.StatusCode(), resp.String())
 	}
 
-	if resp.StatusCode() == http.StatusUnauthorized || resp.StatusCode() == http.StatusForbidden {
-		return nil, fmt.Errorf("invalid credentials: %w", gferrors.ErrUnauthorized)
+	if isBitbucketUnauthorizedStatus(resp.StatusCode()) {
+		return nil, fmt.Errorf("invalid credentials: %w: status %d, body: %s",
+			gferrors.ErrUnauthorized, resp.StatusCode(), resp.String())
 	}
 
 	if resp.IsError() {
@@ -559,11 +604,13 @@ func (b *BitbucketService) ListPipelines(
 	}
 
 	if resp.StatusCode() == http.StatusNotFound {
-		return nil, fmt.Errorf("project %s: %w", project, gferrors.ErrNotFound)
+		return nil, fmt.Errorf("project %s: %w: status %d, body: %s",
+			project, gferrors.ErrNotFound, resp.StatusCode(), resp.String())
 	}
 
-	if resp.StatusCode() == http.StatusUnauthorized {
-		return nil, fmt.Errorf("invalid credentials: %w", gferrors.ErrUnauthorized)
+	if isBitbucketUnauthorizedStatus(resp.StatusCode()) {
+		return nil, fmt.Errorf("invalid credentials: %w: status %d, body: %s",
+			gferrors.ErrUnauthorized, resp.StatusCode(), resp.String())
 	}
 
 	if resp.IsError() {

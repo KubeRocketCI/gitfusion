@@ -474,9 +474,9 @@
     },
     {
       "coverage": 89.7,
-      "crap": 17.3,
-      "cyclomatic": 17,
-      "effective_crap": 17.3,
+      "crap": 16.3,
+      "cyclomatic": 16,
+      "effective_crap": 16.3,
       "file": "internal/services/bitbucket/bitbucket.go",
       "function": "*BitbucketService.ListPullRequests"
     },
@@ -490,9 +490,9 @@
     },
     {
       "coverage": 90.9,
-      "crap": 7,
-      "cyclomatic": 7,
-      "effective_crap": 7,
+      "crap": 6,
+      "cyclomatic": 6,
+      "effective_crap": 6,
       "file": "internal/services/bitbucket/bitbucket.go",
       "function": "*BitbucketService.ListUserOrganizations"
     },
@@ -529,6 +529,22 @@
       "function": "bitbucketPipelinesQuery"
     },
     {
+      "coverage": 66.7,
+      "crap": 2.1,
+      "cyclomatic": 2,
+      "effective_crap": 2.1,
+      "file": "internal/services/bitbucket/bitbucket.go",
+      "function": "bitbucketStatusCode"
+    },
+    {
+      "coverage": 100,
+      "crap": 3,
+      "cyclomatic": 3,
+      "effective_crap": 3,
+      "file": "internal/services/bitbucket/bitbucket.go",
+      "function": "classifyBitbucketError"
+    },
+    {
       "coverage": 100,
       "crap": 4,
       "cyclomatic": 4,
@@ -561,12 +577,28 @@
       "function": "decodeBitbucketToken"
     },
     {
-      "coverage": 66.7,
-      "crap": 2.1,
-      "cyclomatic": 2,
-      "effective_crap": 2.1,
+      "coverage": 100,
+      "crap": 1,
+      "cyclomatic": 1,
+      "effective_crap": 1,
       "file": "internal/services/bitbucket/bitbucket.go",
       "function": "isBitbucketNotFound"
+    },
+    {
+      "coverage": 100,
+      "crap": 1,
+      "cyclomatic": 1,
+      "effective_crap": 1,
+      "file": "internal/services/bitbucket/bitbucket.go",
+      "function": "isBitbucketUnauthorized"
+    },
+    {
+      "coverage": 100,
+      "crap": 2,
+      "cyclomatic": 2,
+      "effective_crap": 2,
+      "file": "internal/services/bitbucket/bitbucket.go",
+      "function": "isBitbucketUnauthorizedStatus"
     },
     {
       "coverage": 100,
@@ -591,6 +623,14 @@
       "effective_crap": 6,
       "file": "internal/services/bitbucket/bitbucket.go",
       "function": "normalizeBitbucketPipelineTrigger"
+    },
+    {
+      "coverage": 66.7,
+      "crap": 2.1,
+      "cyclomatic": 2,
+      "effective_crap": 2.1,
+      "file": "internal/services/bitbucket/bitbucket.go",
+      "function": "withBitbucketBody"
     },
     {
       "coverage": 0,
@@ -650,17 +690,17 @@
     },
     {
       "coverage": 100,
-      "crap": 3,
-      "cyclomatic": 3,
-      "effective_crap": 3,
+      "crap": 2,
+      "cyclomatic": 2,
+      "effective_crap": 2,
       "file": "internal/services/github/github.go",
       "function": "*GitHubProvider.GetRepository"
     },
     {
       "coverage": 100,
-      "crap": 4,
-      "cyclomatic": 4,
-      "effective_crap": 4,
+      "crap": 3,
+      "cyclomatic": 3,
+      "effective_crap": 3,
       "file": "internal/services/github/github.go",
       "function": "*GitHubProvider.ListBranches"
     },
@@ -674,9 +714,9 @@
     },
     {
       "coverage": 100,
-      "crap": 4,
-      "cyclomatic": 4,
-      "effective_crap": 4,
+      "crap": 3,
+      "cyclomatic": 3,
+      "effective_crap": 3,
       "file": "internal/services/github/github.go",
       "function": "*GitHubProvider.ListRepositories"
     },
@@ -690,17 +730,17 @@
     },
     {
       "coverage": 100,
-      "crap": 6,
-      "cyclomatic": 6,
-      "effective_crap": 6,
+      "crap": 5,
+      "cyclomatic": 5,
+      "effective_crap": 5,
       "file": "internal/services/github/github.go",
       "function": "*GitHubProvider.listPullRequestsDirect"
     },
     {
-      "coverage": 95,
-      "crap": 11,
-      "cyclomatic": 11,
-      "effective_crap": 11,
+      "coverage": 94.4,
+      "crap": 10,
+      "cyclomatic": 10,
+      "effective_crap": 10,
       "file": "internal/services/github/github.go",
       "function": "*GitHubProvider.listPullRequestsWithPostFilter"
     },
@@ -729,10 +769,10 @@
       "function": "NewGitHubProvider"
     },
     {
-      "coverage": 83.3,
-      "crap": 4.1,
+      "coverage": 100,
+      "crap": 4,
       "cyclomatic": 4,
-      "effective_crap": 4.1,
+      "effective_crap": 4,
       "file": "internal/services/github/github.go",
       "function": "classifyGitHubError"
     },
@@ -785,10 +825,18 @@
       "function": "matchesPullRequestStateFilter"
     },
     {
-      "coverage": 90.9,
-      "crap": 13.1,
-      "cyclomatic": 13,
-      "effective_crap": 13.1,
+      "coverage": 100,
+      "crap": 2,
+      "cyclomatic": 2,
+      "effective_crap": 2,
+      "file": "internal/services/github/github.go",
+      "function": "wrapGitHubError"
+    },
+    {
+      "coverage": 95,
+      "crap": 12,
+      "cyclomatic": 12,
+      "effective_crap": 12,
       "file": "internal/services/github/github_pipelines.go",
       "function": "*GitHubProvider.ListPipelines"
     },
@@ -857,18 +905,18 @@
       "function": "*GitlabProvider.ListPipelineJobs"
     },
     {
-      "coverage": 91.7,
-      "crap": 15.1,
-      "cyclomatic": 15,
-      "effective_crap": 15.1,
+      "coverage": 90.9,
+      "crap": 12.1,
+      "cyclomatic": 12,
+      "effective_crap": 12.1,
       "file": "internal/services/gitlab/gitlab.go",
       "function": "*GitlabProvider.ListPipelines"
     },
     {
-      "coverage": 90.9,
-      "crap": 14.1,
-      "cyclomatic": 14,
-      "effective_crap": 14.1,
+      "coverage": 90,
+      "crap": 11.1,
+      "cyclomatic": 11,
+      "effective_crap": 11.1,
       "file": "internal/services/gitlab/gitlab.go",
       "function": "*GitlabProvider.ListPullRequests"
     },
@@ -890,9 +938,9 @@
     },
     {
       "coverage": 100,
-      "crap": 8,
-      "cyclomatic": 8,
-      "effective_crap": 8,
+      "crap": 5,
+      "cyclomatic": 5,
+      "effective_crap": 5,
       "file": "internal/services/gitlab/gitlab.go",
       "function": "*GitlabProvider.TriggerPipeline"
     },
@@ -903,6 +951,22 @@
       "effective_crap": 1,
       "file": "internal/services/gitlab/gitlab.go",
       "function": "NewGitlabProvider"
+    },
+    {
+      "coverage": 100,
+      "crap": 3,
+      "cyclomatic": 3,
+      "effective_crap": 3,
+      "file": "internal/services/gitlab/gitlab.go",
+      "function": "classifyGitLabError"
+    },
+    {
+      "coverage": 100,
+      "crap": 2,
+      "cyclomatic": 2,
+      "effective_crap": 2,
+      "file": "internal/services/gitlab/gitlab.go",
+      "function": "convertGitlabGroupToOrganization"
     },
     {
       "coverage": 100,
@@ -929,6 +993,14 @@
       "function": "convertVisibility"
     },
     {
+      "coverage": 66.7,
+      "crap": 3.3,
+      "cyclomatic": 3,
+      "effective_crap": 3.3,
+      "file": "internal/services/gitlab/gitlab.go",
+      "function": "isGitLabUnauthorized"
+    },
+    {
       "coverage": 88.9,
       "crap": 5,
       "cyclomatic": 5,
@@ -938,9 +1010,9 @@
     },
     {
       "coverage": 100,
-      "crap": 6,
-      "cyclomatic": 6,
-      "effective_crap": 6,
+      "crap": 2,
+      "cyclomatic": 2,
+      "effective_crap": 2,
       "file": "internal/services/gitlab/gitlab.go",
       "function": "mapGitLabJobsError"
     },
@@ -1010,9 +1082,9 @@
     },
     {
       "coverage": 100,
-      "crap": 2,
-      "cyclomatic": 2,
-      "effective_crap": 2,
+      "crap": 3,
+      "cyclomatic": 3,
+      "effective_crap": 3,
       "file": "internal/services/krci/gitserver.go",
       "function": "*GitServerService.GetGitProviderSettings"
     },

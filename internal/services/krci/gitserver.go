@@ -11,7 +11,10 @@ import (
 	codebaseUtil "github.com/epam/edp-codebase-operator/v2/pkg/util"
 	"github.com/viccon/sturdyc"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	gferrors "github.com/KubeRocketCI/gitfusion/internal/errors"
 )
 
 // settingsCacheTTL is short because the cached value holds the provider token, bounding how long a
@@ -53,6 +56,8 @@ func newGitServerSettingsCache() *sturdyc.Client[GitServerSettings] {
 	)
 }
 
+// GetGitProviderSettings returns the settings of the named GitServer.
+// A GitServer that does not exist yields an error matching gferrors.ErrNotFound; a missing Secret does not.
 func (g *GitServerService) GetGitProviderSettings(
 	ctx context.Context,
 	gitServerName string,
@@ -64,6 +69,10 @@ func (g *GitServerService) GetGitProviderSettings(
 			client.ObjectKey{Name: gitServerName, Namespace: g.namespace},
 			gitServer,
 		); err != nil {
+			if apierrors.IsNotFound(err) {
+				return GitServerSettings{}, fmt.Errorf("git server %s: %w: %w", gitServerName, gferrors.ErrNotFound, err)
+			}
+
 			return GitServerSettings{}, err
 		}
 

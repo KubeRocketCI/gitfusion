@@ -10,6 +10,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	gitlab "gitlab.com/gitlab-org/api/client-go"
 
 	gferrors "github.com/KubeRocketCI/gitfusion/internal/errors"
 	"github.com/KubeRocketCI/gitfusion/internal/models"
@@ -295,6 +296,7 @@ func TestGitLabProviderListPipelinesNotFound(t *testing.T) {
 	assert.Error(t, err)
 	assert.Nil(t, result)
 	assert.Contains(t, err.Error(), "not found")
+	assert.ErrorIs(t, err, gitlab.ErrNotFound)
 }
 
 func TestGitLabProviderListPipelinesUnauthorized(t *testing.T) {
@@ -319,6 +321,7 @@ func TestGitLabProviderListPipelinesUnauthorized(t *testing.T) {
 	assert.Error(t, err)
 	assert.Nil(t, result)
 	assert.Contains(t, err.Error(), "unauthorized")
+	assertGitlabResponseStatus(t, err, http.StatusUnauthorized)
 }
 
 // --- ListPipelineJobs tests ---
@@ -439,6 +442,7 @@ func TestGitLabProviderListPipelineJobsNotFound(t *testing.T) {
 	assert.Error(t, err)
 	assert.Nil(t, result)
 	assert.True(t, errors.Is(err, gferrors.ErrNotFound), "expected ErrNotFound, got: %v", err)
+	assert.ErrorIs(t, err, gitlab.ErrNotFound)
 }
 
 // --- GetJobTrace tests ---
@@ -494,6 +498,7 @@ func TestGitLabProviderGetJobTraceNotFound(t *testing.T) {
 	assert.Empty(t, result)
 	assert.False(t, truncated)
 	assert.True(t, errors.Is(err, gferrors.ErrNotFound), "expected ErrNotFound, got: %v", err)
+	assert.Contains(t, err.Error(), "status 404")
 }
 
 func TestGitLabProviderGetJobTraceSetsPrivateTokenHeader(t *testing.T) {
@@ -575,4 +580,5 @@ func TestGitLabProviderGetJobTraceUnauthorized(t *testing.T) {
 	assert.Empty(t, result)
 	assert.False(t, truncated)
 	assert.True(t, errors.Is(err, gferrors.ErrUnauthorized), "expected ErrUnauthorized, got: %v", err)
+	assert.Contains(t, err.Error(), "status 401")
 }

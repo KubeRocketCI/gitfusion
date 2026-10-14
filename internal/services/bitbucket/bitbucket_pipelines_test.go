@@ -416,11 +416,10 @@ func TestBitbucketServiceListPipelinesRefBackslashSanitization(t *testing.T) {
 
 func TestBitbucketServiceListPipelinesMapsAPIErrors(t *testing.T) {
 	tests := append(
-		bitbucketErrorCases("project owner/repo", "failed to list pipelines for owner/repo: status 400"),
-		bitbucketErrorCase{
-			name: "unauthorized", status: http.StatusUnauthorized,
-			wantErrIs: gferrors.ErrUnauthorized, wantErr: "invalid credentials",
-		},
+		bitbucketErrorCases(
+			"project owner/repo", "invalid credentials",
+			"failed to list pipelines for owner/repo: status 400", bitbucketRESTDetail,
+		),
 		bitbucketErrorCase{
 			name: "server error", status: http.StatusInternalServerError,
 			wantErr: "failed to list pipelines for owner/repo: status 500",

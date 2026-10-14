@@ -36,7 +36,8 @@ const (
 	// leakMarker is embedded in causes; it must never reach a response body.
 	leakMarker = "https://upstream.internal/secret-path"
 
-	genericDetail = "The request could not be completed. Contact your administrator with the request ID."
+	genericDetail  = "The request could not be completed. Contact your administrator with the request ID."
+	notFoundDetail = "The requested resource was not found."
 )
 
 // requestLogLine is the subset of the httplog JSON line the tests read.
@@ -204,7 +205,7 @@ func TestNewHTTPHandlerErrorResponses(t *testing.T) {
 			target:     pullRequestsTarget,
 			serviceErr: fmt.Errorf("repository %s: %w", leakMarker, gferrors.ErrNotFound),
 			wantStatus: http.StatusNotFound,
-			wantDetail: "The requested resource was not found.",
+			wantDetail: notFoundDetail,
 		},
 		{
 			name:       "unauthorized",
@@ -228,7 +229,7 @@ func TestNewHTTPHandlerErrorResponses(t *testing.T) {
 				sturdyc.ErrOnlyCachedRecords,
 			),
 			wantStatus: http.StatusNotFound,
-			wantDetail: "The requested resource was not found.",
+			wantDetail: notFoundDetail,
 		},
 		{
 			name:   "joined unauthorized",
@@ -300,13 +301,14 @@ func TestNewHTTPHandlerOmitsRequestIDWhenAbsent(t *testing.T) {
 const (
 	fixtureNamespace  = "krci"
 	gerritServerName  = "gerrit-server"
+	brokenServerName  = "broken-server"
 	missingServerName = "missing-server"
 )
 
 // newServiceBackedServer wires the repository, branch, organization and cache handlers to real services
-// over a fake Kubernetes client. The client holds one GitServer, gerrit-server, whose provider has no
-// implementation; the organization warm-up goroutine lists it and fails before any provider call,
-// so no request leaves the process.
+// over a fake Kubernetes client. The client holds two GitServers whose provider has no implementation:
+// gerrit-server with its Secret, and broken-server whose Secret is absent. The organization warm-up
+// goroutine lists them and fails before any provider call, so no request leaves the process.
 func newServiceBackedServer(t *testing.T) *Server {
 	t.Helper()
 
@@ -314,20 +316,24 @@ func newServiceBackedServer(t *testing.T) *Server {
 	require.NoError(t, corev1.AddToScheme(scheme))
 	require.NoError(t, codebaseApi.AddToScheme(scheme))
 
-	gitServer := &codebaseApi.GitServer{
-		ObjectMeta: metav1.ObjectMeta{Name: gerritServerName, Namespace: fixtureNamespace},
-		Spec: codebaseApi.GitServerSpec{
-			GitProvider:      codebaseApi.GitProviderGerrit,
-			GitHost:          "gerrit.example.com",
-			NameSshKeySecret: gerritServerName + "-secret",
-		},
+	newGitServer := func(name string) *codebaseApi.GitServer {
+		return &codebaseApi.GitServer{
+			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: fixtureNamespace},
+			Spec: codebaseApi.GitServerSpec{
+				GitProvider:      codebaseApi.GitProviderGerrit,
+				GitHost:          name + ".example.com",
+				NameSshKeySecret: name + "-secret",
+			},
+		}
 	}
+	gerrit := newGitServer(gerritServerName)
 	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Name: gitServer.Spec.NameSshKeySecret, Namespace: fixtureNamespace},
+		ObjectMeta: metav1.ObjectMeta{Name: gerrit.Spec.NameSshKeySecret, Namespace: fixtureNamespace},
 		Data:       map[string][]byte{codebaseUtil.GitServerSecretTokenField: []byte("t0ken")},
 	}
 
-	k8sClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(gitServer, secret).Build()
+	k8sClient := fake.NewClientBuilder().WithScheme(scheme).
+		WithObjects(gerrit, secret, newGitServer(brokenServerName)).Build()
 	gitServerService := krci.NewGitServerService(k8sClient, fixtureNamespace)
 
 	repoSvc := repositories.NewRepositoriesService(repositories.NewMultiProviderRepositoryService(), gitServerService)
@@ -357,9 +363,10 @@ func newServiceBackedServer(t *testing.T) *Server {
 
 func TestNewHTTPHandlerServiceBackedErrorResponses(t *testing.T) {
 	const (
-		unsupportedDetail = "The operation is not supported for this git server."
-		unsupportedCause  = "unsupported provider gerrit"
-		missingCause      = `"missing-server" not found`
+		unsupportedDetail  = "The operation is not supported for this git server."
+		unsupportedCause   = "unsupported provider gerrit"
+		missingCause       = `"missing-server" not found`
+		missingSecretCause = `secrets "` + brokenServerName + `-secret" not found`
 
 		repositoriesTarget = "/api/v1/repositories?owner=o&gitServer="
 		repositoryTarget   = "/api/v1/repository?owner=o&repoName=r&gitServer="
@@ -388,8 +395,8 @@ func TestNewHTTPHandlerServiceBackedErrorResponses(t *testing.T) {
 			name:       "repositories missing git server",
 			method:     http.MethodGet,
 			target:     repositoriesTarget + missingServerName,
-			wantStatus: http.StatusInternalServerError,
-			wantDetail: genericDetail,
+			wantStatus: http.StatusNotFound,
+			wantDetail: notFoundDetail,
 			wantCause:  missingCause,
 		},
 		{
@@ -404,8 +411,8 @@ func TestNewHTTPHandlerServiceBackedErrorResponses(t *testing.T) {
 			name:       "repository missing git server",
 			method:     http.MethodGet,
 			target:     repositoryTarget + missingServerName,
-			wantStatus: http.StatusInternalServerError,
-			wantDetail: genericDetail,
+			wantStatus: http.StatusNotFound,
+			wantDetail: notFoundDetail,
 			wantCause:  missingCause,
 		},
 		{
@@ -420,8 +427,8 @@ func TestNewHTTPHandlerServiceBackedErrorResponses(t *testing.T) {
 			name:       "branches missing git server",
 			method:     http.MethodGet,
 			target:     branchesTarget + missingServerName,
-			wantStatus: http.StatusInternalServerError,
-			wantDetail: genericDetail,
+			wantStatus: http.StatusNotFound,
+			wantDetail: notFoundDetail,
 			wantCause:  missingCause,
 		},
 		{
@@ -436,9 +443,17 @@ func TestNewHTTPHandlerServiceBackedErrorResponses(t *testing.T) {
 			name:       "organizations missing git server",
 			method:     http.MethodGet,
 			target:     organizationTarget + missingServerName,
+			wantStatus: http.StatusNotFound,
+			wantDetail: notFoundDetail,
+			wantCause:  missingCause,
+		},
+		{
+			name:       "repositories git server with missing secret",
+			method:     http.MethodGet,
+			target:     repositoriesTarget + brokenServerName,
 			wantStatus: http.StatusInternalServerError,
 			wantDetail: genericDetail,
-			wantCause:  missingCause,
+			wantCause:  missingSecretCause,
 		},
 		{
 			name:       "cache invalidate unknown endpoint",

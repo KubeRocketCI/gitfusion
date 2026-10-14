@@ -1215,7 +1215,9 @@ func TestGitHubProviderListPullRequestsNotFound(t *testing.T) {
 	assert.Error(t, err)
 	assert.Nil(t, result)
 	assert.True(t, errors.Is(err, gferrors.ErrNotFound), "error should wrap gferrors.ErrNotFound")
+	assert.Contains(t, err.Error(), "failed to list pull requests for deleted-owner/deleted-repo")
 	assert.Contains(t, err.Error(), "not found")
+	assert.Contains(t, err.Error(), "404 Not Found")
 }
 
 func TestGitHubProviderListPullRequestsNotFoundPostFilter(t *testing.T) {
@@ -1245,7 +1247,9 @@ func TestGitHubProviderListPullRequestsNotFoundPostFilter(t *testing.T) {
 	assert.Error(t, err)
 	assert.Nil(t, result)
 	assert.True(t, errors.Is(err, gferrors.ErrNotFound), "error should wrap gferrors.ErrNotFound for post-filter path")
+	assert.Contains(t, err.Error(), "failed to list pull requests for deleted-owner/deleted-repo")
 	assert.Contains(t, err.Error(), "not found")
+	assert.Contains(t, err.Error(), "404 Not Found")
 }
 
 func TestGitHubProviderListPullRequestsUnauthorized(t *testing.T) {
@@ -1274,5 +1278,7 @@ func TestGitHubProviderListPullRequestsUnauthorized(t *testing.T) {
 	assert.Error(t, err)
 	assert.Nil(t, result)
 	assert.True(t, errors.Is(err, gferrors.ErrUnauthorized), "error should wrap gferrors.ErrUnauthorized")
+	assert.Contains(t, err.Error(), "failed to list pull requests for owner/repo")
 	assert.Contains(t, err.Error(), "unauthorized")
+	assert.Contains(t, err.Error(), "401 Bad credentials")
 }
