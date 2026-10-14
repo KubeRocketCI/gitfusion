@@ -881,10 +881,10 @@
       "function": "normalizeGitHubWorkflowRunStatus"
     },
     {
-      "coverage": 75,
-      "crap": 6.6,
+      "coverage": 83.3,
+      "crap": 6.2,
       "cyclomatic": 6,
-      "effective_crap": 6.6,
+      "effective_crap": 6.2,
       "file": "internal/services/gitlab/gitlab.go",
       "function": "*GitlabProvider.GetJobTrace"
     },
@@ -1025,10 +1025,10 @@
       "function": "mapGitLabJobsError"
     },
     {
-      "coverage": 75,
-      "crap": 3.1,
+      "coverage": 100,
+      "crap": 3,
       "cyclomatic": 3,
-      "effective_crap": 3.1,
+      "effective_crap": 3,
       "file": "internal/services/gitlab/gitlab.go",
       "function": "mapGitLabTraceStatus"
     },

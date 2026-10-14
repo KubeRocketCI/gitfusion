@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -474,31 +475,86 @@ func TestGitLabProviderGetJobTrace(t *testing.T) {
 	assert.False(t, truncated)
 }
 
-func TestGitLabProviderGetJobTraceNotFound(t *testing.T) {
-	mux := http.NewServeMux()
-	mux.HandleFunc("/api/v4/projects/owner%2Frepo/jobs/404/trace", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusNotFound)
-		_, _ = w.Write([]byte(`{"message":"404 Job Not Found"}`))
-	})
+// GetJobTrace requests the trace over plain HTTP, so it maps the response status itself, not through go-gitlab.
+func TestGitLabProviderGetJobTraceErrors(t *testing.T) {
+	tests := []struct {
+		name      string
+		status    int
+		wantErrIs error
+		wantErr   string
+	}{
+		{
+			name:      "not found",
+			status:    http.StatusNotFound,
+			wantErrIs: gferrors.ErrNotFound,
+			wantErr:   "project owner/repo or job 7: not found: status 404",
+		},
+		{
+			name:      "unauthorized",
+			status:    http.StatusUnauthorized,
+			wantErrIs: gferrors.ErrUnauthorized,
+			wantErr:   "invalid credentials: unauthorized: status 401",
+		},
+		{
+			name:      "forbidden",
+			status:    http.StatusForbidden,
+			wantErrIs: gferrors.ErrUnauthorized,
+			wantErr:   "invalid credentials: unauthorized: status 403",
+		},
+		{
+			name:    "other status",
+			status:  http.StatusInternalServerError,
+			wantErr: "gitlab trace request failed for owner/repo job 7: status 500",
+		},
+	}
 
-	server := httptest.NewServer(mux)
-	defer server.Close()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mux := http.NewServeMux()
+			mux.HandleFunc("/api/v4/projects/owner%2Frepo/jobs/7/trace", gitlabErrorHandler(t, tt.status))
 
-	provider := NewGitlabProvider()
+			result, truncated, err := NewGitlabProvider().GetJobTrace(
+				gitlabTestContext(t),
+				"owner/repo",
+				7,
+				newGitlabTestSettings(t, mux),
+			)
 
-	result, truncated, err := provider.GetJobTrace(
-		context.Background(),
+			assert.Empty(t, result)
+			assert.False(t, truncated)
+			assert.EqualError(t, err, tt.wantErr)
+
+			if tt.wantErrIs == nil {
+				assert.NotErrorIs(t, err, gferrors.ErrNotFound)
+				assert.NotErrorIs(t, err, gferrors.ErrUnauthorized)
+
+				return
+			}
+
+			assert.ErrorIs(t, err, tt.wantErrIs)
+		})
+	}
+}
+
+func TestGitLabProviderGetJobTraceServerUnreachable(t *testing.T) {
+	server := httptest.NewServer(http.NewServeMux())
+	server.Close()
+
+	result, truncated, err := NewGitlabProvider().GetJobTrace(
+		gitlabTestContext(t),
 		"owner/repo",
-		404,
-		krci.GitServerSettings{Token: "test-token", Url: server.URL},
+		7,
+		krci.GitServerSettings{Token: testGitlabToken, Url: server.URL},
 	)
 
-	assert.Error(t, err)
+	var urlErr *url.Error
+
 	assert.Empty(t, result)
 	assert.False(t, truncated)
-	assert.True(t, errors.Is(err, gferrors.ErrNotFound), "expected ErrNotFound, got: %v", err)
-	assert.Contains(t, err.Error(), "status 404")
+	require.ErrorAs(t, err, &urlErr)
+	assert.True(t, strings.HasPrefix(err.Error(), "failed to fetch job trace for owner/repo job 7: "), "error %q", err)
+	assert.NotErrorIs(t, err, gferrors.ErrNotFound)
+	assert.NotErrorIs(t, err, gferrors.ErrUnauthorized)
 }
 
 func TestGitLabProviderGetJobTraceSetsPrivateTokenHeader(t *testing.T) {
@@ -555,30 +611,4 @@ func TestGitLabProviderGetJobTraceTruncated(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, truncated)
 	assert.Len(t, result, maxTraceBytes)
-}
-
-func TestGitLabProviderGetJobTraceUnauthorized(t *testing.T) {
-	mux := http.NewServeMux()
-	mux.HandleFunc("/api/v4/projects/owner%2Frepo/jobs/7/trace", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusUnauthorized)
-		_, _ = w.Write([]byte(`{"message":"401 Unauthorized"}`))
-	})
-
-	server := httptest.NewServer(mux)
-	defer server.Close()
-
-	provider := NewGitlabProvider()
-
-	result, truncated, err := provider.GetJobTrace(
-		context.Background(),
-		"owner/repo",
-		7,
-		krci.GitServerSettings{Token: "bad-token", Url: server.URL},
-	)
-
-	assert.Error(t, err)
-	assert.Empty(t, result)
-	assert.False(t, truncated)
-	assert.True(t, errors.Is(err, gferrors.ErrUnauthorized), "expected ErrUnauthorized, got: %v", err)
-	assert.Contains(t, err.Error(), "status 401")
 }
