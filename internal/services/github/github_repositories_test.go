@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strconv"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -303,6 +305,35 @@ func TestGitHubProviderListRepositoriesErrors(t *testing.T) {
 
 			assert.Nil(t, got)
 			assertGitHubError(t, err, tt)
+		})
+	}
+}
+
+// Only a 404 on the organization lookup falls back to the user listing; any other lookup error fails the list.
+func TestGitHubProviderListRepositoriesOrganizationLookupErrors(t *testing.T) {
+	tests := slices.DeleteFunc(
+		gitHubErrorCases("failed to list repositories for org acme"),
+		func(tc gitHubErrorCase) bool { return tc.status == http.StatusNotFound },
+	)
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var userListCalls atomic.Int32
+
+			mux := http.NewServeMux()
+			mux.HandleFunc("GET /orgs/acme", gitHubErrorHandler(t, tt.status))
+			mux.HandleFunc("GET /users/acme/repos", func(w http.ResponseWriter, _ *http.Request) {
+				userListCalls.Add(1)
+				writeGitHubJSON(t, w, http.StatusOK, []any{gitHubRepo(1, "api", "acme")})
+			})
+
+			provider := newGitHubTestServer(t, mux)
+
+			got, err := provider.ListRepositories(context.Background(), "acme", krci.GitServerSettings{}, models.ListOptions{})
+
+			assert.Nil(t, got)
+			assertGitHubError(t, err, tt)
+			assert.Zero(t, userListCalls.Load())
 		})
 	}
 }

@@ -154,6 +154,14 @@ func (g *GitHubProvider) listRepositories(
 		)
 	}
 
+	// Fall back to the user listing on 404 only.
+	// GET /users/{owner}/repos also answers for an organization and returns public repositories only.
+	if !errors.Is(classifyGitHubError(orgErr), gferrors.ErrNotFound) {
+		return func(yield func(*github.Repository, error) bool) {
+			yield(nil, orgErr)
+		}
+	}
+
 	return gfgithub.ScanGitHubList(
 		func(opt github.ListOptions) ([]*github.Repository, *github.Response, error) {
 			return client.Repositories.ListByUser(
