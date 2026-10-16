@@ -3,11 +3,13 @@ package github
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"slices"
 	"strconv"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -266,46 +268,201 @@ func TestGitHubProviderListRepositoriesForOrganization(t *testing.T) {
 	}, got)
 }
 
-func TestGitHubProviderListRepositoriesForUser(t *testing.T) {
-	mux := http.NewServeMux()
-	mux.HandleFunc("GET /orgs/jdoe", gitHubErrorHandler(t, http.StatusNotFound))
-	mux.HandleFunc("GET /users/jdoe/repos", pagedGitHubHandler(t,
-		[]any{gitHubRepo(1, "Dotfiles", "jdoe"), gitHubRepo(2, "blog", "jdoe")},
-		[]any{gitHubRepo(3, "old-dotfiles", "jdoe")},
-	))
-
-	provider := newGitHubTestServer(t, mux)
-
-	got, err := provider.ListRepositories(
-		context.Background(),
-		"jdoe",
-		krci.GitServerSettings{},
-		models.ListOptions{Name: ptr("dotfiles")},
-	)
-
-	require.NoError(t, err)
-	assert.Equal(t, []models.Repository{
-		publicRepository("1", "Dotfiles", "jdoe"),
-		publicRepository("3", "old-dotfiles", "jdoe"),
-	}, got)
+type requestRecorder struct {
+	mu   sync.Mutex
+	uris []string
 }
 
-func TestGitHubProviderListRepositoriesErrors(t *testing.T) {
-	tests := gitHubErrorCases("failed to list repositories for org ghost")
+func (r *requestRecorder) wrap(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		r.mu.Lock()
+		r.uris = append(r.uris, req.URL.RequestURI())
+		r.mu.Unlock()
+
+		next(w, req)
+	}
+}
+
+func (r *requestRecorder) requests() []string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	return slices.Clone(r.uris)
+}
+
+func privateGitHubRepo(id int64, name, owner string) map[string]any {
+	repo := gitHubRepo(id, name, owner)
+	repo["private"] = true
+
+	return repo
+}
+
+// Token user: jdoe (currentGitHubUserHandler).
+func TestGitHubProviderListRepositoriesForUser(t *testing.T) {
+	ownRepositories := []models.Repository{
+		publicRepository("1", "Dotfiles", "jdoe"),
+		{
+			Id:         "3",
+			Name:       "old-dotfiles",
+			Owner:      ptr("jdoe"),
+			Url:        ptr("https://github.com/jdoe/old-dotfiles"),
+			Visibility: ptr(models.RepositoryVisibilityPrivate),
+		},
+	}
+
+	otherUserRequests := []string{
+		"/user",
+		"/users/octocat/repos?per_page=100",
+		"/users/octocat/repos?page=2&per_page=100",
+	}
+	otherUserRepositories := []models.Repository{
+		publicRepository("11", "dotfiles", "octocat"),
+		publicRepository("13", "dotfiles-legacy", "octocat"),
+	}
+
+	tests := []struct {
+		name             string
+		owner            string
+		currentUserError int
+		wantRequests     []string
+		want             []models.Repository
+	}{
+		{
+			name:         "other user",
+			owner:        "octocat",
+			wantRequests: otherUserRequests,
+			want:         otherUserRepositories,
+		},
+		{
+			name:             "other user, current user lookup unauthorized",
+			owner:            "octocat",
+			currentUserError: http.StatusUnauthorized,
+			wantRequests:     otherUserRequests,
+			want:             otherUserRepositories,
+		},
+		{
+			name:             "other user, current user lookup forbidden",
+			owner:            "octocat",
+			currentUserError: http.StatusForbidden,
+			wantRequests:     otherUserRequests,
+			want:             otherUserRepositories,
+		},
+		{
+			name:  "token user",
+			owner: "jdoe",
+			wantRequests: []string{
+				"/user",
+				"/user/repos?affiliation=owner&per_page=100",
+				"/user/repos?affiliation=owner&page=2&per_page=100",
+			},
+			want: ownRepositories,
+		},
+		{
+			name:  "token user in another letter case",
+			owner: "JDoe",
+			wantRequests: []string{
+				"/user",
+				"/user/repos?affiliation=owner&per_page=100",
+				"/user/repos?affiliation=owner&page=2&per_page=100",
+			},
+			want: ownRepositories,
+		},
+	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			var recorder requestRecorder
+
+			currentUser := currentGitHubUserHandler(t)
+			if tt.currentUserError != 0 {
+				currentUser = gitHubErrorHandler(t, tt.currentUserError)
+			}
+
 			mux := http.NewServeMux()
-			mux.HandleFunc("GET /orgs/ghost", gitHubErrorHandler(t, http.StatusNotFound))
-			mux.HandleFunc("GET /users/ghost/repos", gitHubErrorHandler(t, tt.status))
+			mux.HandleFunc("GET /orgs/{owner}", gitHubErrorHandler(t, http.StatusNotFound))
+			mux.HandleFunc("GET /user", recorder.wrap(currentUser))
+			mux.HandleFunc("GET /users/octocat/repos", recorder.wrap(pagedGitHubHandler(t,
+				[]any{gitHubRepo(11, "dotfiles", "octocat"), gitHubRepo(12, "hello-world", "octocat")},
+				[]any{gitHubRepo(13, "dotfiles-legacy", "octocat")},
+			)))
+			mux.HandleFunc("GET /user/repos", recorder.wrap(pagedGitHubHandler(t,
+				[]any{gitHubRepo(1, "Dotfiles", "jdoe"), gitHubRepo(2, "blog", "jdoe")},
+				[]any{privateGitHubRepo(3, "old-dotfiles", "jdoe")},
+			)))
 
 			provider := newGitHubTestServer(t, mux)
 
-			got, err := provider.ListRepositories(context.Background(), "ghost", krci.GitServerSettings{}, models.ListOptions{})
+			got, err := provider.ListRepositories(
+				context.Background(),
+				tt.owner,
+				krci.GitServerSettings{},
+				models.ListOptions{Name: ptr("dotfiles")},
+			)
 
-			assert.Nil(t, got)
-			assertGitHubError(t, err, tt)
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, got)
+			assert.Equal(t, tt.wantRequests, recorder.requests())
 		})
+	}
+}
+
+// 401 and 403 on GET /user: TestGitHubProviderListRepositoriesForUser.
+func TestGitHubProviderListRepositoriesErrors(t *testing.T) {
+	isUnauthorized := func(tc gitHubErrorCase) bool { return errors.Is(tc.wantErrIs, gferrors.ErrUnauthorized) }
+
+	endpoints := []struct {
+		name    string
+		owner   string
+		failing string
+		cases   []gitHubErrorCase
+	}{
+		{
+			name:    "current user",
+			owner:   "octocat",
+			failing: "GET /user",
+			cases:   slices.DeleteFunc(gitHubErrorCases("failed to get current user"), isUnauthorized),
+		},
+		{
+			name:    "user repositories",
+			owner:   "octocat",
+			failing: "GET /users/octocat/repos",
+			cases:   gitHubErrorCases("failed to list repositories for org octocat"),
+		},
+		{
+			name:    "token user repositories",
+			owner:   "jdoe",
+			failing: "GET /user/repos",
+			cases:   gitHubErrorCases("failed to list repositories for org jdoe"),
+		},
+	}
+
+	for _, endpoint := range endpoints {
+		for _, tt := range endpoint.cases {
+			t.Run(endpoint.name+"/"+tt.name, func(t *testing.T) {
+				mux := http.NewServeMux()
+				route := func(pattern string, handler http.HandlerFunc) {
+					if pattern == endpoint.failing {
+						handler = gitHubErrorHandler(t, tt.status)
+					}
+
+					mux.HandleFunc(pattern, handler)
+				}
+
+				mux.HandleFunc("GET /orgs/{owner}", gitHubErrorHandler(t, http.StatusNotFound))
+				route("GET /user", currentGitHubUserHandler(t))
+				route("GET /users/octocat/repos", pagedGitHubHandler(t, []any{gitHubRepo(11, "dotfiles", "octocat")}))
+				route("GET /user/repos", pagedGitHubHandler(t, []any{gitHubRepo(1, "Dotfiles", "jdoe")}))
+
+				provider := newGitHubTestServer(t, mux)
+
+				got, err := provider.ListRepositories(
+					context.Background(), endpoint.owner, krci.GitServerSettings{}, models.ListOptions{},
+				)
+
+				assert.Nil(t, got)
+				assertGitHubError(t, err, tt)
+			})
+		}
 	}
 }
 
