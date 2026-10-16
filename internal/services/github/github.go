@@ -162,17 +162,48 @@ func (g *GitHubProvider) listRepositories(
 		}
 	}
 
-	return gfgithub.ScanGitHubList(
-		func(opt github.ListOptions) ([]*github.Repository, *github.Response, error) {
-			return client.Repositories.ListByUser(
+	return listUserRepositories(ctx, owner, client)
+}
+
+// GET /users/{owner}/repos returns public repositories only, including for the token user.
+// GET /user/repos returns the token user's private repositories.
+// 401 or 403 on GET /user (GitHub App installation token): public listing.
+func listUserRepositories(
+	ctx context.Context,
+	owner string,
+	client *github.Client,
+) xiter.Scan[*github.Repository] {
+	user, _, err := client.Users.Get(ctx, "")
+	if err != nil && !errors.Is(classifyGitHubError(err), gferrors.ErrUnauthorized) {
+		return func(yield func(*github.Repository, error) bool) {
+			yield(nil, fmt.Errorf("failed to get current user: %w", err))
+		}
+	}
+
+	list := func(opt github.ListOptions) ([]*github.Repository, *github.Response, error) {
+		return client.Repositories.ListByUser(
+			ctx,
+			owner,
+			&github.RepositoryListByUserOptions{
+				ListOptions: opt,
+			},
+		)
+	}
+
+	if strings.EqualFold(user.GetLogin(), owner) {
+		// Default affiliation adds collaborator and organization member repositories.
+		list = func(opt github.ListOptions) ([]*github.Repository, *github.Response, error) {
+			return client.Repositories.ListByAuthenticatedUser(
 				ctx,
-				owner,
-				&github.RepositoryListByUserOptions{
+				&github.RepositoryListByAuthenticatedUserOptions{
+					Affiliation: "owner",
 					ListOptions: opt,
 				},
 			)
-		},
-	)
+		}
+	}
+
+	return gfgithub.ScanGitHubList(list)
 }
 
 func convertGitHubRepoToRepository(repo *github.Repository) *models.Repository {

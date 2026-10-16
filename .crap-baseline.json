@@ -826,6 +826,14 @@
     },
     {
       "coverage": 100,
+      "crap": 4,
+      "cyclomatic": 4,
+      "effective_crap": 4,
+      "file": "internal/services/github/github.go",
+      "function": "listUserRepositories"
+    },
+    {
+      "coverage": 100,
       "crap": 3,
       "cyclomatic": 3,
       "effective_crap": 3,
