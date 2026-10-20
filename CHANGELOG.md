@@ -1,8 +1,52 @@
 <a name="unreleased"></a>
 ## [Unreleased]
 
+
+<a name="v0.7.0"></a>
+## [v0.7.0] - 2026-10-20
+### Features
+
+- add CRAP quality gate to make test and move to Go 1.26
+
+### Bug Fixes
+
+- list the token user's private GitHub repositories
+- reject unknown state and status query values
+- re-link oapi-codegen when its version changes
+- fall back to the GitHub user listing only on a 404
+- drop the namespace log tag that httplog never writes
+- inject build info into the binary
+- probe /healthz over HTTP and keep it out of the request log
+- classify rejected provider tokens and missing GitServers
+- hide error causes behind RFC 9457 problem responses
+- return 400 for an unknown cache endpoint
+- page through all projects of a GitLab group
+- stop sharing Bitbucket cookies across git servers
+- reduce gitfusion Role to the verbs it uses
+
+### Code Refactoring
+
+- drop nil checks on GitHub repositories the API never returns
+- split Bitbucket pipeline listing into query and conversion
+- invalidate caches through an endpoint lookup table
+
+### Testing
+
+- cover GitLab job trace error statuses
+- cover Bitbucket pipeline errors, filters and skipped status
+- cover pipeline list caching
+- cover listing git server settings
+- cover cache invalidation per endpoint
+- cover GitLab repository, branch, group and pipeline calls
+- cover Bitbucket repository and branch calls
+- cover GitHub repository, branch and organization calls
+
 ### Routine
 
+- bump Go to 1.26.9
+- bump oapi-codegen to v2.6.0
+- fail new functions at CRAP 30 and above
+- Update current development version
 - Update current development version
 
 
@@ -131,7 +175,8 @@
 - Add GitHub Copilot configuration and assistance tools ([#17](https://github.com/KubeRocketCI/gitfusion/issues/17))
 
 
-[Unreleased]: https://github.com/KubeRocketCI/gitfusion/compare/v0.6.1...HEAD
+[Unreleased]: https://github.com/KubeRocketCI/gitfusion/compare/v0.7.0...HEAD
+[v0.7.0]: https://github.com/KubeRocketCI/gitfusion/compare/v0.6.1...v0.7.0
 [v0.6.1]: https://github.com/KubeRocketCI/gitfusion/compare/v0.6.0...v0.6.1
 [v0.6.0]: https://github.com/KubeRocketCI/gitfusion/compare/v0.5.0...v0.6.0
 [v0.5.0]: https://github.com/KubeRocketCI/gitfusion/compare/v0.4.0...v0.5.0
