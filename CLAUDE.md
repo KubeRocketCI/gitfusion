@@ -23,7 +23,7 @@ go test ./internal/services/pipelines/... -run TestListPipelines
 
 ### Entry point & wiring
 
-`cmd/gitfusion-api/main.go` initialises the chi router with `httplog.RequestLogger` (chains chi `RequestID`, structured JSON logging and `Recoverer`), a 60 s timeout and a heartbeat, then mounts `api.BuildHandler` through `api.NewHTTPHandler`. `BuildHandler` (`internal/api/server.go`) creates a controller-runtime Kubernetes client, a `GitServerService`, one multi-provider service per resource type, and wraps them in oapi-codegen's `StrictHandler`.
+`cmd/gitfusion-api/main.go` initialises the chi router with `httplog.RequestLogger` (chains chi `RequestID`, structured JSON logging and `Recoverer`), a 60 s timeout and a heartbeat, then mounts `api.BuildHandler` through `api.NewHTTPHandler`. `BuildHandler` (`internal/api/server.go`) creates a controller-runtime Kubernetes client and passes it to `buildServer`, which creates a `GitServerService` and one multi-provider service per resource type; `BuildHandler` wraps the result in oapi-codegen's `StrictHandler`.
 
 Required env vars: `NAMESPACE` (Kubernetes namespace to watch for `GitServer` CRs); `PORT` defaults to `8080`.
 
@@ -56,7 +56,7 @@ internal/services/gitlab/gitlab.go    — implements all provider interfaces for
 internal/services/bitbucket/bitbucket.go — Bitbucket (pipeline jobs/traces not supported here)
 ```
 
-`internal/services/krci/gitserver.go` reads the `GitServer` CR (from `edp-codebase-operator`) and the referenced K8s Secret to build `GitServerSettings`. Token resolution is cached for 60 s (bound by token-rotation concerns).
+`internal/services/krci/gitserver.go` reads the `GitServer` CR (from `edp-codebase-operator`) and the referenced K8s Secret to build `GitServerSettings`. The Secret must hold a `token` for GitHub, GitLab and Bitbucket; a Gerrit Secret holds an SSH key and no token, and every Gerrit request answers 400 at the dispatch. Token resolution is cached for 60 s (bound by token-rotation concerns).
 
 ### Caching
 

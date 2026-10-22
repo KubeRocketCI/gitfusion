@@ -12,7 +12,6 @@ import (
 	"testing"
 
 	codebaseApi "github.com/epam/edp-codebase-operator/v2/api/v1"
-	codebaseUtil "github.com/epam/edp-codebase-operator/v2/pkg/util"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/httplog/v2"
 	"github.com/stretchr/testify/assert"
@@ -23,13 +22,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
-	"github.com/KubeRocketCI/gitfusion/internal/cache"
 	gferrors "github.com/KubeRocketCI/gitfusion/internal/errors"
 	"github.com/KubeRocketCI/gitfusion/internal/models"
-	"github.com/KubeRocketCI/gitfusion/internal/services/branches"
-	"github.com/KubeRocketCI/gitfusion/internal/services/krci"
-	"github.com/KubeRocketCI/gitfusion/internal/services/organizations"
-	"github.com/KubeRocketCI/gitfusion/internal/services/repositories"
 )
 
 const (
@@ -353,16 +347,16 @@ func TestNewHTTPHandlerOmitsRequestIDWhenAbsent(t *testing.T) {
 }
 
 const (
-	fixtureNamespace  = "krci"
-	gerritServerName  = "gerrit-server"
-	brokenServerName  = "broken-server"
-	missingServerName = "missing-server"
+	fixtureNamespace    = "krci"
+	gerritServerName    = "gerrit-server"
+	brokenServerName    = "broken-server"
+	missingServerName   = "missing-server"
+	tokenlessServerName = "tokenless-server"
 )
 
-// newServiceBackedServer wires the repository, branch, organization and cache handlers to real services
-// over a fake Kubernetes client. The client holds two GitServers whose provider has no implementation:
-// gerrit-server with its Secret, and broken-server whose Secret is absent. The organization warm-up
-// goroutine lists them and fails before any provider call, so no request leaves the process.
+// newServiceBackedServer returns buildServer over a fake Kubernetes client. The organization warm-up
+// goroutine lists its GitServers and fails on broken-server and tokenless-server before any provider call,
+// so no request leaves the process.
 func newServiceBackedServer(t *testing.T) *Server {
 	t.Helper()
 
@@ -370,49 +364,31 @@ func newServiceBackedServer(t *testing.T) *Server {
 	require.NoError(t, corev1.AddToScheme(scheme))
 	require.NoError(t, codebaseApi.AddToScheme(scheme))
 
-	newGitServer := func(name string) *codebaseApi.GitServer {
+	newGitServer := func(name, provider string) *codebaseApi.GitServer {
 		return &codebaseApi.GitServer{
 			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: fixtureNamespace},
 			Spec: codebaseApi.GitServerSpec{
-				GitProvider:      codebaseApi.GitProviderGerrit,
+				GitProvider:      provider,
 				GitHost:          name + ".example.com",
 				NameSshKeySecret: name + "-secret",
 			},
 		}
 	}
-	gerrit := newGitServer(gerritServerName)
-	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Name: gerrit.Spec.NameSshKeySecret, Namespace: fixtureNamespace},
-		Data:       map[string][]byte{codebaseUtil.GitServerSecretTokenField: []byte("t0ken")},
+	newSecretWithoutToken := func(gitServer *codebaseApi.GitServer) *corev1.Secret {
+		return &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{Name: gitServer.Spec.NameSshKeySecret, Namespace: fixtureNamespace},
+		}
 	}
+	gerrit := newGitServer(gerritServerName, codebaseApi.GitProviderGerrit)
+	tokenless := newGitServer(tokenlessServerName, codebaseApi.GitProviderGithub)
 
-	k8sClient := fake.NewClientBuilder().WithScheme(scheme).
-		WithObjects(gerrit, secret, newGitServer(brokenServerName)).Build()
-	gitServerService := krci.NewGitServerService(k8sClient, fixtureNamespace)
+	k8sClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(
+		gerrit, newSecretWithoutToken(gerrit),
+		newGitServer(brokenServerName, codebaseApi.GitProviderGerrit),
+		tokenless, newSecretWithoutToken(tokenless),
+	).Build()
 
-	repoSvc := repositories.NewRepositoriesService(repositories.NewMultiProviderRepositoryService(), gitServerService)
-	orgSvc := organizations.NewOrganizationsService(
-		organizations.NewMultiProviderOrganizationsService(gitServerService), gitServerService,
-	)
-	branchesSvc := branches.NewBranchesService(branches.NewMultiProviderBranchesService(), gitServerService)
-
-	cacheManager := cache.NewManager(
-		repoSvc.GetProvider().GetCache(),
-		orgSvc.GetProvider().GetCache(),
-		branchesSvc.GetProvider().GetCache(),
-		cache.NewPullRequestCache(),
-		cache.NewPipelineCache(),
-		cache.NewPipelineJobsCache(),
-		cache.NewPipelineJobTraceCache(),
-	)
-
-	return NewServer(
-		NewRepositoryHandler(repoSvc),
-		NewOrganizationHandler(orgSvc),
-		NewBranchHandler(branchesSvc),
-		NewCacheHandler(cacheManager),
-		nil, nil,
-	)
+	return buildServer(k8sClient, fixtureNamespace)
 }
 
 func TestNewHTTPHandlerServiceBackedErrorResponses(t *testing.T) {
@@ -422,13 +398,18 @@ func TestNewHTTPHandlerServiceBackedErrorResponses(t *testing.T) {
 		missingCause       = `"missing-server" not found`
 		missingSecretCause = `secrets "` + brokenServerName + `-secret" not found`
 
-		repositoriesTarget = "/api/v1/repositories?owner=o&gitServer="
-		repositoryTarget   = "/api/v1/repository?owner=o&repoName=r&gitServer="
-		branchesTarget     = "/api/v1/branches?owner=o&repoName=r&gitServer="
-		organizationTarget = "/api/v1/user/organizations?gitServer="
+		repositoriesTarget    = "/api/v1/repositories?owner=o&gitServer="
+		repositoryTarget      = "/api/v1/repository?owner=o&repoName=r&gitServer="
+		branchesTarget        = "/api/v1/branches?owner=o&repoName=r&gitServer="
+		organizationTarget    = "/api/v1/user/organizations?gitServer="
+		pullRequestsTarget    = "/api/v1/pull-requests?owner=o&repoName=r&gitServer="
+		pipelinesTarget       = "/api/v1/pipelines?project=p&gitServer="
+		triggerPipelineTarget = "/api/v1/trigger-pipeline?project=p&ref=main&gitServer="
+		pipelineJobsTarget    = "/api/v1/pipeline-jobs?project=p&pipelineId=1&gitServer="
+		jobTraceTarget        = "/api/v1/pipeline-job-trace?project=p&jobId=1&gitServer="
 	)
 
-	tests := []struct {
+	type testCase struct {
 		name       string
 		method     string
 		target     string
@@ -436,71 +417,35 @@ func TestNewHTTPHandlerServiceBackedErrorResponses(t *testing.T) {
 		wantDetail string
 		// wantCause is a substring of the logged error.
 		wantCause string
-	}{
-		{
-			name:       "repositories unsupported provider",
-			method:     http.MethodGet,
-			target:     repositoriesTarget + gerritServerName,
-			wantStatus: http.StatusBadRequest,
-			wantDetail: unsupportedDetail,
-			wantCause:  unsupportedCause,
-		},
-		{
-			name:       "repositories missing git server",
-			method:     http.MethodGet,
-			target:     repositoriesTarget + missingServerName,
-			wantStatus: http.StatusNotFound,
-			wantDetail: notFoundDetail,
-			wantCause:  missingCause,
-		},
-		{
-			name:       "repository unsupported provider",
-			method:     http.MethodGet,
-			target:     repositoryTarget + gerritServerName,
-			wantStatus: http.StatusBadRequest,
-			wantDetail: unsupportedDetail,
-			wantCause:  unsupportedCause,
-		},
-		{
-			name:       "repository missing git server",
-			method:     http.MethodGet,
-			target:     repositoryTarget + missingServerName,
-			wantStatus: http.StatusNotFound,
-			wantDetail: notFoundDetail,
-			wantCause:  missingCause,
-		},
-		{
-			name:       "branches unsupported provider",
-			method:     http.MethodGet,
-			target:     branchesTarget + gerritServerName,
-			wantStatus: http.StatusBadRequest,
-			wantDetail: unsupportedDetail,
-			wantCause:  unsupportedCause,
-		},
-		{
-			name:       "branches missing git server",
-			method:     http.MethodGet,
-			target:     branchesTarget + missingServerName,
-			wantStatus: http.StatusNotFound,
-			wantDetail: notFoundDetail,
-			wantCause:  missingCause,
-		},
-		{
-			name:       "organizations unsupported provider",
-			method:     http.MethodGet,
-			target:     organizationTarget + gerritServerName,
-			wantStatus: http.StatusBadRequest,
-			wantDetail: unsupportedDetail,
-			wantCause:  unsupportedCause,
-		},
-		{
-			name:       "organizations missing git server",
-			method:     http.MethodGet,
-			target:     organizationTarget + missingServerName,
-			wantStatus: http.StatusNotFound,
-			wantDetail: notFoundDetail,
-			wantCause:  missingCause,
-		},
+	}
+
+	unsupported := func(route, method, target string) testCase {
+		return testCase{
+			name: route + " unsupported provider", method: method, target: target + gerritServerName,
+			wantStatus: http.StatusBadRequest, wantDetail: unsupportedDetail, wantCause: unsupportedCause,
+		}
+	}
+	missingServer := func(route, target string) testCase {
+		return testCase{
+			name: route + " missing git server", method: http.MethodGet, target: target + missingServerName,
+			wantStatus: http.StatusNotFound, wantDetail: notFoundDetail, wantCause: missingCause,
+		}
+	}
+
+	tests := []testCase{
+		unsupported("repositories", http.MethodGet, repositoriesTarget),
+		missingServer("repositories", repositoriesTarget),
+		unsupported("repository", http.MethodGet, repositoryTarget),
+		missingServer("repository", repositoryTarget),
+		unsupported("branches", http.MethodGet, branchesTarget),
+		missingServer("branches", branchesTarget),
+		unsupported("organizations", http.MethodGet, organizationTarget),
+		missingServer("organizations", organizationTarget),
+		unsupported("pull requests", http.MethodGet, pullRequestsTarget),
+		unsupported("pipelines", http.MethodGet, pipelinesTarget),
+		unsupported("trigger pipeline", http.MethodPost, triggerPipelineTarget),
+		unsupported("pipeline jobs", http.MethodGet, pipelineJobsTarget),
+		unsupported("pipeline job trace", http.MethodGet, jobTraceTarget),
 		{
 			name:       "repositories git server with missing secret",
 			method:     http.MethodGet,
@@ -508,6 +453,14 @@ func TestNewHTTPHandlerServiceBackedErrorResponses(t *testing.T) {
 			wantStatus: http.StatusInternalServerError,
 			wantDetail: genericDetail,
 			wantCause:  missingSecretCause,
+		},
+		{
+			name:       "pull requests token provider without a token",
+			method:     http.MethodGet,
+			target:     pullRequestsTarget + tokenlessServerName,
+			wantStatus: http.StatusInternalServerError,
+			wantDetail: genericDetail,
+			wantCause:  "git provider token is empty",
 		},
 		{
 			name:       "cache invalidate unknown endpoint",

@@ -209,10 +209,10 @@
       "function": "NewRepositoryHandler"
     },
     {
-      "coverage": 0,
-      "crap": 2,
+      "coverage": 100,
+      "crap": 1,
       "cyclomatic": 1,
-      "effective_crap": 2,
+      "effective_crap": 1,
       "file": "internal/api/server.go",
       "function": "*Server.GetPipelineJobTrace"
     },
@@ -281,10 +281,10 @@
       "function": "*Server.ListUserOrganizations"
     },
     {
-      "coverage": 0,
-      "crap": 2,
+      "coverage": 100,
+      "crap": 1,
       "cyclomatic": 1,
-      "effective_crap": 2,
+      "effective_crap": 1,
       "file": "internal/api/server.go",
       "function": "*Server.TriggerPipeline"
     },
@@ -311,6 +311,14 @@
       "effective_crap": 1,
       "file": "internal/api/server.go",
       "function": "NewServer"
+    },
+    {
+      "coverage": 100,
+      "crap": 1,
+      "cyclomatic": 1,
+      "effective_crap": 1,
+      "file": "internal/api/server.go",
+      "function": "buildServer"
     },
     {
       "coverage": 0,
@@ -1122,9 +1130,9 @@
     },
     {
       "coverage": 100,
-      "crap": 3,
-      "cyclomatic": 3,
-      "effective_crap": 3,
+      "crap": 4,
+      "cyclomatic": 4,
+      "effective_crap": 4,
       "file": "internal/services/krci/gitserver.go",
       "function": "*GitServerService.getGitProviderSettingsForServer"
     },

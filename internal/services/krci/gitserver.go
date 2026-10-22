@@ -58,6 +58,7 @@ func newGitServerSettingsCache() *sturdyc.Client[GitServerSettings] {
 
 // GetGitProviderSettings returns the settings of the named GitServer.
 // A GitServer that does not exist yields an error matching gferrors.ErrNotFound; a missing Secret does not.
+// A Secret without a token is an error unless the GitServer is Gerrit, whose Secret holds an SSH key.
 func (g *GitServerService) GetGitProviderSettings(
 	ctx context.Context,
 	gitServerName string,
@@ -116,7 +117,7 @@ func (g *GitServerService) getGitProviderSettingsForServer(
 	}
 
 	token := string(secret.Data[codebaseUtil.GitServerSecretTokenField])
-	if token == "" {
+	if token == "" && gitServer.Spec.GitProvider != codebaseApi.GitProviderGerrit {
 		return GitServerSettings{}, errors.New("git provider token is empty")
 	}
 

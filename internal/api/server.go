@@ -139,7 +139,12 @@ func BuildHandler(conf Config) (ServerInterface, error) {
 		return nil, err
 	}
 
-	gitServerService := krci.NewGitServerService(k8sCl, conf.Namespace)
+	return newStrictHandler(buildServer(k8sCl, conf.Namespace)), nil
+}
+
+// buildServer wires every handler to its service.
+func buildServer(k8sCl client.Client, namespace string) *Server {
+	gitServerService := krci.NewGitServerService(k8sCl, namespace)
 
 	// Create multi-provider services
 	repoMultiProvider := repositories.NewMultiProviderRepositoryService()
@@ -172,14 +177,14 @@ func BuildHandler(conf Config) (ServerInterface, error) {
 	pipelineHandler := NewPipelineHandler(pipelinesSvc)
 	pullRequestHandler := NewPullRequestHandler(pullRequestsSvc)
 
-	return newStrictHandler(NewServer(
+	return NewServer(
 		NewRepositoryHandler(repoSvc),
 		NewOrganizationHandler(orgSvc),
 		branchHandler,
 		cacheHandler,
 		pipelineHandler,
 		pullRequestHandler,
-	)), nil
+	)
 }
 
 // newStrictHandler adapts s to ServerInterface; request and handler errors go through writeProblem.

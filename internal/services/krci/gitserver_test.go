@@ -67,26 +67,38 @@ func (c failingGetClient) Get(context.Context, client.ObjectKey, client.Object, 
 	return c.err
 }
 
-func tokenSecretName(gitServerName string) string {
+func secretName(gitServerName string) string {
 	return gitServerName + "-secret"
 }
 
-// newGitServer returns a GitServer in testNamespace that references tokenSecretName(name).
+// newGitServer returns a GitServer in testNamespace that references secretName(name).
 func newGitServer(name, provider, host string) *codebaseApi.GitServer {
 	return &codebaseApi.GitServer{
 		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: testNamespace},
 		Spec: codebaseApi.GitServerSpec{
 			GitProvider:      provider,
 			GitHost:          host,
-			NameSshKeySecret: tokenSecretName(name),
+			NameSshKeySecret: secretName(name),
 		},
 	}
 }
 
 func newTokenSecret(gitServerName, token string) *corev1.Secret {
 	return &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Name: tokenSecretName(gitServerName), Namespace: testNamespace},
+		ObjectMeta: metav1.ObjectMeta{Name: secretName(gitServerName), Namespace: testNamespace},
 		Data:       map[string][]byte{codebaseUtil.GitServerSecretTokenField: []byte(token)},
+	}
+}
+
+// newSSHKeySecret returns a Gerrit-style GitServer Secret: an SSH key pair and a user name, no token.
+func newSSHKeySecret(gitServerName string) *corev1.Secret {
+	return &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{Name: secretName(gitServerName), Namespace: testNamespace},
+		Data: map[string][]byte{
+			codebaseUtil.PrivateSShKeyName: []byte("private-key"),
+			"id_rsa.pub":                   []byte("public-key"),
+			"username":                     []byte("ci-user"),
+		},
 	}
 }
 
@@ -169,16 +181,53 @@ func TestGetGitProviderSettings_DoesNotCacheEmptyToken(t *testing.T) {
 	assert.Greater(t, cc.gets, first, "empty-token error must not be cached; the lookup should retry")
 }
 
+func TestGetGitProviderSettings_GerritResolvesWithoutToken(t *testing.T) {
+	svc, _ := newTestService(t,
+		newGitServer("gerrit", codebaseApi.GitProviderGerrit, "gerrit.example.com"),
+		newSSHKeySecret("gerrit"),
+	)
+
+	settings, err := svc.GetGitProviderSettings(context.Background(), "gerrit")
+
+	require.NoError(t, err)
+	assert.Equal(t, GitServerSettings{
+		Url:           "https://gerrit.example.com",
+		GitProvider:   codebaseApi.GitProviderGerrit,
+		GitServerName: "gerrit",
+	}, settings)
+}
+
+func TestGetGitProviderSettings_TokenProviderWithoutTokenFails(t *testing.T) {
+	for _, provider := range []string{
+		codebaseApi.GitProviderGithub,
+		codebaseApi.GitProviderGitlab,
+		codebaseApi.GitProviderBitbucket,
+	} {
+		t.Run(provider, func(t *testing.T) {
+			svc, _ := newTestService(t,
+				newGitServer("gs", provider, provider+".example.com"),
+				newSSHKeySecret("gs"),
+			)
+
+			_, err := svc.GetGitProviderSettings(context.Background(), "gs")
+
+			require.EqualError(t, err, "git provider token is empty")
+		})
+	}
+}
+
 func TestGetGitProviderSettingsList_ReturnsSettingsPerGitServerInNamespace(t *testing.T) {
 	otherNamespace := newGitServer("other", codebaseApi.GitProviderGitlab, "gitlab.other.example.com")
 	otherNamespace.Namespace = "other"
 	// The secret exists in testNamespace: without the namespace filter this GitServer resolves.
-	otherNamespace.Spec.NameSshKeySecret = tokenSecretName("corp-gitlab")
+	otherNamespace.Spec.NameSshKeySecret = secretName("corp-gitlab")
 	svc, _ := newTestService(t,
 		newGitServer("corp-gitlab", codebaseApi.GitProviderGitlab, "gitlab.example.com"),
 		newTokenSecret("corp-gitlab", "gl-t0ken"),
 		newGitServer("corp-github", codebaseApi.GitProviderGithub, "github.com"),
 		newTokenSecret("corp-github", "gh-t0ken"),
+		newGitServer("corp-gerrit", codebaseApi.GitProviderGerrit, "gerrit.example.com"),
+		newSSHKeySecret("corp-gerrit"),
 		otherNamespace,
 	)
 
@@ -188,6 +237,7 @@ func TestGetGitProviderSettingsList_ReturnsSettingsPerGitServerInNamespace(t *te
 	assert.ElementsMatch(t, []GitServerSettings{
 		{Url: "https://gitlab.example.com", Token: "gl-t0ken", GitProvider: "gitlab", GitServerName: "corp-gitlab"},
 		{Url: "https://api.github.com", Token: "gh-t0ken", GitProvider: "github", GitServerName: "corp-github"},
+		{Url: "https://gerrit.example.com", GitProvider: "gerrit", GitServerName: "corp-gerrit"},
 	}, settings)
 }
 
