@@ -12,6 +12,13 @@ import (
 	"github.com/KubeRocketCI/gitfusion/internal/services/krci"
 )
 
+func requireUnsupported(t *testing.T, err error, gitProvider, operation string) {
+	t.Helper()
+
+	require.ErrorIs(t, err, gferrors.ErrUnsupportedOperation)
+	assert.EqualError(t, err, "provider "+gitProvider+" does not support "+operation+": unsupported operation")
+}
+
 func TestMultiProviderBranchesService_ListBranches_UnknownProviderReturnsUnsupportedOperation(t *testing.T) {
 	service := NewMultiProviderBranchesService()
 
@@ -23,7 +30,16 @@ func TestMultiProviderBranchesService_ListBranches_UnknownProviderReturnsUnsuppo
 		models.ListOptions{},
 	)
 
-	require.ErrorIs(t, err, gferrors.ErrUnsupportedOperation)
+	requireUnsupported(t, err, "gerrit", "listBranches")
 	assert.Nil(t, result)
-	assert.Contains(t, err.Error(), "unsupported provider gerrit")
+}
+
+func TestMultiProviderBranchesService_CheckListBranches(t *testing.T) {
+	service := NewMultiProviderBranchesService()
+
+	for _, provider := range []string{"github", "gitlab", "bitbucket"} {
+		assert.NoError(t, service.CheckListBranches(provider), provider)
+	}
+
+	requireUnsupported(t, service.CheckListBranches("gerrit"), "gerrit", "listBranches")
 }

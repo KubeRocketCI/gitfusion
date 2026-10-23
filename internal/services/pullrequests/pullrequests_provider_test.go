@@ -38,44 +38,38 @@ func TestMultiProviderPullRequestsService_GetCache(t *testing.T) {
 	assert.NotNil(t, cache, "cache should not be nil")
 }
 
-func TestMultiProviderPullRequestsService_UnsupportedProvider(t *testing.T) {
-	tests := []struct {
-		name           string
-		gitProvider    string
-		expectedErrMsg string
-	}{
-		{
-			name:           "unknown provider",
-			gitProvider:    "unknown",
-			expectedErrMsg: "unsupported provider unknown",
-		},
-		{
-			name:           "empty provider",
-			gitProvider:    "",
-			expectedErrMsg: "unsupported provider ",
-		},
-		{
-			name:           "azure provider not supported",
-			gitProvider:    "azure",
-			expectedErrMsg: "unsupported provider azure",
-		},
-	}
+func requireUnsupported(t *testing.T, err error, gitProvider, operation string) {
+	t.Helper()
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	require.ErrorIs(t, err, gferrors.ErrUnsupportedOperation)
+	assert.EqualError(t, err, "provider "+gitProvider+" does not support "+operation+": unsupported operation")
+}
+
+func TestMultiProviderPullRequestsService_UnsupportedProvider(t *testing.T) {
+	for _, gitProvider := range []string{"unknown", "", "azure", "gerrit"} {
+		t.Run(gitProvider, func(t *testing.T) {
 			service := NewMultiProviderPullRequestsService()
 
 			result, err := service.ListPullRequests(
 				context.Background(),
 				"owner",
 				"repo",
-				krci.GitServerSettings{GitProvider: tt.gitProvider},
+				krci.GitServerSettings{GitProvider: gitProvider},
 				defaultOpts(),
 			)
 
-			require.ErrorIs(t, err, gferrors.ErrUnsupportedOperation)
+			requireUnsupported(t, err, gitProvider, "listPullRequests")
 			assert.Nil(t, result)
-			assert.Contains(t, err.Error(), tt.expectedErrMsg)
 		})
 	}
+}
+
+func TestMultiProviderPullRequestsService_CheckListPullRequests(t *testing.T) {
+	service := NewMultiProviderPullRequestsService()
+
+	for _, provider := range []string{"github", "gitlab", "bitbucket"} {
+		assert.NoError(t, service.CheckListPullRequests(provider), provider)
+	}
+
+	requireUnsupported(t, service.CheckListPullRequests("gerrit"), "gerrit", "listPullRequests")
 }

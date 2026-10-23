@@ -2,8 +2,6 @@ package organizations
 
 import (
 	"context"
-	"fmt"
-	"log/slog"
 
 	"github.com/viccon/sturdyc"
 
@@ -28,10 +26,8 @@ type MultiProviderOrganizationsService struct {
 	cache     *sturdyc.Client[[]models.Organization]
 }
 
-func NewMultiProviderOrganizationsService(
-	gitServerService *krci.GitServerService,
-) *MultiProviderOrganizationsService {
-	service := &MultiProviderOrganizationsService{
+func NewMultiProviderOrganizationsService() *MultiProviderOrganizationsService {
+	return &MultiProviderOrganizationsService{
 		providers: map[string]OrganizationsProvider{
 			"github":    github.NewGitHubProvider(),
 			"gitlab":    gitlab.NewGitlabProvider(),
@@ -39,42 +35,33 @@ func NewMultiProviderOrganizationsService(
 		},
 		cache: cache.NewOrganizationCache(),
 	}
+}
 
-	ctx := context.Background()
+// CheckListUserOrganizations reports whether the provider implements listUserOrganizations.
+func (m *MultiProviderOrganizationsService) CheckListUserOrganizations(gitProvider string) error {
+	_, err := m.listUserOrganizationsProvider(gitProvider)
 
-	// Warm up the organization cache for all configured providers in the background.
-	// This helps to ensure that the cache is populated before any requests are made.
-	go func() {
-		settings, err := gitServerService.GetGitProviderSettingsList(ctx)
-		if err != nil {
-			slog.Error("Failed to get git provider settings", "error", err)
-			return
-		}
+	return err
+}
 
-		for _, setting := range settings {
-			// It's safe to spawn new goroutines for each provider because we may have only a few providers.
-			go func(setting krci.GitServerSettings) {
-				if _, fetchErr := service.ListUserOrganizations(ctx, setting); fetchErr != nil {
-					slog.Error("Failed to list user organizations", "provider", setting.GitProvider, "error", fetchErr)
+func (m *MultiProviderOrganizationsService) listUserOrganizationsProvider(
+	gitProvider string,
+) (OrganizationsProvider, error) {
+	provider, ok := m.providers[gitProvider]
+	if !ok {
+		return nil, gferrors.UnsupportedOperation(gitProvider, "listUserOrganizations")
+	}
 
-					return
-				}
-
-				slog.Info("Warmed up organization cache", "provider", setting.GitProvider, "gitServerName", setting.GitServerName)
-			}(setting)
-		}
-	}()
-
-	return service
+	return provider, nil
 }
 
 func (m *MultiProviderOrganizationsService) ListUserOrganizations(
 	ctx context.Context,
 	settings krci.GitServerSettings,
 ) ([]models.Organization, error) {
-	provider, ok := m.providers[settings.GitProvider]
-	if !ok {
-		return nil, fmt.Errorf("unsupported provider %s: %w", settings.GitProvider, gferrors.ErrUnsupportedOperation)
+	provider, err := m.listUserOrganizationsProvider(settings.GitProvider)
+	if err != nil {
+		return nil, err
 	}
 
 	fetchFn := func(ctx context.Context) ([]models.Organization, error) {

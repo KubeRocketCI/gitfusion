@@ -18,14 +18,6 @@ import (
 )
 
 type PipelineProvider interface {
-	TriggerPipeline(
-		ctx context.Context,
-		project string,
-		ref string,
-		variables []models.PipelineVariable,
-		settings krci.GitServerSettings,
-	) (*models.PipelineResponse, error)
-
 	ListPipelines(
 		ctx context.Context,
 		project string,
@@ -34,8 +26,20 @@ type PipelineProvider interface {
 	) (*models.PipelinesResponse, error)
 }
 
-// PipelineJobsProvider is an optional capability; providers that don't implement it make the
-// dispatch below return an error wrapping gferrors.ErrUnsupportedOperation.
+// PipelineTrigger is an optional capability; providers that don't implement it yield a
+// gferrors.UnsupportedOperation error.
+type PipelineTrigger interface {
+	TriggerPipeline(
+		ctx context.Context,
+		project string,
+		ref string,
+		variables []models.PipelineVariable,
+		settings krci.GitServerSettings,
+	) (*models.PipelineResponse, error)
+}
+
+// PipelineJobsProvider is an optional capability; providers that don't implement it yield a
+// gferrors.UnsupportedOperation error.
 type PipelineJobsProvider interface {
 	ListPipelineJobs(
 		ctx context.Context,
@@ -104,12 +108,12 @@ func (m *MultiProviderPipelineService) TriggerPipeline(
 	variables []models.PipelineVariable,
 	settings krci.GitServerSettings,
 ) (*models.PipelineResponse, error) {
-	provider, ok := m.providers[settings.GitProvider]
-	if !ok {
-		return nil, fmt.Errorf("unsupported provider %s: %w", settings.GitProvider, gferrors.ErrUnsupportedOperation)
+	trigger, err := m.triggerPipelineProvider(settings.GitProvider)
+	if err != nil {
+		return nil, err
 	}
 
-	return provider.TriggerPipeline(ctx, project, ref, variables, settings)
+	return trigger.TriggerPipeline(ctx, project, ref, variables, settings)
 }
 
 func (m *MultiProviderPipelineService) ListPipelines(
@@ -118,9 +122,9 @@ func (m *MultiProviderPipelineService) ListPipelines(
 	settings krci.GitServerSettings,
 	opts models.PipelineListOptions,
 ) (*models.PipelinesResponse, error) {
-	provider, ok := m.providers[settings.GitProvider]
-	if !ok {
-		return nil, fmt.Errorf("unsupported provider %s: %w", settings.GitProvider, gferrors.ErrUnsupportedOperation)
+	provider, err := m.listPipelinesProvider(settings.GitProvider)
+	if err != nil {
+		return nil, err
 	}
 
 	refKey := ""
@@ -160,7 +164,7 @@ func (m *MultiProviderPipelineService) ListPipelineJobs(
 	pipelineID int,
 	settings krci.GitServerSettings,
 ) ([]models.PipelineJob, error) {
-	jobsProvider, err := m.jobsProvider(settings.GitProvider)
+	jobsProvider, err := m.listPipelineJobsProvider(settings.GitProvider)
 	if err != nil {
 		return nil, err
 	}
@@ -196,7 +200,7 @@ func (m *MultiProviderPipelineService) GetJobTrace(
 	jobID int,
 	settings krci.GitServerSettings,
 ) (string, bool, error) {
-	jobsProvider, err := m.jobsProvider(settings.GitProvider)
+	jobsProvider, err := m.getPipelineJobTraceProvider(settings.GitProvider)
 	if err != nil {
 		return "", false, err
 	}
@@ -237,23 +241,71 @@ func (m *MultiProviderPipelineService) GetJobTrace(
 	return trace.Content, trace.Truncated, nil
 }
 
-// jobsProvider resolves a provider that supports per-pipeline jobs/logs. An unregistered provider
-// or a registered provider without jobs support (e.g. GitHub/Bitbucket) yields an error wrapping
-// gferrors.ErrUnsupportedOperation.
-func (m *MultiProviderPipelineService) jobsProvider(gitProvider string) (PipelineJobsProvider, error) {
+// CheckTriggerPipeline reports whether the provider implements triggerPipeline.
+func (m *MultiProviderPipelineService) CheckTriggerPipeline(gitProvider string) error {
+	_, err := m.triggerPipelineProvider(gitProvider)
+
+	return err
+}
+
+// CheckListPipelines reports whether the provider implements listPipelines.
+func (m *MultiProviderPipelineService) CheckListPipelines(gitProvider string) error {
+	_, err := m.listPipelinesProvider(gitProvider)
+
+	return err
+}
+
+// CheckListPipelineJobs reports whether the provider implements listPipelineJobs.
+func (m *MultiProviderPipelineService) CheckListPipelineJobs(gitProvider string) error {
+	_, err := m.listPipelineJobsProvider(gitProvider)
+
+	return err
+}
+
+// CheckGetPipelineJobTrace reports whether the provider implements getPipelineJobTrace.
+func (m *MultiProviderPipelineService) CheckGetPipelineJobTrace(gitProvider string) error {
+	_, err := m.getPipelineJobTraceProvider(gitProvider)
+
+	return err
+}
+
+func (m *MultiProviderPipelineService) triggerPipelineProvider(gitProvider string) (PipelineTrigger, error) {
+	provider, ok := m.providers[gitProvider]
+	if ok {
+		if trigger, isTrigger := provider.(PipelineTrigger); isTrigger {
+			return trigger, nil
+		}
+	}
+
+	return nil, gferrors.UnsupportedOperation(gitProvider, "triggerPipeline")
+}
+
+func (m *MultiProviderPipelineService) listPipelinesProvider(gitProvider string) (PipelineProvider, error) {
 	provider, ok := m.providers[gitProvider]
 	if !ok {
-		return nil, fmt.Errorf("unsupported provider %s: %w", gitProvider, gferrors.ErrUnsupportedOperation)
+		return nil, gferrors.UnsupportedOperation(gitProvider, "listPipelines")
 	}
 
-	jobsProvider, ok := provider.(PipelineJobsProvider)
-	if !ok {
-		return nil, fmt.Errorf(
-			"provider %s does not support pipeline jobs: %w", gitProvider, gferrors.ErrUnsupportedOperation,
-		)
+	return provider, nil
+}
+
+func (m *MultiProviderPipelineService) listPipelineJobsProvider(gitProvider string) (PipelineJobsProvider, error) {
+	return m.jobsCapability(gitProvider, "listPipelineJobs")
+}
+
+func (m *MultiProviderPipelineService) getPipelineJobTraceProvider(gitProvider string) (PipelineJobsProvider, error) {
+	return m.jobsCapability(gitProvider, "getPipelineJobTrace")
+}
+
+func (m *MultiProviderPipelineService) jobsCapability(gitProvider, operation string) (PipelineJobsProvider, error) {
+	provider, ok := m.providers[gitProvider]
+	if ok {
+		if jobsProvider, isJobs := provider.(PipelineJobsProvider); isJobs {
+			return jobsProvider, nil
+		}
 	}
 
-	return jobsProvider, nil
+	return nil, gferrors.UnsupportedOperation(gitProvider, operation)
 }
 
 func (m *MultiProviderPipelineService) GetCache() *sturdyc.Client[models.PipelinesResponse] {

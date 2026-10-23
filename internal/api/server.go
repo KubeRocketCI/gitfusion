@@ -133,17 +133,27 @@ func (s *Server) GetPipelineJobTrace(
 	return s.pipelineHandler.GetPipelineJobTrace(ctx, request)
 }
 
+// BuildHandler returns the API handler and starts the organization cache warm-up in the background.
 func BuildHandler(conf Config) (ServerInterface, error) {
 	k8sCl, err := initk8sClient()
 	if err != nil {
 		return nil, err
 	}
 
-	gitServerService := krci.NewGitServerService(k8sCl, conf.Namespace)
+	server, warmUp := buildServer(k8sCl, conf.Namespace)
+
+	go warmUp(context.Background())
+
+	return newStrictHandler(server), nil
+}
+
+// buildServer wires every handler to its service and returns the organization cache warm-up; it does not start it.
+func buildServer(k8sCl client.Client, namespace string) (*Server, func(ctx context.Context)) {
+	gitServerService := krci.NewGitServerService(k8sCl, namespace)
 
 	// Create multi-provider services
 	repoMultiProvider := repositories.NewMultiProviderRepositoryService()
-	orgMultiProvider := organizations.NewMultiProviderOrganizationsService(gitServerService)
+	orgMultiProvider := organizations.NewMultiProviderOrganizationsService()
 	branchesMultiProvider := branches.NewMultiProviderBranchesService()
 	pipelinesMultiProvider := pipelines.NewMultiProviderPipelineService()
 	pullRequestsMultiProvider := pullrequests.NewMultiProviderPullRequestsService()
@@ -172,14 +182,14 @@ func BuildHandler(conf Config) (ServerInterface, error) {
 	pipelineHandler := NewPipelineHandler(pipelinesSvc)
 	pullRequestHandler := NewPullRequestHandler(pullRequestsSvc)
 
-	return newStrictHandler(NewServer(
+	return NewServer(
 		NewRepositoryHandler(repoSvc),
 		NewOrganizationHandler(orgSvc),
 		branchHandler,
 		cacheHandler,
 		pipelineHandler,
 		pullRequestHandler,
-	)), nil
+	), orgSvc.WarmUp
 }
 
 // newStrictHandler adapts s to ServerInterface; request and handler errors go through writeProblem.

@@ -12,7 +12,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	gferrors "github.com/KubeRocketCI/gitfusion/internal/errors"
 	"github.com/KubeRocketCI/gitfusion/internal/models"
 	"github.com/KubeRocketCI/gitfusion/internal/services/krci"
 	"github.com/KubeRocketCI/gitfusion/pkg/pointer"
@@ -586,20 +585,4 @@ func TestBitbucketServiceListPipelinesInvalidCompletedOn(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), `failed to parse completed_on time "not-a-timestamp"`)
 	assert.Nil(t, result)
-}
-
-func TestBitbucketServiceTriggerPipelineUnsupported(t *testing.T) {
-	svc := NewBitbucketProvider()
-
-	result, err := svc.TriggerPipeline(
-		context.Background(),
-		"owner/repo",
-		"main",
-		nil,
-		krci.GitServerSettings{Token: testBitbucketToken()},
-	)
-
-	require.ErrorIs(t, err, gferrors.ErrUnsupportedOperation)
-	assert.Nil(t, result)
-	assert.Contains(t, err.Error(), "not supported for Bitbucket")
 }

@@ -2,6 +2,7 @@ package api
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -21,15 +22,11 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
-	"github.com/KubeRocketCI/gitfusion/internal/cache"
 	gferrors "github.com/KubeRocketCI/gitfusion/internal/errors"
 	"github.com/KubeRocketCI/gitfusion/internal/models"
-	"github.com/KubeRocketCI/gitfusion/internal/services/branches"
-	"github.com/KubeRocketCI/gitfusion/internal/services/krci"
-	"github.com/KubeRocketCI/gitfusion/internal/services/organizations"
-	"github.com/KubeRocketCI/gitfusion/internal/services/repositories"
 )
 
 const (
@@ -353,82 +350,105 @@ func TestNewHTTPHandlerOmitsRequestIDWhenAbsent(t *testing.T) {
 }
 
 const (
-	fixtureNamespace  = "krci"
-	gerritServerName  = "gerrit-server"
-	brokenServerName  = "broken-server"
-	missingServerName = "missing-server"
+	fixtureNamespace         = "krci"
+	gerritServerName         = "gerrit-server"
+	gerritNoSecretServerName = "gerrit-nosecret-server"
+	githubServerName         = "github-server"
+	brokenServerName         = "broken-server"
+	missingServerName        = "missing-server"
+	tokenlessServerName      = "tokenless-server"
 )
 
-// newServiceBackedServer wires the repository, branch, organization and cache handlers to real services
-// over a fake Kubernetes client. The client holds two GitServers whose provider has no implementation:
-// gerrit-server with its Secret, and broken-server whose Secret is absent. The organization warm-up
-// goroutine lists them and fails before any provider call, so no request leaves the process.
-func newServiceBackedServer(t *testing.T) *Server {
+// getCounter counts Gets by object type.
+type getCounter struct {
+	client.Client
+
+	secrets    int
+	gitServers int
+}
+
+func (c *getCounter) Get(
+	ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption,
+) error {
+	switch obj.(type) {
+	case *corev1.Secret:
+		c.secrets++
+	case *codebaseApi.GitServer:
+		c.gitServers++
+	}
+
+	return c.Client.Get(ctx, key, obj, opts...)
+}
+
+// newServiceBackedServer returns buildServer over a fake Kubernetes client that counts Gets. The client holds:
+//   - gerrit-server: Gerrit with an SSH-key Secret and no token;
+//   - gerrit-nosecret-server: Gerrit whose Secret is absent;
+//   - github-server: GitHub with a token;
+//   - broken-server: GitHub whose Secret is absent;
+//   - tokenless-server: GitHub whose Secret has no token.
+//
+// Every request routed to these servers fails before a provider call, so no request leaves the process.
+func newServiceBackedServer(t *testing.T) (*Server, *getCounter) {
 	t.Helper()
 
 	scheme := runtime.NewScheme()
 	require.NoError(t, corev1.AddToScheme(scheme))
 	require.NoError(t, codebaseApi.AddToScheme(scheme))
 
-	newGitServer := func(name string) *codebaseApi.GitServer {
+	newGitServer := func(name, provider string) *codebaseApi.GitServer {
 		return &codebaseApi.GitServer{
 			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: fixtureNamespace},
 			Spec: codebaseApi.GitServerSpec{
-				GitProvider:      codebaseApi.GitProviderGerrit,
+				GitProvider:      provider,
 				GitHost:          name + ".example.com",
 				NameSshKeySecret: name + "-secret",
 			},
 		}
 	}
-	gerrit := newGitServer(gerritServerName)
-	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Name: gerrit.Spec.NameSshKeySecret, Namespace: fixtureNamespace},
-		Data:       map[string][]byte{codebaseUtil.GitServerSecretTokenField: []byte("t0ken")},
+	newSecret := func(gitServerName string, data map[string][]byte) *corev1.Secret {
+		return &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{Name: gitServerName + "-secret", Namespace: fixtureNamespace},
+			Data:       data,
+		}
+	}
+	sshKeyData := map[string][]byte{
+		codebaseUtil.PrivateSShKeyName: []byte("private-key"),
+		"id_rsa.pub":                   []byte("public-key"),
+		"username":                     []byte("ci-user"),
 	}
 
-	k8sClient := fake.NewClientBuilder().WithScheme(scheme).
-		WithObjects(gerrit, secret, newGitServer(brokenServerName)).Build()
-	gitServerService := krci.NewGitServerService(k8sClient, fixtureNamespace)
+	counter := &getCounter{Client: fake.NewClientBuilder().WithScheme(scheme).WithObjects(
+		newGitServer(gerritServerName, codebaseApi.GitProviderGerrit), newSecret(gerritServerName, sshKeyData),
+		newGitServer(gerritNoSecretServerName, codebaseApi.GitProviderGerrit),
+		newGitServer(githubServerName, codebaseApi.GitProviderGithub),
+		newSecret(githubServerName, map[string][]byte{codebaseUtil.GitServerSecretTokenField: []byte("t0ken")}),
+		newGitServer(brokenServerName, codebaseApi.GitProviderGithub),
+		newGitServer(tokenlessServerName, codebaseApi.GitProviderGithub), newSecret(tokenlessServerName, sshKeyData),
+	).Build()}
 
-	repoSvc := repositories.NewRepositoriesService(repositories.NewMultiProviderRepositoryService(), gitServerService)
-	orgSvc := organizations.NewOrganizationsService(
-		organizations.NewMultiProviderOrganizationsService(gitServerService), gitServerService,
-	)
-	branchesSvc := branches.NewBranchesService(branches.NewMultiProviderBranchesService(), gitServerService)
+	server, _ := buildServer(counter, fixtureNamespace)
 
-	cacheManager := cache.NewManager(
-		repoSvc.GetProvider().GetCache(),
-		orgSvc.GetProvider().GetCache(),
-		branchesSvc.GetProvider().GetCache(),
-		cache.NewPullRequestCache(),
-		cache.NewPipelineCache(),
-		cache.NewPipelineJobsCache(),
-		cache.NewPipelineJobTraceCache(),
-	)
-
-	return NewServer(
-		NewRepositoryHandler(repoSvc),
-		NewOrganizationHandler(orgSvc),
-		NewBranchHandler(branchesSvc),
-		NewCacheHandler(cacheManager),
-		nil, nil,
-	)
+	return server, counter
 }
 
 func TestNewHTTPHandlerServiceBackedErrorResponses(t *testing.T) {
 	const (
 		unsupportedDetail  = "The operation is not supported for this git server."
-		unsupportedCause   = "unsupported provider gerrit"
 		missingCause       = `"missing-server" not found`
 		missingSecretCause = `secrets "` + brokenServerName + `-secret" not found`
 
-		repositoriesTarget = "/api/v1/repositories?owner=o&gitServer="
-		repositoryTarget   = "/api/v1/repository?owner=o&repoName=r&gitServer="
-		branchesTarget     = "/api/v1/branches?owner=o&repoName=r&gitServer="
-		organizationTarget = "/api/v1/user/organizations?gitServer="
+		repositoriesTarget    = "/api/v1/repositories?owner=o&gitServer="
+		repositoryTarget      = "/api/v1/repository?owner=o&repoName=r&gitServer="
+		branchesTarget        = "/api/v1/branches?owner=o&repoName=r&gitServer="
+		organizationTarget    = "/api/v1/user/organizations?gitServer="
+		pullRequestsTarget    = "/api/v1/pull-requests?owner=o&repoName=r&gitServer="
+		pipelinesTarget       = "/api/v1/pipelines?project=p&gitServer="
+		triggerPipelineTarget = "/api/v1/trigger-pipeline?project=p&ref=main&gitServer="
+		pipelineJobsTarget    = "/api/v1/pipeline-jobs?project=p&pipelineId=1&gitServer="
+		jobTraceTarget        = "/api/v1/pipeline-job-trace?project=p&jobId=1&gitServer="
 	)
 
-	tests := []struct {
+	type testCase struct {
 		name       string
 		method     string
 		target     string
@@ -436,80 +456,81 @@ func TestNewHTTPHandlerServiceBackedErrorResponses(t *testing.T) {
 		wantDetail string
 		// wantCause is a substring of the logged error.
 		wantCause string
-	}{
-		{
-			name:       "repositories unsupported provider",
-			method:     http.MethodGet,
-			target:     repositoriesTarget + gerritServerName,
-			wantStatus: http.StatusBadRequest,
-			wantDetail: unsupportedDetail,
-			wantCause:  unsupportedCause,
-		},
-		{
-			name:       "repositories missing git server",
-			method:     http.MethodGet,
-			target:     repositoriesTarget + missingServerName,
-			wantStatus: http.StatusNotFound,
-			wantDetail: notFoundDetail,
-			wantCause:  missingCause,
-		},
-		{
-			name:       "repository unsupported provider",
-			method:     http.MethodGet,
-			target:     repositoryTarget + gerritServerName,
-			wantStatus: http.StatusBadRequest,
-			wantDetail: unsupportedDetail,
-			wantCause:  unsupportedCause,
-		},
-		{
-			name:       "repository missing git server",
-			method:     http.MethodGet,
-			target:     repositoryTarget + missingServerName,
-			wantStatus: http.StatusNotFound,
-			wantDetail: notFoundDetail,
-			wantCause:  missingCause,
-		},
-		{
-			name:       "branches unsupported provider",
-			method:     http.MethodGet,
-			target:     branchesTarget + gerritServerName,
-			wantStatus: http.StatusBadRequest,
-			wantDetail: unsupportedDetail,
-			wantCause:  unsupportedCause,
-		},
-		{
-			name:       "branches missing git server",
-			method:     http.MethodGet,
-			target:     branchesTarget + missingServerName,
-			wantStatus: http.StatusNotFound,
-			wantDetail: notFoundDetail,
-			wantCause:  missingCause,
-		},
-		{
-			name:       "organizations unsupported provider",
-			method:     http.MethodGet,
-			target:     organizationTarget + gerritServerName,
-			wantStatus: http.StatusBadRequest,
-			wantDetail: unsupportedDetail,
-			wantCause:  unsupportedCause,
-		},
-		{
-			name:       "organizations missing git server",
-			method:     http.MethodGet,
-			target:     organizationTarget + missingServerName,
-			wantStatus: http.StatusNotFound,
-			wantDetail: notFoundDetail,
-			wantCause:  missingCause,
-		},
-		{
+		// wantSecretGets is the number of Secret reads the request makes.
+		wantSecretGets int
+	}
+
+	type route struct {
+		name      string
+		method    string
+		target    string
+		operation string
+	}
+
+	routes := []route{
+		{"repositories", http.MethodGet, repositoriesTarget, "listRepositories"},
+		{"repository", http.MethodGet, repositoryTarget, "getRepository"},
+		{"branches", http.MethodGet, branchesTarget, "listBranches"},
+		{"organizations", http.MethodGet, organizationTarget, "listUserOrganizations"},
+		{"pull requests", http.MethodGet, pullRequestsTarget, "listPullRequests"},
+		{"pipelines", http.MethodGet, pipelinesTarget, "listPipelines"},
+		{"trigger pipeline", http.MethodPost, triggerPipelineTarget, "triggerPipeline"},
+		{"pipeline jobs", http.MethodGet, pipelineJobsTarget, "listPipelineJobs"},
+		{"pipeline job trace", http.MethodGet, jobTraceTarget, "getPipelineJobTrace"},
+	}
+
+	unsupported := func(name, gitServer, gitProvider string, r route) testCase {
+		return testCase{
+			name: r.name + " " + name, method: r.method, target: r.target + gitServer,
+			wantStatus: http.StatusBadRequest, wantDetail: unsupportedDetail,
+			wantCause: "provider " + gitProvider + " does not support " + r.operation,
+		}
+	}
+
+	tests := make([]testCase, 0, len(routes)*2)
+
+	for _, r := range routes {
+		tests = append(tests, unsupported("gerrit with an SSH-key secret", gerritServerName, "gerrit", r))
+		tests = append(tests, unsupported("gerrit without a secret", gerritNoSecretServerName, "gerrit", r))
+	}
+
+	// GitHub implements everything except these three.
+	for _, r := range routes {
+		switch r.operation {
+		case "triggerPipeline", "listPipelineJobs", "getPipelineJobTrace":
+			tests = append(tests, unsupported("github unsupported operation", githubServerName, "github", r))
+		}
+	}
+
+	for _, r := range routes[:4] {
+		tests = append(tests, testCase{
+			name: r.name + " missing git server", method: r.method, target: r.target + missingServerName,
+			wantStatus: http.StatusNotFound, wantDetail: notFoundDetail, wantCause: missingCause,
+		})
+	}
+
+	tests = append(tests,
+		testCase{
 			name:       "repositories git server with missing secret",
 			method:     http.MethodGet,
 			target:     repositoriesTarget + brokenServerName,
 			wantStatus: http.StatusInternalServerError,
 			wantDetail: genericDetail,
 			wantCause:  missingSecretCause,
+
+			wantSecretGets: 1,
 		},
-		{
+		testCase{
+			name:       "pull requests token provider without a token",
+			method:     http.MethodGet,
+			target:     pullRequestsTarget + tokenlessServerName,
+			wantStatus: http.StatusInternalServerError,
+			wantDetail: genericDetail,
+			wantCause:  "git provider token is empty",
+
+			wantSecretGets: 1,
+		},
+		testCase{
 			name:       "cache invalidate unknown endpoint",
 			method:     http.MethodDelete,
 			target:     "/api/v1/cache/invalidate?endpoint=bogus",
@@ -517,19 +538,21 @@ func TestNewHTTPHandlerServiceBackedErrorResponses(t *testing.T) {
 			wantDetail: "Invalid value for parameter 'endpoint'.",
 			wantCause:  "unsupported endpoint bogus",
 		},
-	}
+	)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var logs bytes.Buffer
 
-			handler := NewHTTPHandler(newStrictHandler(newServiceBackedServer(t)), newRequestLogRouter(&logs))
+			server, counter := newServiceBackedServer(t)
+			handler := NewHTTPHandler(newStrictHandler(server), newRequestLogRouter(&logs))
 
 			rec := httptest.NewRecorder()
 			handler.ServeHTTP(rec, httptest.NewRequest(tt.method, tt.target, nil))
 
 			line := requireProblemResponse(t, rec, &logs, tt.wantStatus, tt.wantDetail)
 			assert.Contains(t, line.Error, tt.wantCause)
+			assert.Equal(t, tt.wantSecretGets, counter.secrets)
 		})
 	}
 }

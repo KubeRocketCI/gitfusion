@@ -21,17 +21,22 @@ import (
 
 const testNamespace = "krci"
 
-// countingClient wraps a client.Client and counts Get calls so tests can assert that the
-// settings cache avoids repeated Kubernetes reads.
+// countingClient wraps a client.Client and counts Get calls so tests can assert which Kubernetes
+// reads a call makes.
 type countingClient struct {
 	client.Client
-	gets int
+	gets       int
+	secretGets int
 }
 
 func (c *countingClient) Get(
 	ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption,
 ) error {
 	c.gets++
+
+	if _, ok := obj.(*corev1.Secret); ok {
+		c.secretGets++
+	}
 
 	return c.Client.Get(ctx, key, obj, opts...)
 }
@@ -90,126 +95,231 @@ func newTokenSecret(gitServerName, token string) *corev1.Secret {
 	}
 }
 
+// newSSHKeySecret returns a Gerrit-style GitServer Secret: an SSH key pair and a user name, no token.
+func newSSHKeySecret(gitServerName string) *corev1.Secret {
+	return &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{Name: tokenSecretName(gitServerName), Namespace: testNamespace},
+		Data: map[string][]byte{
+			codebaseUtil.PrivateSShKeyName: []byte("private-key"),
+			"id_rsa.pub":                   []byte("public-key"),
+			"username":                     []byte("ci-user"),
+		},
+	}
+}
+
 func gitServerFixture() (*codebaseApi.GitServer, *corev1.Secret) {
 	return newGitServer("gitlab", codebaseApi.GitProviderGitlab, "gitlab.example.com"), newTokenSecret("gitlab", "t0ken")
 }
 
-func TestGetGitProviderSettings_CachesAcrossCalls(t *testing.T) {
+func allowAll(string) error { return nil }
+
+func TestResolve_CachesAcrossCalls(t *testing.T) {
 	gs, secret := gitServerFixture()
 	svc, cc := newTestService(t, gs, secret)
 
-	s1, err := svc.GetGitProviderSettings(context.Background(), "gitlab")
+	s1, err := svc.Resolve(context.Background(), "gitlab", allowAll)
 	require.NoError(t, err)
-	assert.Equal(t, "gitlab", s1.GitProvider)
-	assert.Equal(t, "t0ken", s1.Token)
+	assert.Equal(t, GitServerSettings{
+		Url: "https://gitlab.example.com", Token: "t0ken", GitProvider: "gitlab", GitServerName: "gitlab",
+	}, s1)
 	assert.Equal(t, 2, cc.gets, "cold call should read GitServer CR + Secret")
 
-	s2, err := svc.GetGitProviderSettings(context.Background(), "gitlab")
+	s2, err := svc.Resolve(context.Background(), "gitlab", allowAll)
 	require.NoError(t, err)
 	assert.Equal(t, s1, s2)
 	assert.Equal(t, 2, cc.gets, "second call within TTL must be served from cache (no extra k8s reads)")
 }
 
-func TestGetGitProviderSettings_MissingGitServerIsErrNotFound(t *testing.T) {
-	svc, _ := newTestService(t)
+func TestResolve_PassesGitProviderToCheck(t *testing.T) {
+	gs, secret := gitServerFixture()
+	svc, _ := newTestService(t, gs, secret)
 
-	_, err := svc.GetGitProviderSettings(context.Background(), "missing")
+	var got string
+
+	_, err := svc.Resolve(context.Background(), "gitlab", func(gitProvider string) error {
+		got = gitProvider
+
+		return nil
+	})
+
+	require.NoError(t, err)
+	assert.Equal(t, codebaseApi.GitProviderGitlab, got)
+}
+
+func TestResolve_UnsupportedCheckReadsNoSecret(t *testing.T) {
+	svc, cc := newTestService(t,
+		newGitServer("gerrit", codebaseApi.GitProviderGerrit, "gerrit.example.com"),
+		newSSHKeySecret("gerrit"),
+	)
+	unsupported := gferrors.UnsupportedOperation("gerrit", "listRepositories")
+
+	_, err := svc.Resolve(context.Background(), "gerrit", func(string) error { return unsupported })
+
+	require.Same(t, unsupported, err)
+	assert.Equal(t, 1, cc.gets, "unsupported call should read the GitServer CR only")
+	assert.Zero(t, cc.secretGets)
+
+	_, err = svc.Resolve(context.Background(), "gerrit", func(string) error { return unsupported })
+
+	require.Same(t, unsupported, err)
+	assert.Equal(t, 1, cc.gets, "the GitServer CR is served from cache on the second call")
+	assert.Zero(t, cc.secretGets)
+}
+
+func TestResolve_MissingGitServerIsErrNotFound(t *testing.T) {
+	svc, cc := newTestService(t)
+	checked := false
+
+	_, err := svc.Resolve(context.Background(), "missing", func(string) error {
+		checked = true
+
+		return nil
+	})
 
 	require.ErrorIs(t, err, gferrors.ErrNotFound)
 	assert.True(t, apierrors.IsNotFound(err), "expected the GitServer NotFound error to stay in the chain, got: %v", err)
 	assert.Contains(t, err.Error(), `git server missing`)
+	assert.False(t, checked, "check must not run without a GitServer")
+	assert.Zero(t, cc.secretGets)
 }
 
-func TestGetGitProviderSettings_MissingSecretIsNotErrNotFound(t *testing.T) {
+func TestResolve_MissingSecretIsNotErrNotFound(t *testing.T) {
 	gs, _ := gitServerFixture()
 	svc, _ := newTestService(t, gs)
 
-	_, err := svc.GetGitProviderSettings(context.Background(), "gitlab")
+	_, err := svc.Resolve(context.Background(), "gitlab", allowAll)
 
 	require.Error(t, err)
 	assert.NotErrorIs(t, err, gferrors.ErrNotFound)
 	assert.True(t, apierrors.IsNotFound(err), "expected the secret NotFound error, got: %v", err)
 }
 
-func TestGetGitProviderSettings_GitServerLookupFailureIsNotErrNotFound(t *testing.T) {
+func TestResolve_GitServerLookupFailureIsNotErrNotFound(t *testing.T) {
 	getErr := errors.New("api server unavailable")
 	svc := NewGitServerService(failingGetClient{err: getErr}, testNamespace)
 
-	_, err := svc.GetGitProviderSettings(context.Background(), "gitlab")
+	_, err := svc.Resolve(context.Background(), "gitlab", allowAll)
 
 	require.ErrorIs(t, err, getErr)
 	assert.NotErrorIs(t, err, gferrors.ErrNotFound)
 }
 
-func TestGetGitProviderSettings_DoesNotCacheNotFound(t *testing.T) {
-	// No GitServer CR exists -> NotFound. The error must not be cached, so the next call retries.
+func TestResolve_DoesNotCacheNotFound(t *testing.T) {
 	svc, cc := newTestService(t)
 
-	_, err := svc.GetGitProviderSettings(context.Background(), "missing")
+	_, err := svc.Resolve(context.Background(), "missing", allowAll)
 	require.Error(t, err)
 
 	first := cc.gets
 
-	_, err = svc.GetGitProviderSettings(context.Background(), "missing")
+	_, err = svc.Resolve(context.Background(), "missing", allowAll)
 	require.Error(t, err)
 	assert.Greater(t, cc.gets, first, "NotFound must not be cached; the lookup should retry")
 }
 
-func TestGetGitProviderSettings_DoesNotCacheEmptyToken(t *testing.T) {
+func TestResolve_DoesNotCacheEmptyToken(t *testing.T) {
 	gs, _ := gitServerFixture()
 	svc, cc := newTestService(t, gs, newTokenSecret("gitlab", ""))
 
-	_, err := svc.GetGitProviderSettings(context.Background(), "gitlab")
-	require.Error(t, err)
+	_, err := svc.Resolve(context.Background(), "gitlab", allowAll)
+	require.EqualError(t, err, "git provider token is empty")
 
-	first := cc.gets
+	first := cc.secretGets
 
-	_, err = svc.GetGitProviderSettings(context.Background(), "gitlab")
+	_, err = svc.Resolve(context.Background(), "gitlab", allowAll)
 	require.Error(t, err)
-	assert.Greater(t, cc.gets, first, "empty-token error must not be cached; the lookup should retry")
+	assert.Greater(t, cc.secretGets, first, "empty-token error must not be cached; the Secret should be read again")
 }
 
-func TestGetGitProviderSettingsList_ReturnsSettingsPerGitServerInNamespace(t *testing.T) {
+func TestResolve_SecretWithoutTokenFailsForEveryProvider(t *testing.T) {
+	for _, provider := range []string{
+		codebaseApi.GitProviderGithub,
+		codebaseApi.GitProviderGitlab,
+		codebaseApi.GitProviderBitbucket,
+		codebaseApi.GitProviderGerrit,
+	} {
+		t.Run(provider, func(t *testing.T) {
+			svc, _ := newTestService(t,
+				newGitServer("gs", provider, provider+".example.com"),
+				newSSHKeySecret("gs"),
+			)
+
+			_, err := svc.Resolve(context.Background(), "gs", allowAll)
+
+			require.EqualError(t, err, "git provider token is empty")
+		})
+	}
+}
+
+func TestGitServerNames_ListsGitServersInNamespaceWithoutReadingSecrets(t *testing.T) {
 	otherNamespace := newGitServer("other", codebaseApi.GitProviderGitlab, "gitlab.other.example.com")
 	otherNamespace.Namespace = "other"
-	// The secret exists in testNamespace: without the namespace filter this GitServer resolves.
-	otherNamespace.Spec.NameSshKeySecret = tokenSecretName("corp-gitlab")
-	svc, _ := newTestService(t,
+	svc, cc := newTestService(t,
 		newGitServer("corp-gitlab", codebaseApi.GitProviderGitlab, "gitlab.example.com"),
 		newTokenSecret("corp-gitlab", "gl-t0ken"),
-		newGitServer("corp-github", codebaseApi.GitProviderGithub, "github.com"),
-		newTokenSecret("corp-github", "gh-t0ken"),
+		newGitServer("corp-gerrit", codebaseApi.GitProviderGerrit, "gerrit.example.com"),
+		newSSHKeySecret("corp-gerrit"),
 		otherNamespace,
 	)
 
-	settings, err := svc.GetGitProviderSettingsList(context.Background())
+	names, err := svc.GitServerNames(context.Background())
 
 	require.NoError(t, err)
-	assert.ElementsMatch(t, []GitServerSettings{
-		{Url: "https://gitlab.example.com", Token: "gl-t0ken", GitProvider: "gitlab", GitServerName: "corp-gitlab"},
-		{Url: "https://api.github.com", Token: "gh-t0ken", GitProvider: "github", GitServerName: "corp-github"},
-	}, settings)
+	assert.ElementsMatch(t, []string{"corp-gitlab", "corp-gerrit"}, names)
+	assert.Zero(t, cc.gets)
 }
 
-func TestGetGitProviderSettingsList_FailsWhenSecretIsMissing(t *testing.T) {
-	gs, _ := gitServerFixture()
-	svc, _ := newTestService(t, gs)
-
-	settings, err := svc.GetGitProviderSettingsList(context.Background())
-
-	require.Error(t, err)
-	assert.True(t, apierrors.IsNotFound(err), "expected the secret NotFound error, got: %v", err)
-	assert.Contains(t, err.Error(), "failed to get settings for GitServer gitlab")
-	assert.Nil(t, settings)
-}
-
-func TestGetGitProviderSettingsList_FailsWhenListFails(t *testing.T) {
+func TestGitServerNames_FailsWhenListFails(t *testing.T) {
 	listErr := errors.New("api server unavailable")
 	svc := NewGitServerService(failingListClient{err: listErr}, testNamespace)
 
-	settings, err := svc.GetGitProviderSettingsList(context.Background())
+	names, err := svc.GitServerNames(context.Background())
 
 	require.ErrorIs(t, err, listErr)
 	assert.Contains(t, err.Error(), "failed to list GitServers")
-	assert.Nil(t, settings)
+	assert.Nil(t, names)
+}
+
+func TestResolve_BuildsSettingsFromCurrentGitServer(t *testing.T) {
+	gs, secret := gitServerFixture()
+	svc, cc := newTestService(t, gs, secret)
+
+	_, err := svc.Resolve(context.Background(), "gitlab", allowAll)
+	require.NoError(t, err)
+
+	changed := &codebaseApi.GitServer{}
+	require.NoError(t, cc.Get(context.Background(), client.ObjectKeyFromObject(gs), changed))
+	changed.Spec.GitProvider = codebaseApi.GitProviderGithub
+	changed.Spec.GitHost = "github.com"
+	require.NoError(t, cc.Update(context.Background(), changed))
+	svc.gitServerCache.Delete("gitlab")
+
+	var checked string
+
+	settings, err := svc.Resolve(context.Background(), "gitlab", func(gitProvider string) error {
+		checked = gitProvider
+
+		return nil
+	})
+
+	require.NoError(t, err)
+	assert.Equal(t, codebaseApi.GitProviderGithub, checked)
+	assert.Equal(t, GitServerSettings{
+		Url: "https://api.github.com", Token: "t0ken", GitProvider: "github", GitServerName: "gitlab",
+	}, settings, "settings must match the GitServer the check approved; only the token is cached")
+	assert.Equal(t, 1, cc.secretGets, "the token stays cached for the unchanged Secret")
+}
+
+func TestGitServerNames_CachesListedGitServers(t *testing.T) {
+	gs, secret := gitServerFixture()
+	svc, cc := newTestService(t, gs, secret)
+
+	_, err := svc.GitServerNames(context.Background())
+	require.NoError(t, err)
+
+	_, err = svc.Resolve(context.Background(), "gitlab", allowAll)
+
+	require.NoError(t, err)
+	assert.Equal(t, 1, cc.gets, "Resolve after GitServerNames should read the Secret only")
+	assert.Equal(t, 1, cc.secretGets)
 }

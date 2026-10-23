@@ -40,12 +40,6 @@ type fakeJobsProvider struct {
 	block chan struct{}
 }
 
-func (f *fakeJobsProvider) TriggerPipeline(
-	_ context.Context, _ string, _ string, _ []models.PipelineVariable, _ krci.GitServerSettings,
-) (*models.PipelineResponse, error) {
-	return nil, nil
-}
-
 func (f *fakeJobsProvider) ListPipelines(
 	_ context.Context, project string, settings krci.GitServerSettings, opts models.PipelineListOptions,
 ) (*models.PipelinesResponse, error) {
