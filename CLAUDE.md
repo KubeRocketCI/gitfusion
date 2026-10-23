@@ -23,7 +23,7 @@ go test ./internal/services/pipelines/... -run TestListPipelines
 
 ### Entry point & wiring
 
-`cmd/gitfusion-api/main.go` initialises the chi router with `httplog.RequestLogger` (chains chi `RequestID`, structured JSON logging and `Recoverer`), a 60 s timeout and a heartbeat, then mounts `api.BuildHandler` through `api.NewHTTPHandler`. `BuildHandler` (`internal/api/server.go`) creates a controller-runtime Kubernetes client, a `GitServerService`, one multi-provider service per resource type, and wraps them in oapi-codegen's `StrictHandler`.
+`cmd/gitfusion-api/main.go` initialises the chi router with `httplog.RequestLogger` (chains chi `RequestID`, structured JSON logging and `Recoverer`), a 60 s timeout and a heartbeat, then mounts `api.BuildHandler` through `api.NewHTTPHandler`. `BuildHandler` (`internal/api/server.go`) creates a controller-runtime Kubernetes client; `buildServer` creates a `GitServerService` and one multi-provider service per resource type. `BuildHandler` wraps them in oapi-codegen's `StrictHandler` and starts `OrganizationsService.WarmUp` in a goroutine; the warm-up skips unsupported GitServers and continues past failing ones.
 
 Required env vars: `NAMESPACE` (Kubernetes namespace to watch for `GitServer` CRs); `PORT` defaults to `8080`.
 
@@ -51,12 +51,14 @@ internal/services/<resource>/
                             dispatches by settings.GitProvider ("github" | "gitlab" | "bitbucket")
   <resource>_service.go   — thin wrapper that resolves GitServerSettings then calls the provider
 
-internal/services/github/github.go    — implements all provider interfaces for GitHub
+internal/services/github/github.go    — GitHub (no PipelineTrigger or PipelineJobsProvider)
 internal/services/gitlab/gitlab.go    — implements all provider interfaces for GitLab
-internal/services/bitbucket/bitbucket.go — Bitbucket (pipeline jobs/traces not supported here)
+internal/services/bitbucket/bitbucket.go — Bitbucket (no PipelineTrigger or PipelineJobsProvider)
 ```
 
-`internal/services/krci/gitserver.go` reads the `GitServer` CR (from `edp-codebase-operator`) and the referenced K8s Secret to build `GitServerSettings`. Token resolution is cached for 60 s (bound by token-rotation concerns).
+`internal/services/krci/gitserver.go` `Resolve` order: `GitServer` CR (from `edp-codebase-operator`) → support check → Secret `token`. An unsupported operation never reads the Secret. The token is required for every provider. Cache: CR per name, token per Secret name, 60 s each (token rotation).
+
+New operation: add one lookup in the multi-provider service that returns `gferrors.UnsupportedOperation(gitProvider, operationId)`; dispatch and `Check<Operation>` share it; the service passes `Check<Operation>` to `Resolve`. Optional capabilities (`PipelineTrigger`, `PipelineJobsProvider`) are separate interfaces found by type assertion.
 
 ### Caching
 

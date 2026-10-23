@@ -12,7 +12,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	gferrors "github.com/KubeRocketCI/gitfusion/internal/errors"
 	"github.com/KubeRocketCI/gitfusion/internal/models"
 	"github.com/KubeRocketCI/gitfusion/internal/services/krci"
 )
@@ -399,20 +398,4 @@ func TestGitHubProviderListPipelinesUnauthorized(t *testing.T) {
 	assert.Contains(t, err.Error(), "failed to list pipelines for owner/repo")
 	assert.Contains(t, err.Error(), "unauthorized")
 	assert.Contains(t, err.Error(), "401 Bad credentials")
-}
-
-func TestGitHubProviderTriggerPipelineUnsupported(t *testing.T) {
-	provider := NewGitHubProvider()
-
-	result, err := provider.TriggerPipeline(
-		context.Background(),
-		"owner/repo",
-		"main",
-		nil,
-		krci.GitServerSettings{Token: "test-token"},
-	)
-
-	require.ErrorIs(t, err, gferrors.ErrUnsupportedOperation)
-	assert.Nil(t, result)
-	assert.Contains(t, err.Error(), "not supported for GitHub")
 }

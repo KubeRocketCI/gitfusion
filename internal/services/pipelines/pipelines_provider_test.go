@@ -2,6 +2,7 @@ package pipelines
 
 import (
 	"context"
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -46,31 +47,17 @@ func TestMultiProviderPipelineService_UnsupportedProvider(t *testing.T) {
 	}
 }
 
-func TestMultiProviderPipelineService_TriggerPipeline_UnknownProviderReturnsUnsupportedOperation(t *testing.T) {
-	tests := []struct {
-		name           string
-		gitProvider    string
-		expectedErrMsg string
-	}{
-		{
-			name:           "unknown provider",
-			gitProvider:    "unknown",
-			expectedErrMsg: "unsupported provider unknown",
-		},
-		{
-			name:           "gerrit provider",
-			gitProvider:    "gerrit",
-			expectedErrMsg: "unsupported provider gerrit",
-		},
-		{
-			name:           "empty provider",
-			gitProvider:    "",
-			expectedErrMsg: "unsupported provider ",
-		},
-	}
+func requireUnsupported(t *testing.T, err error, gitProvider, operation string) {
+	t.Helper()
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	require.ErrorIs(t, err, gferrors.ErrUnsupportedOperation)
+	assert.EqualError(t, err, "provider "+gitProvider+" does not support "+operation+": unsupported operation")
+}
+
+func TestMultiProviderPipelineService_TriggerPipeline_UnsupportedProviderReturnsUnsupportedOperation(t *testing.T) {
+	// GitHub and Bitbucket are registered but do not implement PipelineTrigger.
+	for _, gitProvider := range []string{"unknown", "gerrit", "", "github", "bitbucket"} {
+		t.Run(gitProvider, func(t *testing.T) {
 			service := NewMultiProviderPipelineService()
 
 			result, err := service.TriggerPipeline(
@@ -78,12 +65,11 @@ func TestMultiProviderPipelineService_TriggerPipeline_UnknownProviderReturnsUnsu
 				"test-project",
 				"main",
 				nil,
-				krci.GitServerSettings{GitProvider: tt.gitProvider},
+				krci.GitServerSettings{GitProvider: gitProvider},
 			)
 
-			require.ErrorIs(t, err, gferrors.ErrUnsupportedOperation)
+			requireUnsupported(t, err, gitProvider, "triggerPipeline")
 			assert.Nil(t, result)
-			assert.Contains(t, err.Error(), tt.expectedErrMsg)
 		})
 	}
 }
@@ -96,81 +82,122 @@ func TestMultiProviderPipelineService_GetCache(t *testing.T) {
 }
 
 func TestMultiProviderPipelineService_ListPipelines_UnknownProviderReturnsUnsupportedOperation(t *testing.T) {
-	tests := []struct {
-		name           string
-		gitProvider    string
-		expectedErrMsg string
-	}{
-		{
-			name:           "unknown provider",
-			gitProvider:    "unknown",
-			expectedErrMsg: "unsupported provider unknown",
-		},
-		{
-			name:           "gerrit provider",
-			gitProvider:    "gerrit",
-			expectedErrMsg: "unsupported provider gerrit",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for _, gitProvider := range []string{"unknown", "gerrit"} {
+		t.Run(gitProvider, func(t *testing.T) {
 			service := NewMultiProviderPipelineService()
 
 			result, err := service.ListPipelines(
 				context.Background(),
 				"test-project",
-				krci.GitServerSettings{GitProvider: tt.gitProvider},
+				krci.GitServerSettings{GitProvider: gitProvider},
 				models.PipelineListOptions{Page: 1, PerPage: 20},
 			)
 
-			require.ErrorIs(t, err, gferrors.ErrUnsupportedOperation)
+			requireUnsupported(t, err, gitProvider, "listPipelines")
 			assert.Nil(t, result)
-			assert.Contains(t, err.Error(), tt.expectedErrMsg)
 		})
 	}
 }
 
-func TestMultiProviderPipelineService_ListPipelineJobs_UnknownProviderReturnsUnsupportedOperation(t *testing.T) {
-	tests := []struct {
-		name        string
-		gitProvider string
-	}{
-		{name: "unknown provider", gitProvider: "unknown"},
-		{name: "gerrit provider", gitProvider: "gerrit"},
-		{name: "empty provider", gitProvider: ""},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+func TestMultiProviderPipelineService_ListPipelineJobs_UnsupportedProviderReturnsUnsupportedOperation(t *testing.T) {
+	// GitHub is a registered provider but does not implement PipelineJobsProvider.
+	for _, gitProvider := range []string{"unknown", "gerrit", "", "github"} {
+		t.Run(gitProvider, func(t *testing.T) {
 			service := NewMultiProviderPipelineService()
 
 			result, err := service.ListPipelineJobs(
 				context.Background(),
 				"test-project",
 				42,
-				krci.GitServerSettings{GitProvider: tt.gitProvider},
+				krci.GitServerSettings{GitProvider: gitProvider},
 			)
 
-			require.ErrorIs(t, err, gferrors.ErrUnsupportedOperation)
+			requireUnsupported(t, err, gitProvider, "listPipelineJobs")
 			assert.Nil(t, result)
-			assert.Contains(t, err.Error(), "unsupported provider "+tt.gitProvider)
 		})
 	}
 }
 
-func TestMultiProviderPipelineService_ListPipelineJobs_GitHubReturnsUnsupportedOperation(t *testing.T) {
-	// GitHub is a registered provider but does not implement PipelineJobsProvider.
+func TestMultiProviderPipelineService_GetJobTrace_UnsupportedProviderReturnsUnsupportedOperation(t *testing.T) {
+	for _, gitProvider := range []string{"unknown", "gerrit", "github", "bitbucket"} {
+		t.Run(gitProvider, func(t *testing.T) {
+			service := NewMultiProviderPipelineService()
+
+			content, truncated, err := service.GetJobTrace(
+				context.Background(),
+				"test-project",
+				42,
+				krci.GitServerSettings{GitProvider: gitProvider},
+			)
+
+			requireUnsupported(t, err, gitProvider, "getPipelineJobTrace")
+			assert.Empty(t, content)
+			assert.False(t, truncated)
+		})
+	}
+}
+
+func TestMultiProviderPipelineService_Checks(t *testing.T) {
 	service := NewMultiProviderPipelineService()
 
-	result, err := service.ListPipelineJobs(
-		context.Background(),
-		"test-project",
-		1,
-		krci.GitServerSettings{GitProvider: "github"},
+	tests := []struct {
+		name      string
+		check     func(string) error
+		operation string
+		supported []string
+	}{
+		{"trigger", service.CheckTriggerPipeline, "triggerPipeline", []string{"gitlab"}},
+		{"list pipelines", service.CheckListPipelines, "listPipelines", []string{"github", "gitlab", "bitbucket"}},
+		{"list jobs", service.CheckListPipelineJobs, "listPipelineJobs", []string{"gitlab"}},
+		{"job trace", service.CheckGetPipelineJobTrace, "getPipelineJobTrace", []string{"gitlab"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			for _, gitProvider := range []string{"github", "gitlab", "bitbucket", "gerrit"} {
+				err := tt.check(gitProvider)
+
+				if slices.Contains(tt.supported, gitProvider) {
+					assert.NoError(t, err, gitProvider)
+
+					continue
+				}
+
+				requireUnsupported(t, err, gitProvider, tt.operation)
+			}
+		})
+	}
+}
+
+type fakeTriggerProvider struct {
+	fakeJobsProvider
+
+	gotProject string
+	gotRef     string
+	response   *models.PipelineResponse
+}
+
+func (f *fakeTriggerProvider) TriggerPipeline(
+	_ context.Context, project, ref string, _ []models.PipelineVariable, _ krci.GitServerSettings,
+) (*models.PipelineResponse, error) {
+	f.gotProject = project
+	f.gotRef = ref
+
+	return f.response, nil
+}
+
+func TestMultiProviderPipelineService_TriggerPipeline_DispatchesToTriggerProvider(t *testing.T) {
+	want := &models.PipelineResponse{}
+	fake := &fakeTriggerProvider{response: want}
+	service := NewMultiProviderPipelineService()
+	service.providers["gitlab"] = fake
+
+	got, err := service.TriggerPipeline(
+		context.Background(), "test-project", "main", nil, krci.GitServerSettings{GitProvider: "gitlab"},
 	)
 
-	require.ErrorIs(t, err, gferrors.ErrUnsupportedOperation)
-	assert.Nil(t, result)
-	assert.Contains(t, err.Error(), "provider github does not support pipeline jobs")
+	require.NoError(t, err)
+	assert.Same(t, want, got)
+	assert.Equal(t, "test-project", fake.gotProject)
+	assert.Equal(t, "main", fake.gotRef)
 }

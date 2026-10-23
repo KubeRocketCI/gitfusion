@@ -27,7 +27,7 @@ func (s *PullRequestsService) ListPullRequests(
 	gitServerName, owner, repoName string,
 	opts models.PullRequestListOptions,
 ) (*models.PullRequestsResponse, error) {
-	settings, err := s.gitServerService.GetGitProviderSettings(ctx, gitServerName)
+	settings, err := s.gitServerService.Resolve(ctx, gitServerName, s.pullRequestsProvider.CheckListPullRequests)
 	if err != nil {
 		return nil, err
 	}

@@ -27,7 +27,7 @@ func (s *BranchesService) ListBranches(
 	gitServerName, owner, repoName string,
 	opts models.ListOptions,
 ) ([]models.Branch, error) {
-	settings, err := s.gitServerService.GetGitProviderSettings(ctx, gitServerName)
+	settings, err := s.gitServerService.Resolve(ctx, gitServerName, s.branchesProvider.CheckListBranches)
 	if err != nil {
 		return nil, err
 	}

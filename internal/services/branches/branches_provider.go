@@ -41,15 +41,31 @@ func NewMultiProviderBranchesService() *MultiProviderBranchesService {
 	}
 }
 
+// CheckListBranches reports whether the provider implements listBranches.
+func (m *MultiProviderBranchesService) CheckListBranches(gitProvider string) error {
+	_, err := m.listBranchesProvider(gitProvider)
+
+	return err
+}
+
+func (m *MultiProviderBranchesService) listBranchesProvider(gitProvider string) (BranchesProvider, error) {
+	provider, ok := m.providers[gitProvider]
+	if !ok {
+		return nil, gferrors.UnsupportedOperation(gitProvider, "listBranches")
+	}
+
+	return provider, nil
+}
+
 func (m *MultiProviderBranchesService) ListBranches(
 	ctx context.Context,
 	owner, repo string,
 	settings krci.GitServerSettings,
 	opts models.ListOptions,
 ) ([]models.Branch, error) {
-	provider, ok := m.providers[settings.GitProvider]
-	if !ok {
-		return nil, fmt.Errorf("unsupported provider %s: %w", settings.GitProvider, gferrors.ErrUnsupportedOperation)
+	provider, err := m.listBranchesProvider(settings.GitProvider)
+	if err != nil {
+		return nil, err
 	}
 
 	key := fmt.Sprintf("%s|%s|%s|%s", settings.GitServerName, owner, repo, pointer.ValueOrEmpty(opts.Name))

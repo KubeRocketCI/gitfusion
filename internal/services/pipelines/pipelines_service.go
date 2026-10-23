@@ -27,7 +27,7 @@ func NewPipelinesService(
 }
 
 // TriggerPipeline triggers a CI/CD pipeline for the specified git server, project, and ref.
-// It fetches git server settings from Kubernetes and delegates to the appropriate provider.
+// It resolves the git server settings after the support check and delegates to the appropriate provider.
 func (s *PipelinesService) TriggerPipeline(
 	ctx context.Context,
 	gitServerName string,
@@ -35,25 +35,23 @@ func (s *PipelinesService) TriggerPipeline(
 	ref string,
 	variables []models.PipelineVariable,
 ) (*models.PipelineResponse, error) {
-	// Get settings from K8s (GitServer CR + Secret)
-	settings, err := s.gitServerService.GetGitProviderSettings(ctx, gitServerName)
+	settings, err := s.gitServerService.Resolve(ctx, gitServerName, s.pipelinesProvider.CheckTriggerPipeline)
 	if err != nil {
 		return nil, err
 	}
 
-	// Delegate to multi-provider service
 	return s.pipelinesProvider.TriggerPipeline(ctx, project, ref, variables, settings)
 }
 
 // ListPipelines lists CI/CD pipelines for the specified git server and project.
-// It fetches git server settings from Kubernetes and delegates to the appropriate provider.
+// It resolves the git server settings after the support check and delegates to the appropriate provider.
 func (s *PipelinesService) ListPipelines(
 	ctx context.Context,
 	gitServerName string,
 	project string,
 	opts models.PipelineListOptions,
 ) (*models.PipelinesResponse, error) {
-	settings, err := s.gitServerService.GetGitProviderSettings(ctx, gitServerName)
+	settings, err := s.gitServerService.Resolve(ctx, gitServerName, s.pipelinesProvider.CheckListPipelines)
 	if err != nil {
 		return nil, err
 	}
@@ -68,7 +66,7 @@ func (s *PipelinesService) ListPipelineJobs(
 	project string,
 	pipelineID int,
 ) ([]models.PipelineJob, error) {
-	settings, err := s.gitServerService.GetGitProviderSettings(ctx, gitServerName)
+	settings, err := s.gitServerService.Resolve(ctx, gitServerName, s.pipelinesProvider.CheckListPipelineJobs)
 	if err != nil {
 		return nil, err
 	}
@@ -83,7 +81,7 @@ func (s *PipelinesService) GetJobTrace(
 	project string,
 	jobID int,
 ) (string, bool, error) {
-	settings, err := s.gitServerService.GetGitProviderSettings(ctx, gitServerName)
+	settings, err := s.gitServerService.Resolve(ctx, gitServerName, s.pipelinesProvider.CheckGetPipelineJobTrace)
 	if err != nil {
 		return "", false, err
 	}

@@ -8,7 +8,6 @@ import (
 
 	"github.com/google/go-github/v72/github"
 
-	gferrors "github.com/KubeRocketCI/gitfusion/internal/errors"
 	"github.com/KubeRocketCI/gitfusion/internal/models"
 	"github.com/KubeRocketCI/gitfusion/internal/services/common"
 	"github.com/KubeRocketCI/gitfusion/internal/services/krci"
@@ -180,15 +179,4 @@ func mapPipelineStatusToGitHub(status string) *string {
 	}
 
 	return &v
-}
-
-// TriggerPipeline is not supported for GitHub.
-func (g *GitHubProvider) TriggerPipeline(
-	_ context.Context,
-	_ string,
-	_ string,
-	_ []models.PipelineVariable,
-	_ krci.GitServerSettings,
-) (*models.PipelineResponse, error) {
-	return nil, fmt.Errorf("trigger pipeline is not supported for GitHub: %w", gferrors.ErrUnsupportedOperation)
 }

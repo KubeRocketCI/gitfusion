@@ -12,6 +12,13 @@ import (
 	"github.com/KubeRocketCI/gitfusion/internal/services/krci"
 )
 
+func requireUnsupportedForGerrit(t *testing.T, err error, operation string) {
+	t.Helper()
+
+	require.ErrorIs(t, err, gferrors.ErrUnsupportedOperation)
+	assert.EqualError(t, err, "provider gerrit does not support "+operation+": unsupported operation")
+}
+
 func TestMultiProviderRepositoryService_GetRepository_UnknownProviderReturnsUnsupportedOperation(t *testing.T) {
 	service := NewMultiProviderRepositoryService()
 
@@ -22,9 +29,8 @@ func TestMultiProviderRepositoryService_GetRepository_UnknownProviderReturnsUnsu
 		krci.GitServerSettings{GitProvider: "gerrit"},
 	)
 
-	require.ErrorIs(t, err, gferrors.ErrUnsupportedOperation)
+	requireUnsupportedForGerrit(t, err, "getRepository")
 	assert.Nil(t, result)
-	assert.Contains(t, err.Error(), "unsupported provider gerrit")
 }
 
 func TestMultiProviderRepositoryService_ListRepositories_UnknownProviderReturnsUnsupportedOperation(t *testing.T) {
@@ -37,7 +43,18 @@ func TestMultiProviderRepositoryService_ListRepositories_UnknownProviderReturnsU
 		models.ListOptions{},
 	)
 
-	require.ErrorIs(t, err, gferrors.ErrUnsupportedOperation)
+	requireUnsupportedForGerrit(t, err, "listRepositories")
 	assert.Nil(t, result)
-	assert.Contains(t, err.Error(), "unsupported provider gerrit")
+}
+
+func TestMultiProviderRepositoryService_Checks(t *testing.T) {
+	service := NewMultiProviderRepositoryService()
+
+	for _, provider := range []string{"github", "gitlab", "bitbucket"} {
+		assert.NoError(t, service.CheckGetRepository(provider), provider)
+		assert.NoError(t, service.CheckListRepositories(provider), provider)
+	}
+
+	requireUnsupportedForGerrit(t, service.CheckGetRepository("gerrit"), "getRepository")
+	requireUnsupportedForGerrit(t, service.CheckListRepositories("gerrit"), "listRepositories")
 }

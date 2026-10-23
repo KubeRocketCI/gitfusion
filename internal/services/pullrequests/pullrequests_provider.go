@@ -40,15 +40,31 @@ func NewMultiProviderPullRequestsService() *MultiProviderPullRequestsService {
 	}
 }
 
+// CheckListPullRequests reports whether the provider implements listPullRequests.
+func (m *MultiProviderPullRequestsService) CheckListPullRequests(gitProvider string) error {
+	_, err := m.listPullRequestsProvider(gitProvider)
+
+	return err
+}
+
+func (m *MultiProviderPullRequestsService) listPullRequestsProvider(gitProvider string) (PullRequestsProvider, error) {
+	provider, ok := m.providers[gitProvider]
+	if !ok {
+		return nil, gferrors.UnsupportedOperation(gitProvider, "listPullRequests")
+	}
+
+	return provider, nil
+}
+
 func (m *MultiProviderPullRequestsService) ListPullRequests(
 	ctx context.Context,
 	owner, repo string,
 	settings krci.GitServerSettings,
 	opts models.PullRequestListOptions,
 ) (*models.PullRequestsResponse, error) {
-	provider, ok := m.providers[settings.GitProvider]
-	if !ok {
-		return nil, fmt.Errorf("unsupported provider %s: %w", settings.GitProvider, gferrors.ErrUnsupportedOperation)
+	provider, err := m.listPullRequestsProvider(settings.GitProvider)
+	if err != nil {
+		return nil, err
 	}
 
 	key := fmt.Sprintf("%s|%s|%s|%s|%d|%d", settings.GitServerName, owner, repo, opts.State, opts.Page, opts.PerPage)

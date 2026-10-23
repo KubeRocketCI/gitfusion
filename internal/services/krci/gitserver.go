@@ -17,19 +17,20 @@ import (
 	gferrors "github.com/KubeRocketCI/gitfusion/internal/errors"
 )
 
-// settingsCacheTTL is short because the cached value holds the provider token, bounding how long a
-// rotated token stays usable.
+// cacheTTL bounds how long a rotated token or a changed GitServer stays in use.
 const (
-	settingsCacheTTL      = 60 * time.Second
-	settingsCacheCapacity = 200
+	cacheTTL      = 60 * time.Second
+	cacheCapacity = 200
 )
 
 type GitServerService struct {
 	k8sClinet client.Client
 	namespace string
 
-	// settingsCache caches resolved settings per git server name; fetch errors are not cached.
-	settingsCache *sturdyc.Client[GitServerSettings]
+	// gitServerCache caches the GitServer CR per name; fetch errors are not cached.
+	gitServerCache *sturdyc.Client[gitServer]
+	// tokenCache caches the provider token per Secret name; fetch errors are not cached.
+	tokenCache *sturdyc.Client[string]
 }
 
 type GitServerSettings struct {
@@ -39,91 +40,114 @@ type GitServerSettings struct {
 	GitServerName string
 }
 
+// gitServer is the part of a GitServer CR that is readable without the Secret.
+type gitServer struct {
+	Name        string
+	GitProvider string
+	Url         string
+	SecretName  string
+}
+
 func NewGitServerService(k8sClinet client.Client, namespace string) *GitServerService {
 	return &GitServerService{
-		k8sClinet:     k8sClinet,
-		namespace:     namespace,
-		settingsCache: newGitServerSettingsCache(),
+		k8sClinet:      k8sClinet,
+		namespace:      namespace,
+		gitServerCache: newCache[gitServer](),
+		tokenCache:     newCache[string](),
 	}
 }
 
-func newGitServerSettingsCache() *sturdyc.Client[GitServerSettings] {
+func newCache[T any]() *sturdyc.Client[T] {
 	numShards := 8
 	evictionPercentage := 10
 
-	return sturdyc.New[GitServerSettings](
-		settingsCacheCapacity, numShards, settingsCacheTTL, evictionPercentage,
-	)
+	return sturdyc.New[T](cacheCapacity, numShards, cacheTTL, evictionPercentage)
 }
 
-// GetGitProviderSettings returns the settings of the named GitServer.
+// Resolve returns the settings of the named GitServer. Order: GitServer CR → check(gitProvider) → Secret + token.
 // A GitServer that does not exist yields an error matching gferrors.ErrNotFound; a missing Secret does not.
-func (g *GitServerService) GetGitProviderSettings(
+// An error from check is returned unchanged and the Secret is not read.
+func (g *GitServerService) Resolve(
 	ctx context.Context,
-	gitServerName string,
+	name string,
+	check func(gitProvider string) error,
 ) (GitServerSettings, error) {
-	return g.settingsCache.GetOrFetch(ctx, gitServerName, func(ctx context.Context) (GitServerSettings, error) {
-		gitServer := &codebaseApi.GitServer{}
-		if err := g.k8sClinet.Get(
-			ctx,
-			client.ObjectKey{Name: gitServerName, Namespace: g.namespace},
-			gitServer,
-		); err != nil {
-			if apierrors.IsNotFound(err) {
-				return GitServerSettings{}, fmt.Errorf("git server %s: %w: %w", gitServerName, gferrors.ErrNotFound, err)
-			}
+	gs, err := g.getGitServer(ctx, name)
+	if err != nil {
+		return GitServerSettings{}, err
+	}
 
-			return GitServerSettings{}, err
-		}
+	if err = check(gs.GitProvider); err != nil {
+		return GitServerSettings{}, err
+	}
 
-		return g.getGitProviderSettingsForServer(ctx, gitServer)
-	})
+	token, err := g.getToken(ctx, gs.SecretName)
+	if err != nil {
+		return GitServerSettings{}, err
+	}
+
+	return GitServerSettings{
+		Url:           gs.Url,
+		Token:         token,
+		GitProvider:   gs.GitProvider,
+		GitServerName: gs.Name,
+	}, nil
 }
 
-func (g *GitServerService) GetGitProviderSettingsList(ctx context.Context) ([]GitServerSettings, error) {
+// GitServerNames lists GitServer names in the namespace and caches each listed GitServer; reads no Secrets.
+func (g *GitServerService) GitServerNames(ctx context.Context) ([]string, error) {
 	gitServerList := &codebaseApi.GitServerList{}
 	if err := g.k8sClinet.List(ctx, gitServerList, client.InNamespace(g.namespace)); err != nil {
 		return nil, fmt.Errorf("failed to list GitServers: %w", err)
 	}
 
-	settingsList := make([]GitServerSettings, 0, len(gitServerList.Items))
+	names := make([]string, 0, len(gitServerList.Items))
 
 	for i := range gitServerList.Items {
-		gs := &gitServerList.Items[i]
-		settings, err := g.getGitProviderSettingsForServer(ctx, gs)
-
-		if err != nil {
-			return nil, fmt.Errorf("failed to get settings for GitServer %s: %w", gs.Name, err)
-		}
-
-		settingsList = append(settingsList, settings)
+		cr := &gitServerList.Items[i]
+		g.gitServerCache.Set(cr.Name, gitServerFromCR(cr))
+		names = append(names, cr.Name)
 	}
 
-	return settingsList, nil
+	return names, nil
 }
 
-func (g *GitServerService) getGitProviderSettingsForServer(
-	ctx context.Context,
-	gitServer *codebaseApi.GitServer,
-) (GitServerSettings, error) {
-	secret := &corev1.Secret{}
-	if err := g.k8sClinet.Get(
-		ctx,
-		client.ObjectKey{Name: gitServer.Spec.NameSshKeySecret, Namespace: g.namespace},
-		secret,
-	); err != nil {
-		return GitServerSettings{}, err
-	}
+func (g *GitServerService) getGitServer(ctx context.Context, name string) (gitServer, error) {
+	return g.gitServerCache.GetOrFetch(ctx, name, func(ctx context.Context) (gitServer, error) {
+		cr := &codebaseApi.GitServer{}
+		if err := g.k8sClinet.Get(ctx, client.ObjectKey{Name: name, Namespace: g.namespace}, cr); err != nil {
+			if apierrors.IsNotFound(err) {
+				return gitServer{}, fmt.Errorf("git server %s: %w: %w", name, gferrors.ErrNotFound, err)
+			}
 
-	token := string(secret.Data[codebaseUtil.GitServerSecretTokenField])
-	if token == "" {
-		return GitServerSettings{}, errors.New("git provider token is empty")
-	}
+			return gitServer{}, err
+		}
 
-	return GitServerSettings{
-		Url:           gitprovider.GetGitProviderAPIURL(gitServer),
-		Token:         token,
-		GitProvider:   gitServer.Spec.GitProvider,
-		GitServerName: gitServer.Name,
-	}, nil
+		return gitServerFromCR(cr), nil
+	})
+}
+
+func gitServerFromCR(cr *codebaseApi.GitServer) gitServer {
+	return gitServer{
+		Name:        cr.Name,
+		GitProvider: cr.Spec.GitProvider,
+		Url:         gitprovider.GetGitProviderAPIURL(cr),
+		SecretName:  cr.Spec.NameSshKeySecret,
+	}
+}
+
+func (g *GitServerService) getToken(ctx context.Context, secretName string) (string, error) {
+	return g.tokenCache.GetOrFetch(ctx, secretName, func(ctx context.Context) (string, error) {
+		secret := &corev1.Secret{}
+		if err := g.k8sClinet.Get(ctx, client.ObjectKey{Name: secretName, Namespace: g.namespace}, secret); err != nil {
+			return "", err
+		}
+
+		token := string(secret.Data[codebaseUtil.GitServerSecretTokenField])
+		if token == "" {
+			return "", errors.New("git provider token is empty")
+		}
+
+		return token, nil
+	})
 }

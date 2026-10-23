@@ -773,14 +773,3 @@ func mapPipelineStatusToBitbucketQuery(status string) string {
 		return ""
 	}
 }
-
-// TriggerPipeline is not supported for Bitbucket.
-func (b *BitbucketService) TriggerPipeline(
-	_ context.Context,
-	_ string,
-	_ string,
-	_ []models.PipelineVariable,
-	_ krci.GitServerSettings,
-) (*models.PipelineResponse, error) {
-	return nil, fmt.Errorf("trigger pipeline is not supported for Bitbucket: %w", gferrors.ErrUnsupportedOperation)
-}

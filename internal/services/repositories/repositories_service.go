@@ -26,7 +26,7 @@ func (r *RepositoriesService) GetRepository(
 	ctx context.Context,
 	gitServerName, owner, repo string,
 ) (*models.Repository, error) {
-	settings, err := r.gitServerService.GetGitProviderSettings(ctx, gitServerName)
+	settings, err := r.gitServerService.Resolve(ctx, gitServerName, r.gitRepositoriesProvider.CheckGetRepository)
 	if err != nil {
 		return nil, err
 	}
@@ -39,7 +39,7 @@ func (r *RepositoriesService) ListRepositories(
 	gitServerName, owner string,
 	listOptions models.ListOptions,
 ) ([]models.Repository, error) {
-	settings, err := r.gitServerService.GetGitProviderSettings(ctx, gitServerName)
+	settings, err := r.gitServerService.Resolve(ctx, gitServerName, r.gitRepositoriesProvider.CheckListRepositories)
 	if err != nil {
 		return nil, err
 	}

@@ -47,14 +47,45 @@ func NewMultiProviderRepositoryService() *MultiProviderRepositoryService {
 	}
 }
 
+// CheckGetRepository reports whether the provider implements getRepository.
+func (m *MultiProviderRepositoryService) CheckGetRepository(gitProvider string) error {
+	_, err := m.getRepositoryProvider(gitProvider)
+
+	return err
+}
+
+// CheckListRepositories reports whether the provider implements listRepositories.
+func (m *MultiProviderRepositoryService) CheckListRepositories(gitProvider string) error {
+	_, err := m.listRepositoriesProvider(gitProvider)
+
+	return err
+}
+
+func (m *MultiProviderRepositoryService) getRepositoryProvider(gitProvider string) (RepositoriesProvider, error) {
+	return m.lookup(gitProvider, "getRepository")
+}
+
+func (m *MultiProviderRepositoryService) listRepositoriesProvider(gitProvider string) (RepositoriesProvider, error) {
+	return m.lookup(gitProvider, "listRepositories")
+}
+
+func (m *MultiProviderRepositoryService) lookup(gitProvider, operation string) (RepositoriesProvider, error) {
+	provider, ok := m.providers[gitProvider]
+	if !ok {
+		return nil, gferrors.UnsupportedOperation(gitProvider, operation)
+	}
+
+	return provider, nil
+}
+
 func (m *MultiProviderRepositoryService) GetRepository(
 	ctx context.Context,
 	owner, repo string,
 	settings krci.GitServerSettings,
 ) (*models.Repository, error) {
-	provider, ok := m.providers[settings.GitProvider]
-	if !ok {
-		return nil, fmt.Errorf("unsupported provider %s: %w", settings.GitProvider, gferrors.ErrUnsupportedOperation)
+	provider, err := m.getRepositoryProvider(settings.GitProvider)
+	if err != nil {
+		return nil, err
 	}
 
 	return provider.GetRepository(ctx, owner, repo, settings)
@@ -66,9 +97,9 @@ func (m *MultiProviderRepositoryService) ListRepositories(
 	settings krci.GitServerSettings,
 	listOptions models.ListOptions,
 ) ([]models.Repository, error) {
-	provider, ok := m.providers[settings.GitProvider]
-	if !ok {
-		return nil, fmt.Errorf("unsupported provider %s: %w", settings.GitProvider, gferrors.ErrUnsupportedOperation)
+	provider, err := m.listRepositoriesProvider(settings.GitProvider)
+	if err != nil {
+		return nil, err
 	}
 
 	key := fmt.Sprintf("%s|%s|%s", settings.GitServerName, owner, pointer.ValueOrEmpty(listOptions.Name))

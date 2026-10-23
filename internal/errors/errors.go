@@ -22,6 +22,12 @@ func (e *InvalidParamError) Unwrap() error {
 	return e.Err
 }
 
+// UnsupportedOperation returns an error matching ErrUnsupportedOperation that names the git provider and the
+// OpenAPI operationId.
+func UnsupportedOperation(gitProvider, operation string) error {
+	return fmt.Errorf("provider %s does not support %s: %w", gitProvider, operation, ErrUnsupportedOperation)
+}
+
 // Predefined errors
 var (
 	ErrNotFound = errors.New("not found")
