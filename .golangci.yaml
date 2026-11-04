@@ -23,6 +23,8 @@ linters:
     - wsl
     - lll
   settings:
+    goconst:
+      ignore-tests: true
     revive:
       rules:
         - name: comment-spacings

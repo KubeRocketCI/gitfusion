@@ -1,6 +1,6 @@
 # v2.7.0+ binds an empty required query parameter as present; keep at v2.6.x.
 OAPICODEGEN_VERSION ?= v2.6.0
-GOLANGCI_LINT_VERSION ?= v2.1.6
+GOLANGCI_LINT_VERSION ?= v2.15.0
 HELMDOCS_VERSION ?= v1.14.2
 GITCHGLOG_VERSION ?= v0.15.4
 GO_CRAP_VERSION ?= v0.5.1

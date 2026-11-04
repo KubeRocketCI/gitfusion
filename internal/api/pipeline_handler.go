@@ -9,6 +9,12 @@ import (
 	"github.com/KubeRocketCI/gitfusion/internal/models"
 )
 
+// Query parameter names as declared in oapi.yaml.
+const (
+	paramPipelineID = "pipelineId"
+	paramJobID      = "jobId"
+)
+
 // pipelineService abstracts the pipeline capabilities
 // so the handler can be tested without a real service.
 type pipelineService interface {
@@ -120,7 +126,7 @@ func (h *PipelineHandler) ListPipelineJobs(
 ) (ListPipelineJobsResponseObject, error) {
 	pipelineID, err := strconv.Atoi(request.Params.PipelineId)
 	if err != nil {
-		return nil, &gferrors.InvalidParamError{Param: "pipelineId", Err: err}
+		return nil, &gferrors.InvalidParamError{Param: paramPipelineID, Err: err}
 	}
 
 	jobs, err := h.pipelinesService.ListPipelineJobs(ctx, request.Params.GitServer, request.Params.Project, pipelineID)
@@ -138,7 +144,7 @@ func (h *PipelineHandler) GetPipelineJobTrace(
 ) (GetPipelineJobTraceResponseObject, error) {
 	jobID, err := strconv.Atoi(request.Params.JobId)
 	if err != nil {
-		return nil, &gferrors.InvalidParamError{Param: "jobId", Err: err}
+		return nil, &gferrors.InvalidParamError{Param: paramJobID, Err: err}
 	}
 
 	trace, truncated, err := h.pipelinesService.GetJobTrace(ctx, request.Params.GitServer, request.Params.Project, jobID)
