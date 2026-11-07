@@ -1,6 +1,22 @@
 <a name="unreleased"></a>
 ## [Unreleased]
 
+### Routine
+
+- Update current development version
+
+
+<a name="v0.8.0"></a>
+## [v0.8.0] - 2026-11-07
+### Bug Fixes
+
+- check provider support before reading GitServer credentials
+
+### Routine
+
+- Bump Go to 1.27.3
+- Update current development version
+
 
 <a name="v0.7.0"></a>
 ## [v0.7.0] - 2026-10-20
@@ -137,10 +153,6 @@
 
 - Incomplete branch list for Bitbucket ([#41](https://github.com/KubeRocketCI/gitfusion/issues/41))
 
-### Routine
-
-- Enable CHANGELOG.md generation([#37](https://github.com/KubeRocketCI/gitfusion/issues/37))
-
 
 <a name="v0.1.0"></a>
 ## v0.1.0 - 2025-07-18
@@ -161,6 +173,7 @@
 
 ### Routine
 
+- Enable CHANGELOG.md generation([#37](https://github.com/KubeRocketCI/gitfusion/issues/37))
 - Add multi-arch build support ([#31](https://github.com/KubeRocketCI/gitfusion/issues/31))
 - Bump CodeQL version ([#26](https://github.com/KubeRocketCI/gitfusion/issues/26))
 - Align github templates ([#26](https://github.com/KubeRocketCI/gitfusion/issues/26))
@@ -175,7 +188,8 @@
 - Add GitHub Copilot configuration and assistance tools ([#17](https://github.com/KubeRocketCI/gitfusion/issues/17))
 
 
-[Unreleased]: https://github.com/KubeRocketCI/gitfusion/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/KubeRocketCI/gitfusion/compare/v0.8.0...HEAD
+[v0.8.0]: https://github.com/KubeRocketCI/gitfusion/compare/v0.7.0...v0.8.0
 [v0.7.0]: https://github.com/KubeRocketCI/gitfusion/compare/v0.6.1...v0.7.0
 [v0.6.1]: https://github.com/KubeRocketCI/gitfusion/compare/v0.6.0...v0.6.1
 [v0.6.0]: https://github.com/KubeRocketCI/gitfusion/compare/v0.5.0...v0.6.0
